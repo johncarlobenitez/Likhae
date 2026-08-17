@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+/*
+|--------------------------------------------------------------------------
+| LIKHAE Buyer - Checkout Screen
+|--------------------------------------------------------------------------
+| resources/css/buyer/checkout.css
+|--------------------------------------------------------------------------
+*/
+
+@source "../../views/Buyer/checkout/index.blade.php";
+@source "../../views/Buyer/**/*.blade.php";
+@source "../../js/**/*.js";
+
+@theme {
+    --color-likhae-red: #d92d2f;
+    --color-likhae-red-dark: #bd2024;
+    --color-likhae-paper: #f5f2ed;
+    --color-likhae-ink: #111111;
+    --color-likhae-green: #079b72;
+
+    --font-sans: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    min-width: 320px;
+    background: #f5f2ed;
+    color: #111111;
+}
+
+img {
+    display: block;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button,
+select {
+    cursor: pointer;
+}
+
+::selection {
+    background: #d92d2f;
+    color: #ffffff;
+}
+
+.hide-scrollbar {
+    scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+    accent-color: #d92d2f;
+}
+
+@layer components {
+    .likhae-container {
+        @apply mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8;
+    }
+
+    .buyer-header-action {
+        @apply flex min-w-10 flex-col items-center justify-center gap-1 px-1 text-[#57534e] transition hover:text-[#d92d2f];
+    }
+
+    .header-count {
+        @apply absolute -right-2 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-[#d92d2f] px-1 text-[8px] font-black leading-none text-white;
+    }
+
+    .buyer-section-eyebrow {
+        @apply flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.24em] text-[#716b64];
+    }
+
+    .buyer-section-eyebrow::before {
+        content: "";
+        @apply block h-4 w-[2px] bg-[#d92d2f];
+    }
+
+    .checkout-section {
+        @apply overflow-hidden border border-[#dfd9d2] bg-white;
+    }
+
+    .checkout-section-header {
+        @apply flex items-center justify-between gap-4 border-b border-[#e9e3dc] px-5 py-4 sm:px-6;
+    }
+
+    .checkout-section-header > div {
+        @apply flex min-w-0 items-center gap-3;
+    }
+
+    .checkout-section-number {
+        @apply grid h-8 min-w-8 place-items-center bg-[#111] px-1 text-[9px] font-black text-white;
+    }
+
+    .checkout-section-header h2 {
+        @apply text-sm font-black text-[#2d2926];
+    }
+
+    .checkout-section-header p:not(.checkout-section-number) {
+        @apply mt-1 text-[10px] text-[#9c958d];
+    }
+
+    .section-action {
+        @apply shrink-0 text-[10px] font-bold text-[#d92d2f] transition hover:text-[#a91f22];
+    }
+
+    .shipping-option {
+        @apply block cursor-pointer;
+    }
+
+    .shipping-option-box {
+        @apply flex items-start justify-between gap-4 border border-[#ddd6ce] bg-white p-4 transition hover:border-[#d92d2f];
+    }
+
+    .shipping-radio:checked + .shipping-option-box {
+        @apply border-[#d92d2f] bg-[#fff6f6];
+    }
+
+    .payment-option {
+        @apply block cursor-pointer;
+    }
+
+    .payment-option-box {
+        @apply flex min-h-[82px] items-center gap-3 border border-[#ddd6ce] bg-white p-4 transition hover:border-[#d92d2f];
+    }
+
+    .payment-radio:checked + .payment-option-box {
+        @apply border-[#d92d2f] bg-[#fff6f6];
+    }
+
+    .payment-icon {
+        @apply grid h-10 w-10 shrink-0 place-items-center bg-[#111] text-xs font-black text-white;
+    }
+
+    .payment-option-box strong {
+        @apply block text-xs font-bold text-[#302d2a];
+    }
+
+    .payment-option-box small {
+        @apply mt-1 block text-[10px] leading-4 text-[#958e86];
+    }
+
+    .footer-title {
+        @apply text-[11px] font-black tracking-[0.2em] text-white;
+    }
+
+    .footer-links {
+        @apply mt-5 flex flex-col gap-4 text-xs text-white/30;
+    }
+
+    .footer-links a {
+        @apply transition hover:text-white;
+    }
+}
+
+@media (max-width: 639px) {
+    body {
+        overflow-x: hidden;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}

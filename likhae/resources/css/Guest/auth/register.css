@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+/*
+|--------------------------------------------------------------------------
+| LIKHAE Guest - Buyer Registration
+|--------------------------------------------------------------------------
+| resources/css/guest/auth/register.css
+|--------------------------------------------------------------------------
+*/
+
+@source "../../../views/Guest/auth/register.blade.php";
+@source "../../../views/Guest/auth/**/*.blade.php";
+@source "../../../js/**/*.js";
+
+@theme {
+    --color-likhae-red: #d92d2f;
+    --color-likhae-red-dark: #bd2024;
+    --color-likhae-paper: #f5f2ed;
+    --color-likhae-ink: #111111;
+
+    --font-sans: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    min-width: 320px;
+    background: #f5f2ed;
+    color: #111111;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button,
+select,
+input[type="file"] {
+    cursor: pointer;
+}
+
+::selection {
+    background: #d92d2f;
+    color: #ffffff;
+}
+
+@layer components {
+    .auth-tab {
+        @apply relative flex h-[52px] items-center justify-center text-sm font-semibold text-[#9b948c] transition hover:text-[#d92d2f];
+    }
+
+    .auth-tab.is-active {
+        @apply text-[#d92d2f];
+    }
+
+    .auth-tab.is-active::after {
+        content: "";
+        @apply absolute bottom-[-1px] left-0 right-0 h-[2px] bg-[#d92d2f];
+    }
+
+    .form-section {
+        @apply mt-9 border-t border-[#ece6df] pt-8;
+    }
+
+    .form-section-heading {
+        @apply flex items-center justify-between gap-4;
+    }
+
+    .form-section-heading > div {
+        @apply flex items-center gap-3;
+    }
+
+    .form-section-number {
+        @apply grid h-7 min-w-7 place-items-center bg-[#111111] px-1 text-[9px] font-black text-white;
+    }
+
+    .form-section-heading h2 {
+        @apply text-base font-black tracking-[-0.02em] text-[#2b2825];
+    }
+
+    .form-label {
+        @apply mb-2 block text-[10px] font-bold uppercase tracking-[0.16em] text-[#817a72];
+    }
+
+    .form-label span {
+        @apply text-[#d92d2f];
+    }
+
+    .form-input {
+        @apply h-12 w-full border border-[#ddd6ce] bg-white px-4 text-sm text-[#302d2a] outline-none transition placeholder:text-[#c1bab2] focus:border-[#d92d2f] focus:ring-1 focus:ring-[#d92d2f]/10;
+    }
+
+    .password-toggle {
+        @apply absolute inset-y-0 right-0 grid w-12 place-items-center text-[#b3aca4] transition hover:text-[#d92d2f];
+    }
+}
+
+select.form-input {
+    appearance: auto;
+}
+
+textarea.form-input {
+    height: auto;
+}
+
+@media (max-width: 480px) {
+    body {
+        background: #ffffff;
+    }
+
+    main {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+
+    section[class*="shadow"] {
+        box-shadow: none !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}
