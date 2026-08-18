@@ -1,0 +1,251 @@
+@import "tailwindcss";
+
+/*
+|--------------------------------------------------------------------------
+| LIKHAE Buyer - Order Details / Tracking
+|--------------------------------------------------------------------------
+| resources/css/buyer/order-details.css
+|--------------------------------------------------------------------------
+*/
+
+@source "../../views/Buyer/**/*.blade.php";
+@source "../../js/**/*.js";
+
+@theme {
+    --color-likhae-red: #d92d2f;
+    --color-likhae-red-dark: #bd2024;
+    --color-likhae-paper: #f5f2ed;
+    --color-likhae-ink: #111111;
+    --color-likhae-green: #079b72;
+
+    --font-sans: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    min-width: 320px;
+    background: #f5f2ed;
+    color: #111111;
+}
+
+img {
+    display: block;
+}
+
+button,
+a,
+input,
+select {
+    -webkit-tap-highlight-color: transparent;
+}
+
+button,
+select {
+    cursor: pointer;
+}
+
+::selection {
+    background: #d92d2f;
+    color: #ffffff;
+}
+
+@layer components {
+    .likhae-container {
+        @apply mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8;
+    }
+
+    .buyer-header-action {
+        @apply flex min-w-10 flex-col items-center justify-center gap-1 px-1 text-[#57534e] transition hover:text-[#d92d2f];
+    }
+
+    .header-count {
+        @apply absolute -right-2 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-[#d92d2f] px-1 text-[8px] font-black leading-none text-white;
+    }
+
+    .buyer-section-eyebrow {
+        @apply flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.24em] text-[#716b64];
+    }
+
+    .buyer-section-eyebrow::before {
+        content: "";
+        @apply block h-4 w-[2px] bg-[#d92d2f];
+    }
+
+    .status-badge {
+        @apply inline-flex w-fit items-center px-3 py-2 text-[9px] font-black uppercase tracking-[0.12em];
+    }
+
+    .status-to-pay {
+        @apply bg-[#fff5e8] text-[#b66b00];
+    }
+
+    .status-to-ship {
+        @apply bg-[#fff1f1] text-[#d92d2f];
+    }
+
+    .status-in-transit {
+        @apply bg-[#eef5ff] text-[#356fa8];
+    }
+
+    .status-out-for-delivery {
+        @apply bg-[#f2f0ff] text-[#6958b7];
+    }
+
+    .status-completed {
+        @apply bg-[#eaf8f3] text-[#079b72];
+    }
+
+    .status-cancelled {
+        @apply bg-[#f1efed] text-[#807970];
+    }
+
+    .detail-card {
+        @apply overflow-hidden border border-[#dfd9d2] bg-white;
+    }
+
+    .detail-card-header {
+        @apply flex flex-col gap-4 border-b border-[#e9e3dc] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6;
+    }
+
+    .detail-card-header h2 {
+        @apply mt-1 text-sm font-black text-[#2d2926];
+    }
+
+    .detail-card-eyebrow {
+        @apply text-[9px] font-black uppercase tracking-[0.16em] text-[#948d85];
+    }
+
+    .summary-row {
+        @apply flex items-center justify-between gap-4;
+    }
+
+    .summary-row span {
+        @apply text-[#817a72];
+    }
+
+    .action-btn {
+        @apply inline-flex h-10 items-center justify-center px-4 text-[11px] font-bold transition;
+    }
+
+    .action-btn.primary {
+        @apply bg-[#d92d2f] text-white hover:bg-[#bd2024];
+    }
+
+    .action-btn.secondary {
+        @apply border border-[#d7d0c8] bg-white text-[#5f5953] hover:border-[#d92d2f] hover:text-[#d92d2f];
+    }
+
+    .action-btn.danger {
+        @apply border border-[#efb8b9] bg-[#fff4f4] text-[#d92d2f] hover:bg-[#d92d2f] hover:text-white;
+    }
+
+    .footer-title {
+        @apply text-[11px] font-black tracking-[0.2em] text-white;
+    }
+
+    .footer-links {
+        @apply mt-5 flex flex-col gap-4 text-xs text-white/30;
+    }
+
+    .footer-links a {
+        @apply transition hover:text-white;
+    }
+}
+
+/* ---------------------------------------------------------
+   Tracking Timeline
+--------------------------------------------------------- */
+
+.tracking-step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 16px;
+    padding-bottom: 30px;
+}
+
+.tracking-step:last-child {
+    padding-bottom: 0;
+}
+
+.tracking-line {
+    position: absolute;
+    left: 15px;
+    top: 31px;
+    width: 1px;
+    height: calc(100% - 10px);
+    background: #ddd6ce;
+}
+
+.tracking-step:last-child .tracking-line {
+    display: none;
+}
+
+.tracking-marker {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border: 1px solid #d8d1c9;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #aaa39b;
+}
+
+.tracking-step.done .tracking-marker {
+    border-color: #079b72;
+    background: #079b72;
+    color: #ffffff;
+}
+
+.tracking-step.done .tracking-line {
+    background: #079b72;
+}
+
+.tracking-step.current .tracking-marker {
+    border-color: #356fa8;
+    background: #356fa8;
+    color: #ffffff;
+    box-shadow: 0 0 0 5px rgba(53, 111, 168, 0.10);
+}
+
+.tracking-step.current .tracking-line {
+    background: linear-gradient(
+        to bottom,
+        #356fa8 0,
+        #356fa8 35%,
+        #ddd6ce 35%,
+        #ddd6ce 100%
+    );
+}
+
+.tracking-step.upcoming {
+    color: #807970;
+}
+
+/* ---------------------------------------------------------
+   Mobile
+--------------------------------------------------------- */
+
+@media (max-width: 639px) {
+    body {
+        overflow-x: hidden;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}

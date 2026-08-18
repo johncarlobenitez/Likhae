@@ -79,8 +79,48 @@ Route::post('/buyer/checkout', function () {
 
 Route::post('/buyer/order', function () {
     // Replace with real order creation logic later
-    return redirect('/buyer/home')->with('success', 'Order placed successfully!');
+    return redirect('/buyer/orders/success');
 })->name('buyer.order.store');
+
+Route::get('/buyer/orders/success', function () {
+    return view('Buyer.orders.success');
+})->name('buyer.orders.success');
+
+Route::get('/buyer/orders', function () {
+    return view('Buyer.orders.index');
+})->name('buyer.orders');
+
+Route::get('/buyer/orders/{id}', function (string $id) {
+    return view('Buyer.orders.show');
+})->name('buyer.orders.show');
+
+Route::get('/buyer/orders/{id}/review', function (string $id) {
+    return view('Buyer.orders.review');
+})->name('buyer.orders.review');
+
+Route::get('/buyer/messages', function () {
+    return view('Buyer.messages.index');
+})->name('buyer.messages');
+
+Route::get('/buyer/account', function () {
+    return view('Buyer.account.profile');
+})->name('buyer.account');
+
+Route::get('/buyer/account/profile', function () {
+    return view('Buyer.account.profile');
+})->name('buyer.account.profile');
+
+Route::get('/buyer/account/addresses', function () {
+    return view('Buyer.account.addresses');
+})->name('buyer.account.addresses');
+
+Route::get('/buyer/account/security', function () {
+    return view('Buyer.account.security');
+})->name('buyer.account.security');
+
+Route::post('/logout', function () {
+    return redirect('/login');
+})->name('logout');
 
 Route::get('/admin/home', function () {
     return view('Admin.home');

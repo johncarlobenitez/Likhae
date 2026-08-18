@@ -2,9 +2,9 @@
 
 /*
 |--------------------------------------------------------------------------
-| LIKHAE Buyer - Cart Screen
+| LIKHAE Buyer - Order Success
 |--------------------------------------------------------------------------
-| resources/css/buyer/cart.css
+| resources/css/buyer/order-success.css
 |--------------------------------------------------------------------------
 */
 
@@ -17,7 +17,6 @@
     --color-likhae-paper: #f5f2ed;
     --color-likhae-ink: #111111;
     --color-likhae-green: #079b72;
-
     --font-sans: "Inter", "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -32,8 +31,9 @@ body {
     color: #111111;
 }
 
-img {
-    display: block;
+::selection {
+    background: #d92d2f;
+    color: #ffffff;
 }
 
 button,
@@ -41,35 +41,6 @@ a,
 input,
 select {
     -webkit-tap-highlight-color: transparent;
-}
-
-button,
-select {
-    cursor: pointer;
-}
-
-::selection {
-    background: #d92d2f;
-    color: #ffffff;
-}
-
-.hide-scrollbar {
-    scrollbar-width: none;
-}
-
-.hide-scrollbar::-webkit-scrollbar {
-    display: none;
-}
-
-input[type="checkbox"],
-input[type="radio"] {
-    accent-color: #d92d2f;
-}
-
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-    appearance: none;
-    margin: 0;
 }
 
 @layer components {
@@ -85,13 +56,62 @@ input[type="number"]::-webkit-outer-spin-button {
         @apply absolute -right-2 -top-2 grid h-4 min-w-4 place-items-center rounded-full bg-[#d92d2f] px-1 text-[8px] font-black leading-none text-white;
     }
 
-    .buyer-section-eyebrow {
-        @apply flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.24em] text-[#716b64];
+    .primary-btn {
+        @apply inline-flex h-12 items-center justify-center bg-[#d92d2f] px-6 text-sm font-bold text-white transition hover:bg-[#bd2024];
     }
 
-    .buyer-section-eyebrow::before {
+    .secondary-btn {
+        @apply inline-flex h-12 items-center justify-center border border-[#d8d1c9] bg-white px-6 text-sm font-bold text-[#4f4a45] transition hover:border-[#111] hover:text-[#111];
+    }
+
+    .success-card {
+        @apply border border-[#dfd9d2] bg-white;
+    }
+
+    .success-card-header {
+        @apply flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6;
+    }
+
+    .success-label {
+        @apply text-[9px] font-black uppercase tracking-[0.16em] text-[#928b83];
+    }
+
+    .order-status-badge {
+        @apply inline-flex w-fit items-center bg-[#fff1f1] px-3 py-2 text-[10px] font-black tracking-[0.12em] text-[#d92d2f];
+    }
+
+    .timeline-step {
+        @apply relative flex gap-4 pb-7 last:pb-0;
+    }
+
+    .timeline-step:not(:last-child)::after {
         content: "";
-        @apply block h-4 w-[2px] bg-[#d92d2f];
+        position: absolute;
+        left: 15px;
+        top: 32px;
+        width: 1px;
+        height: calc(100% - 16px);
+        background: #ddd6ce;
+    }
+
+    .timeline-icon {
+        @apply relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#d8d1c9] bg-white text-[#aaa39b];
+    }
+
+    .timeline-icon.is-done {
+        @apply border-[#079b72] bg-[#079b72] text-white;
+    }
+
+    .timeline-step:has(.timeline-icon.is-done):not(:last-child)::after {
+        background: #079b72;
+    }
+
+    .summary-row {
+        @apply flex items-center justify-between gap-4;
+    }
+
+    .summary-row span {
+        @apply text-[#817a72];
     }
 
     .footer-title {
@@ -105,20 +125,6 @@ input[type="number"]::-webkit-outer-spin-button {
     .footer-links a {
         @apply transition hover:text-white;
     }
-}
-
-.cart-item {
-    transition:
-        background-color 0.2s ease,
-        opacity 0.2s ease;
-}
-
-.cart-item:hover {
-    background: #fffdfa;
-}
-
-.quantity-input {
-    appearance: textfield;
 }
 
 @media (max-width: 639px) {

@@ -308,7 +308,7 @@
                     <span class="hidden text-[10px] lg:block">Alerts</span>
                 </a>
 
-                <a href="{{ url('/login') }}" class="buyer-header-action">
+                <a href="{{ route('buyer.account.profile') }}" class="buyer-header-action">
                     <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.6">
                         <circle cx="12" cy="8" r="3.2"></circle>
                         <path d="M5.5 20c.7-4.2 3-6.3 6.5-6.3s5.8 2.1 6.5 6.3"></path>
