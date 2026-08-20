@@ -64,9 +64,25 @@ Route::get('/buyer/products/{slug}', function (string $slug) {
     return view('Buyer.products.product-details');
 })->name('buyer.product-details');
 
+Route::get('/buyer/flash-deals', function () {
+    return view('Buyer.flash-deals.index');
+})->name('buyer.flash-deals');
+
+Route::get('/buyer/local-finds', function () {
+    return view('Buyer.local-finds.index');
+})->name('buyer.local-finds');
+
 Route::get('/buyer/cart', function () {
     return view('Buyer.cart.index');
 })->name('buyer.cart');
+
+Route::get('/buyer/notifications', function () {
+    return view('Buyer.notifications.index');
+})->name('buyer.notifications');
+
+Route::get('/buyer/wishlist', function () {
+    return view('Buyer.wishlist.index');
+})->name('buyer.wishlist');
 
 
 Route::get('/buyer/checkout', function () {
@@ -117,6 +133,10 @@ Route::get('/buyer/account/addresses', function () {
 Route::get('/buyer/account/security', function () {
     return view('Buyer.account.security');
 })->name('buyer.account.security');
+
+Route::get('/buyer/local-finds', function () {
+    return view('Buyer.local-finds.index');
+})->name('buyer.local-finds');
 
 Route::post('/logout', function () {
     return redirect('/login');

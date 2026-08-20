@@ -546,7 +546,7 @@
                     </div>
                 </div>
 
-                <a href="{{ url('/flash-deals') }}" class="section-link">See all →</a>
+                <a href="{{ url('/buyer/flash-deals') }}" class="section-link">See all →</a>
             </div>
 
             <div class="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -680,7 +680,7 @@
                     </p>
                 </div>
 
-                <a href="{{ url('/local-finds') }}" class="border border-white/30 px-5 py-3 text-xs font-bold text-white transition hover:bg-white hover:text-[#d92d2f]">
+                <a href="{{ url('/buyer/local-finds') }}" class="border border-white/30 px-5 py-3 text-xs font-bold text-white transition hover:bg-white hover:text-[#d92d2f]">
                     Explore →
                 </a>
             </div>
