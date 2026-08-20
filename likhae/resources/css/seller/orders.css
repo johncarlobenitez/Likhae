@@ -1,0 +1,32 @@
+@layer components {
+    .mobile-order-list { @apply divide-y divide-[#E5E0D9] md:hidden; }
+    .desktop-orders { @apply hidden md:block; }
+    .mobile-order-card { @apply flex items-start justify-between gap-3 p-4; }
+    .mobile-order-card strong { @apply block text-xs text-[#171717]; }
+    .mobile-order-card span:not(.status-badge) { @apply mt-1 block text-[10px] text-[#96918B]; }
+    .order-status-strip { @apply grid gap-px border border-[#E5E0D9] bg-[#E5E0D9] sm:grid-cols-2 xl:grid-cols-5; }
+    .order-status-strip > div { @apply flex min-h-20 flex-col justify-center bg-white p-4; }
+    .order-status-strip strong { @apply mt-2 text-xs; }
+    .order-product-row { @apply grid grid-cols-[44px_minmax(0,1fr)] gap-3 p-5 sm:grid-cols-[44px_minmax(0,1fr)_70px_90px_100px] sm:items-center; }
+    .order-product-row strong { @apply block text-xs; }
+    .order-product-row span { @apply mt-1 block text-[10px] text-[#96918B]; }
+    .timeline { @apply p-5; }
+    .timeline-item { @apply relative flex gap-3 pb-5; }
+    .timeline-item:not(:last-child)::before { content:""; @apply absolute left-[5px] top-3 h-full w-px bg-[#E5E0D9]; }
+    .timeline-item i { @apply relative z-10 mt-1 h-3 w-3 rounded-full border-2 border-[#CFC8C0] bg-white; }
+    .timeline-item.is-done i { @apply border-[#079B72] bg-[#079B72]; }
+    .timeline-item strong { @apply block text-xs; }
+    .timeline-item span { @apply mt-1 block text-[10px] text-[#96918B]; }
+    .money-list { @apply mt-4 space-y-3 text-xs; }
+    .money-list div { @apply flex justify-between gap-3; }
+    .money-list span { @apply text-[#6B6864]; }
+    .money-list .total { @apply mt-4 border-t border-[#171717] pt-4 text-sm; }
+    .packing-row { @apply flex items-center gap-4 border-b border-[#E5E0D9] p-5; }
+    .packing-row strong { @apply block text-xs; }
+    .packing-row span { @apply mt-1 block text-[10px] text-[#96918B]; }
+    .checklist { @apply grid gap-2 sm:grid-cols-2; }
+    .checklist label { @apply flex items-center gap-2 border border-[#E5E0D9] p-3 text-xs; }
+    .checklist input { @apply accent-[#D92D2F]; }
+    .waybill { @apply border-2 border-[#171717] bg-white p-4 text-[#171717]; }
+    .barcode { height:54px; background:repeating-linear-gradient(90deg,#171717 0,#171717 2px,transparent 2px,transparent 5px,#171717 5px,#171717 6px,transparent 6px,transparent 9px); }
+}

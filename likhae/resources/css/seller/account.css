@@ -1,0 +1,9 @@
+@layer components {
+    .verification-row, .session-row { @apply flex flex-col gap-3 border-b border-[#E5E0D9] p-4 sm:flex-row sm:items-center; }
+    .verification-row strong, .session-row strong { @apply block text-xs; }
+    .verification-row span:not(.status-badge), .session-row span { @apply mt-1 block text-[10px] text-[#96918B]; }
+    .verification-icon { @apply grid h-10 w-10 shrink-0 place-items-center bg-[#F6F4F0] text-[#6B6864]; }
+    .verification-icon svg { @apply h-5 w-5; }
+    .password-meter { @apply h-1.5 overflow-hidden bg-[#ECE7E1]; }
+    .password-meter span { @apply block h-full bg-[#079B72]; }
+}

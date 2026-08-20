@@ -1,0 +1,10 @@
+@layer components {
+    .help-search { @apply border border-[#E5E0D9] bg-[#171717] p-6 text-white sm:p-8; }
+    .help-search h2 { @apply text-xl font-black; }
+    .help-search .search-field { @apply mt-5 max-w-2xl bg-white text-[#171717]; }
+    .help-grid { @apply grid gap-4 sm:grid-cols-2 xl:grid-cols-4; }
+    .help-card { @apply flex min-h-44 flex-col border border-[#E5E0D9] bg-white p-5 transition hover:border-[#D92D2F]; }
+    .help-card h3 { @apply text-sm font-black; }
+    .help-card p { @apply mt-2 text-xs leading-5 text-[#6B6864]; }
+    .help-card span { @apply mt-auto pt-5 text-[10px] font-black text-[#D92D2F]; }
+}

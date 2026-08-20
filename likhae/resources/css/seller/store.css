@@ -1,0 +1,12 @@
+@layer components {
+    .store-banner-card { @apply overflow-hidden border border-[#E5E0D9] bg-white; }
+    .store-banner-placeholder { @apply flex h-44 items-end justify-end bg-[#E7E1D9] p-4; }
+    .store-profile-row { @apply flex flex-wrap items-center gap-4 p-5; }
+    .store-profile-row h2 { @apply text-lg font-black; }
+    .store-profile-row p { @apply mt-1 text-xs text-[#6B6864]; }
+    .store-logo-placeholder { @apply grid h-16 w-16 place-items-center border-4 border-white bg-[#171717] text-sm font-black text-white; }
+    .store-stats { @apply divide-y divide-[#E5E0D9]; }
+    .store-stats div { @apply flex items-center justify-between py-3; }
+    .store-stats span { @apply text-xs text-[#6B6864]; }
+    .store-stats strong { @apply text-sm; }
+}

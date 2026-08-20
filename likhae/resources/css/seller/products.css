@@ -1,0 +1,24 @@
+@layer components {
+    .product-table-desktop { @apply hidden md:block; }
+    .mobile-product-list { @apply divide-y divide-[#E5E0D9] md:hidden; }
+    .mobile-product-card { @apply flex items-start gap-3 p-4; }
+    .mobile-product-card strong { @apply block text-xs; }
+    .mobile-product-card span:not(.status-badge) { @apply mt-1 block text-[10px] text-[#96918B]; }
+    .product-form-layout { @apply grid gap-5 xl:grid-cols-[210px_minmax(0,1fr)]; }
+    .form-section-nav { @apply hidden h-fit border border-[#E5E0D9] bg-white p-2 xl:block xl:sticky xl:top-20; }
+    .form-section-nav a { @apply flex min-h-10 items-center gap-3 px-3 text-xs font-semibold text-[#6B6864]; }
+    .form-section-nav a span { @apply text-[9px] font-black text-[#96918B]; }
+    .form-section-nav a.is-active { @apply bg-[#FFF3F3] text-[#D92D2F]; }
+    .media-grid { @apply grid grid-cols-2 gap-3 sm:grid-cols-4; }
+    .media-upload, .media-placeholder { @apply aspect-square border border-[#E5E0D9] bg-[#FBFAF8]; }
+    .media-upload { @apply flex cursor-pointer flex-col items-center justify-center text-center; }
+    .media-upload > span { @apply text-2xl text-[#D92D2F]; }
+    .media-upload strong { @apply mt-2 text-xs; }
+    .media-upload small { @apply mt-1 text-[9px] text-[#96918B]; }
+    .media-placeholder { @apply grid place-items-center text-[9px] font-black text-[#96918B]; }
+    .variation-builder { @apply grid gap-3 md:grid-cols-[1fr_1.5fr_auto] md:items-end; }
+    .status-choice { @apply flex min-w-56 items-start gap-3 border border-[#E5E0D9] p-4; }
+    .status-choice input { @apply mt-1 accent-[#D92D2F]; }
+    .status-choice strong { @apply block text-xs; }
+    .status-choice small { @apply mt-1 block text-[10px] text-[#96918B]; }
+}
