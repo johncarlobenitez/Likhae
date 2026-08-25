@@ -1,26 +1,26 @@
 <?php
 
-use App\Http\Controllers\RegistrationController;
+use App\Http\Controllers\PhilippineAddressController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('Guest.home');
-});
+/*
+|--------------------------------------------------------------------------
+| Guest & Public Routes
+|--------------------------------------------------------------------------
+*/
+Route::get('/', fn () => view('guest.home'))->name('guest.home');
+Route::get('/products', fn () => view('guest.products'))->name('guest.products');
+Route::get('/products/{slug}', fn (string $slug) => view('guest.product-details', compact('slug')))->name('guest.product-details');
 
-Route::get('/products', function () {
-    return view('Guest.products');
-});
-
-Route::get('/products/{slug}', function (string $slug) {
-    return view('Guest.product-details');
-});
-
-Route::get('/login', function () {
-    return view('Guest.auth.login');
-})->name('login');
-
-Route::post('/login', function (\Illuminate\Http\Request $request) {
-    // Demo role-based login (replace with real Auth + roles later)
+/*
+|--------------------------------------------------------------------------
+| Authentication Routes
+|--------------------------------------------------------------------------
+*/
+Route::get('/login', fn () => view('guest.auth.login'))->name('login');
+Route::post('/login', function (Request $request) {
+    // Front-end demo credentials. Replace with Laravel Auth when backend database is linked.
     $roles = [
         'admin@likhae.com'   => ['password' => 'admin',   'role' => 'admin'],
         'buyer@likhae.com'   => ['password' => 'buyer',   'role' => 'buyer'],
@@ -28,46 +28,92 @@ Route::post('/login', function (\Illuminate\Http\Request $request) {
         'courier@likhae.com' => ['password' => 'courier', 'role' => 'courier'],
     ];
 
-    $user = $roles[$request->email] ?? null;
+    $request->validate([
+        'email'    => ['required', 'email'],
+        'password' => ['required'],
+    ]);
 
+    $user = $roles[$request->email] ?? null;
     if (!$user || $user['password'] !== $request->password) {
-        return back()->withErrors(['email' => 'Invalid credentials.'])->withInput();
+        return back()->withErrors(['email' => 'Invalid demo credentials. Use buyer@likhae.com / buyer'])->withInput();
     }
 
     $request->session()->regenerate();
-    $request->session()->put('demo_user', [
-        'email' => $request->email,
-        'role' => $user['role'],
-    ]);
+    $request->session()->put('demo_user', ['email' => $request->email, 'role' => $user['role']]);
 
-    $redirects = [
-        'admin'   => '/admin/home',
+    return redirect(match ($user['role']) {
         'buyer'   => '/buyer/home',
         'seller'  => '/seller/home',
+        'admin'   => '/admin/home',
         'courier' => '/courier/home',
-    ];
-
-    return redirect($redirects[$user['role']])->with('status', 'Signed in as '.$user['role'].'.');
+        default   => '/',
+    });
 })->name('login.post');
 
-Route::get('/register', function () {
-    return view('Registration.register');
-})->name('register');
+Route::get('/continue-as-guest', function (Request $request) {
+    $request->session()->forget('demo_user');
+    $request->session()->put('demo_guest', true);
+    return redirect()->route('guest.home');
+})->name('guest.continue');
 
-Route::post('/register', [RegistrationController::class, 'store'])->name('register.store');
+Route::get('/auth/google', function () {
+    return redirect()->route('login')->with('status', 'Google sign-in is ready for Laravel Socialite integration. Add provider credentials before enabling live OAuth.');
+})->name('google.placeholder');
 
-Route::post('/logout', function () {
-    return redirect('/login');
+/*
+|--------------------------------------------------------------------------
+| Buyer Multi-Step Registration Routes
+|--------------------------------------------------------------------------
+*/
+Route::get('/register', fn () => view('Registration.register'))->name('register');
+Route::post('/register', function (Request $request) {
+    $request->validate([
+        'last_name'       => 'required',
+        'first_name'      => 'required',
+        'sex'             => 'required',
+        'birthday'        => 'required|date',
+        'email'           => 'required|email',
+        'contact'         => 'required',
+        'province'        => 'required',
+        'municipality'    => 'required',
+        'barangay'        => 'required',
+        'street'          => 'required',
+        'verification_id' => 'required|file|max:5120|mimes:jpg,jpeg,png,pdf',
+    ]);
+
+    $request->session()->put('registration_status', 'pending');
+    return redirect()->route('registration.pending');
+})->name('register.store');
+
+Route::get('/registration/pending', fn () => view('Registration.pending'))->name('registration.pending');
+
+/*
+|--------------------------------------------------------------------------
+| Philippine Address Cascading API
+|--------------------------------------------------------------------------
+*/
+Route::prefix('address/philippines')->name('address.philippines.')->group(function () {
+    Route::get('/provinces', [PhilippineAddressController::class, 'provinces'])->name('provinces');
+    Route::get('/provinces/{province}/municipalities', [PhilippineAddressController::class, 'municipalities'])->name('municipalities');
+    Route::get('/municipalities/{municipality}/barangays', [PhilippineAddressController::class, 'barangays'])->name('barangays');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Session & Logout
+|--------------------------------------------------------------------------
+*/
+Route::post('/logout', function (Request $request) {
+    $request->session()->forget(['demo_user', 'demo_guest']);
+    $request->session()->regenerateToken();
+    return redirect()->route('login');
 })->name('logout');
 
-Route::get('/admin/home', function () {
-    return view('Admin.home');
-})->name('admin.home');
-
-Route::get('/courier/home', function () {
-    return view('Courier.home');
-})->name('courier.home');
-
-Route::get('/courier/application-status', function () {
-    return view('Seller.auth.application-status');
-})->name('courier.application-status');
+/*
+|--------------------------------------------------------------------------
+| Existing Role Routes (Preserved)
+|--------------------------------------------------------------------------
+*/
+Route::get('/admin/home', fn () => view('Admin.home'))->name('admin.home');
+Route::get('/courier/home', fn () => view('Courier.home'))->name('courier.home');
+Route::get('/courier/application-status', fn () => view('Seller.auth.application-status'))->name('courier.application-status');

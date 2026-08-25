@@ -40,6 +40,7 @@ export default defineConfig({
 
                 // Seller
                 'resources/css/seller/app.css',
+                'resources/css/seller/dashboard.css',
                 'resources/js/seller/app.js',
             ],
             refresh: true,
