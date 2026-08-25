@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'psgc' => [
+        'token' => env('PSGC_API_TOKEN'),
+        'version' => env('PSGC_API_VERSION', 'Q2_2024'),
+    ],
+
 ];
