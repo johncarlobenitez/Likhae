@@ -37,10 +37,13 @@ export default defineConfig({
                 'resources/css/Guest/auth/register.css',
                 'resources/css/Guest/register.css',
                 'resources/js/auth/register.js',
+                'resources/js/guest/auth/register.js',
+
+                // Admin
+                'resources/css/admin/app.css',
 
                 // Seller
                 'resources/css/seller/app.css',
-                'resources/css/seller/dashboard.css',
                 'resources/js/seller/app.js',
             ],
             refresh: true,

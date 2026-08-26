@@ -1,22 +1,16 @@
-@import "tailwindcss";
-
-@source "../../views/Seller/**/*.blade.php";
-@source "../../views/components/seller/**/*.blade.php";
-@source "../../js/seller/**/*.js";
-
 @layer components {
-    .store-strip { @apply grid gap-px border border-[#E5E0D9] bg-[#E5E0D9]; grid-template-columns: 1fr; }
+    .store-strip { @apply grid gap-px border border-[#E5E0D9] bg-[#E5E0D9] sm:grid-cols-2 xl:grid-cols-5; }
     .store-strip > div { @apply bg-white p-4; }
     .store-strip strong { @apply mt-1 block text-sm; }
-    .dashboard-grid { @apply grid gap-5; }
-    .action-grid { @apply grid gap-px bg-[#E5E0D9]; grid-template-columns: 1fr; }
+    .dashboard-grid { @apply grid gap-5 xl:grid-cols-[1.45fr_.55fr]; }
+    .action-grid { @apply grid gap-px bg-[#E5E0D9] sm:grid-cols-2 lg:grid-cols-3; }
     .action-tile { @apply flex min-h-24 items-center gap-3 bg-white p-4 transition hover:bg-[#FFF8F8]; }
     .action-tile span { @apply text-xs font-semibold text-[#6B6864]; }
     .action-tile strong { @apply ml-auto text-2xl font-black; }
     .action-tile svg { @apply h-4 w-4 text-[#D92D2F]; }
     .quick-list { @apply divide-y divide-[#E5E0D9] px-5; }
     .quick-list a { @apply flex min-h-12 items-center justify-between text-xs font-bold text-[#5D5853] hover:text-[#D92D2F]; }
-    .chart-summary { @apply grid gap-3 p-5; grid-template-columns: 1fr; }
+    .chart-summary { @apply grid gap-3 p-5 sm:grid-cols-4; }
     .chart-summary div { @apply border-l border-[#E5E0D9] pl-3; }
     .chart-summary span { @apply block text-[9px] uppercase tracking-[.1em] text-[#96918B]; }
     .chart-summary strong { @apply mt-1 block text-sm; }
@@ -31,18 +25,4 @@
     .filter-pills { @apply flex gap-1; }
     .filter-pills button { @apply min-h-8 rounded-[4px] border border-[#E5E0D9] px-2.5 text-[9px] font-bold text-[#6B6864]; }
     .filter-pills button.is-active { @apply border-[#171717] bg-[#171717] text-white; }
-}
-
-@media (min-width: 640px) {
-    .store-strip, .action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .chart-summary { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-
-@media (min-width: 1024px) {
-    .action-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-
-@media (min-width: 1280px) {
-    .store-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-    .dashboard-grid { grid-template-columns: 1.45fr .55fr; }
 }
