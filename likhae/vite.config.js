@@ -39,6 +39,9 @@ export default defineConfig({
                 'resources/js/auth/register.js',
                 'resources/js/guest/auth/register.js',
 
+                // Admin
+                'resources/css/admin/app.css',
+
                 // Seller
                 'resources/css/seller/app.css',
                 'resources/js/seller/app.js',

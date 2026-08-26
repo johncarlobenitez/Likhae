@@ -4,6 +4,8 @@ use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\PhilippineAddressController;
 use Illuminate\Support\Facades\Route;
 
+require __DIR__.'/admin.php';
+
 Route::get('/', function () {
     return view('Guest.home');
 });
@@ -23,10 +25,11 @@ Route::get('/login', function () {
 Route::post('/login', function (\Illuminate\Http\Request $request) {
     // Demo role-based login (replace with real Auth + roles later)
     $roles = [
-        'admin@likhae.com'   => ['password' => 'admin',   'role' => 'admin'],
-        'buyer@likhae.com'   => ['password' => 'buyer',   'role' => 'buyer'],
-        'seller@likhae.com'  => ['password' => 'seller',  'role' => 'seller'],
-        'courier@likhae.com' => ['password' => 'courier', 'role' => 'courier'],
+        'admin@likhae.com'     => ['password' => 'admin',     'role' => 'admin'],
+        'admintest@likhae.com' => ['password' => 'admin',     'role' => 'admin'],
+        'buyer@likhae.com'     => ['password' => 'buyer',     'role' => 'buyer'],
+        'seller@likhae.com'    => ['password' => 'seller',    'role' => 'seller'],
+        'courier@likhae.com'   => ['password' => 'courier',   'role' => 'courier'],
     ];
 
     $user = $roles[$request->email] ?? null;
@@ -42,7 +45,7 @@ Route::post('/login', function (\Illuminate\Http\Request $request) {
     ]);
 
     $redirects = [
-        'admin'   => '/admin/home',
+        'admin'   => '/admin/dashboard',
         'buyer'   => '/buyer/home',
         'seller'  => '/seller/home',
         'courier' => '/courier/home',
@@ -67,9 +70,7 @@ Route::post('/logout', function () {
     return redirect('/login');
 })->name('logout');
 
-Route::get('/admin/home', function () {
-    return view('Admin.home');
-})->name('admin.home');
+Route::get('/admin/home', fn () => redirect('/admin/dashboard'))->name('admin.home');
 
 Route::get('/courier/home', function () {
     return view('Courier.home');
