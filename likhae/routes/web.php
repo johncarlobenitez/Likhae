@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\PhilippineAddressController;
 use Illuminate\Support\Facades\Route;
 
@@ -20,11 +21,6 @@ Route::get('/login', function () {
 })->name('login');
 
 Route::post('/login', function (\Illuminate\Http\Request $request) {
-    $credentials = [
-        'email'    => $request->email,
-        'password' => $request->password,
-    ];
-
     // Demo role-based login (replace with real Auth + roles later)
     $roles = [
         'admin@likhae.com'   => ['password' => 'admin',   'role' => 'admin'],
@@ -39,6 +35,12 @@ Route::post('/login', function (\Illuminate\Http\Request $request) {
         return back()->withErrors(['email' => 'Invalid credentials.'])->withInput();
     }
 
+    $request->session()->regenerate();
+    $request->session()->put('demo_user', [
+        'email' => $request->email,
+        'role' => $user['role'],
+    ]);
+
     $redirects = [
         'admin'   => '/admin/home',
         'buyer'   => '/buyer/home',
@@ -46,12 +48,14 @@ Route::post('/login', function (\Illuminate\Http\Request $request) {
         'courier' => '/courier/home',
     ];
 
-    return redirect($redirects[$user['role']]);
+    return redirect($redirects[$user['role']])->with('status', 'Signed in as '.$user['role'].'.');
 })->name('login.post');
 
 Route::get('/register', function () {
-    return view('Guest.auth.register');
+    return view('Registration.register');
 })->name('register');
+
+Route::post('/register', [RegistrationController::class, 'store'])->name('register.store');
 
 Route::prefix('address/philippines')->name('address.philippines.')->group(function () {
     Route::get('/provinces', [PhilippineAddressController::class, 'provinces'])->name('provinces');
@@ -59,44 +63,26 @@ Route::prefix('address/philippines')->name('address.philippines.')->group(functi
     Route::get('/municipalities/{municipality}/barangays', [PhilippineAddressController::class, 'barangays'])->name('barangays');
 });
 
-Route::get('/buyer/home', function () {
-    return view('Buyer.home');
-})->name('buyer.home');
-
-Route::get('/buyer/products', function () {
-    return view('Buyer.products.products');
-})->name('buyer.products');
-
-Route::get('/buyer/products/{slug}', function (string $slug) {
-    return view('Buyer.products.product-details');
-})->name('buyer.product-details');
-
-Route::get('/buyer/cart', function () {
-    return view('Buyer.cart.index');
-})->name('buyer.cart');
-
-
-Route::get('/buyer/checkout', function () {
-    return view('Buyer.checkout.index');
-})->name('buyer.checkout');
-
-Route::post('/buyer/checkout', function () {
-    return view('Buyer.checkout.index');
-})->name('buyer.checkout.post');
-
-Route::post('/buyer/order', function () {
-    // Replace with real order creation logic later
-    return redirect('/buyer/home')->with('success', 'Order placed successfully!');
-})->name('buyer.order.store');
+Route::post('/logout', function () {
+    return redirect('/login');
+})->name('logout');
 
 Route::get('/admin/home', function () {
     return view('Admin.home');
 })->name('admin.home');
 
-Route::get('/seller/home', function () {
-    return view('Seller.home');
-})->name('seller.home');
-
 Route::get('/courier/home', function () {
     return view('Courier.home');
 })->name('courier.home');
+
+Route::get('/courier/application-status', function () {
+    return view('Seller.auth.application-status');
+})->name('courier.application-status');
+
+Route::get('/buyer/pending', function () {
+    return view('Buyer.pending');
+})->name('buyer.pending');
+
+Route::get('/seller/application-status', function () {
+    return view('Seller.auth.application-status');
+})->name('seller.application-status');

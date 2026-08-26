@@ -8,7 +8,7 @@
     <title>Create Buyer Account — LIKHAE</title>
 
     @vite([
-        'resources/css/guest/auth/register.css',
+        'resources/css/Guest/auth/register.css',
         'resources/js/app.js',
         'resources/js/guest/auth/register.js'
     ])
@@ -85,11 +85,14 @@
 
                 <form
                     method="POST"
-                    action="{{ route('register') }}"
+                    action="{{ route('register.store') }}"
                     enctype="multipart/form-data"
                     class="mt-8"
                 >
                     @csrf
+
+                    {{-- Role (hidden — this is the buyer registration form) --}}
+                    <input type="hidden" name="role" value="buyer">
 
                     {{-- =================================================
                          PERSONAL INFORMATION
@@ -293,7 +296,7 @@
 
                                 <select id="country" name="country" required class="form-input">
                                     <option value="">Select country</option>
-                                    <option value="PH" @selected(old('country') === 'PH')>Philippines</option>
+                                    <option value="PH" @selected(old('country', 'PH') === 'PH')>Philippines</option>
                                 </select>
                             </div>
 
@@ -311,7 +314,6 @@
                                     class="form-input"
                                 >
                                     <option value="">Select province</option>
-
                                 </select>
 
                                 <input
@@ -337,7 +339,6 @@
                                     class="form-input disabled:cursor-not-allowed disabled:bg-[#f7f4f0]"
                                 >
                                     <option value="">Select municipality / city</option>
-
                                 </select>
 
                                 <input
@@ -363,7 +364,6 @@
                                     class="form-input disabled:cursor-not-allowed disabled:bg-[#f7f4f0]"
                                 >
                                     <option value="">Select barangay</option>
-
                                 </select>
 
                                 <input
@@ -650,8 +650,6 @@
         |--------------------------------------------------------------------------
         | Automatic Age Calculation
         |--------------------------------------------------------------------------
-        | The age field is DISPLAY ONLY.
-        | Store birthday in the database and calculate age on the backend when needed.
         */
         const birthdayInput = document.getElementById('birthday');
         const ageInput = document.getElementById('age');
@@ -722,24 +720,6 @@
                 );
             });
         });
-
-        /*
-        |--------------------------------------------------------------------------
-        | Address dropdowns
-        |--------------------------------------------------------------------------
-        | The cascading country, province, municipality, and barangay fields
-        | are loaded by resources/js/guest/auth/register.js.
-        |
-        | Expected flow:
-        |
-        | Province
-        |    ↓
-        | Municipality / City
-        |    ↓
-        | Barangay
-        |
-        |--------------------------------------------------------------------------
-        */
     });
 </script>
 

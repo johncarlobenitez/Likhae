@@ -8,7 +8,7 @@
 |--------------------------------------------------------------------------
 */
 
-@source "../../views/Guest/**/*.blade.php";
+@source "../../views/Buyer/**/*.blade.php";
 @source "../../js/**/*.js";
 
 @theme {

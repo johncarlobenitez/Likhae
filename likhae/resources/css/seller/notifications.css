@@ -1,0 +1,8 @@
+@layer components {
+    .notification-row { @apply flex flex-col gap-4 border-b border-[#E5E0D9] p-5 sm:flex-row sm:items-start; }
+    .notification-row.is-unread { @apply border-l-2 border-l-[#D92D2F] bg-[#FFF9F9]; }
+    .notification-icon { @apply grid h-10 w-10 shrink-0 place-items-center bg-[#171717] text-[10px] font-black text-white; }
+    .notification-row strong { @apply mt-1 block text-xs; }
+    .notification-row p { @apply mt-1 text-xs leading-5 text-[#6B6864]; }
+    .notification-row time { @apply mt-2 block text-[9px] text-[#96918B]; }
+}
