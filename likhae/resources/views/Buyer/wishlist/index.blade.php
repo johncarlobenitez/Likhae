@@ -1,19 +1,5 @@
-<x-marketplace.layout title="Saved Wishlist" :buyer="true">
-<section class="lk-page-head lk-container">
-    <span class="lk-kicker">SAVED PIECES</span>
-    <h1>Wishlist</h1>
-    <p>Pieces you've saved from Filipino studios to revisit and collect.</p>
-</section>
-
-<section class="lk-container" data-wishlist-page>
-    <div class="lk-product-grid" data-wishlist-items>
-        {{-- Dynamically populated from localStorage wishlist in setupWishlist() --}}
-    </div>
-
-    <div class="lk-empty-state" data-wishlist-empty hidden>
-        <h2>Your wishlist is empty.</h2>
-        <p style="color:var(--slate);margin:12px 0 24px">Explore local fashion, home objects, and regional craft finds.</p>
-        <a class="lk-btn lk-btn--primary" href="{{ route('buyer.products') }}">Discover Marketplace</a>
-    </div>
-</section>
-</x-marketplace.layout>
+@include('Buyer.product-data')
+<x-buyer.layout title="Wishlist"><div class="b-page" data-buyer-wishlist><div class="b-container">
+<x-buyer.breadcrumbs :items="[['label'=>'Wishlist','url'=>null]]" /><div class="b-section-head"><div><h1 class="b-title">Saved Products</h1><p class="b-muted">Products you want to revisit later.</p></div></div>
+<div class="b-product-grid">@foreach(array_slice($buyerProducts,0,4) as $product)<div data-wishlist-wrap><x-buyer.product-card :product="$product" /><div class="b-wishlist-actions"><a class="b-btn b-btn-secondary" href="{{ route('buyer.product-details',$product['slug']) }}">View Product</a><button class="b-btn b-btn-danger" data-wishlist-remove="{{ $product['id'] }}">Remove</button></div></div>@endforeach</div>
+</div></div></x-buyer.layout>

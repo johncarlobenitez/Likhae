@@ -1,0 +1,2 @@
+import{$,$$,readStore,writeStore,toast}from"./utils.js";
+export function initBuyerWishlist(){const p=$("[data-buyer-wishlist]");if(!p)return;$$("[data-wishlist-remove]",p).forEach(b=>b.addEventListener("click",()=>{let w=readStore("likhae_buyer_wishlist",[]).filter(x=>x!==b.dataset.wishlistRemove);writeStore("likhae_buyer_wishlist",w);b.closest("[data-wishlist-wrap]")?.remove();toast("Removed from wishlist.")}))}

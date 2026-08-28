@@ -1,60 +1,9 @@
-<x-marketplace.layout title="Account Profile" :buyer="true">
-<section class="lk-page-head lk-container">
-    <span class="lk-kicker">ACCOUNT OVERVIEW</span>
-    <h1>Your Profile</h1>
-</section>
-
-<section class="lk-account-layout lk-container">
-    <x-marketplace.account-nav current="profile" />
-
-    <section class="lk-account-card">
-        <div class="lk-profile-top">
-            <div class="lk-profile-photo">MD</div>
-            <div>
-                <strong style="font-size:1.4rem;display:block">Maria Dela Cruz</strong>
-                <span class="lk-status-pill lk-status-pill--approved" style="margin-top:4px;display:inline-block">VERIFIED BUYER</span>
-            </div>
-        </div>
-
-        <form class="lk-form" data-profile-form>
-            <div class="lk-form-grid">
-                <label>First Name *
-                    <input name="first_name" value="Maria" required>
-                </label>
-                <label>Last Name *
-                    <input name="last_name" value="Dela Cruz" required>
-                </label>
-                <label>Middle Initial
-                    <input name="middle_initial" value="S." maxlength="2">
-                </label>
-                <label>Sex
-                    <select name="sex">
-                        <option value="Female" selected>Female</option>
-                        <option value="Male">Male</option>
-                        <option value="Prefer not to say">Prefer not to say</option>
-                    </select>
-                </label>
-                <label>Birthday
-                    <input type="date" name="birthday" value="1998-04-14" data-birthday>
-                </label>
-                <label>Age (Auto-calculated)
-                    <input name="age" value="28" readonly data-age style="background:#f0ebe1">
-                </label>
-                <label>Email Address *
-                    <input type="email" name="email" value="buyer@likhae.com" required>
-                </label>
-                <label>Contact Number *
-                    <div class="lk-prefix-input">
-                        <span>+63</span>
-                        <input name="contact" value="9171234567" required>
-                    </div>
-                </label>
-            </div>
-
-            <div style="margin-top:24px">
-                <button class="lk-btn lk-btn--primary" type="submit">Save Changes</button>
-            </div>
-        </form>
-    </section>
-</section>
-</x-marketplace.layout>
+@include('Buyer.product-data')
+<x-buyer.layout title="Account"><div class="b-page"><div class="b-container"><div class="b-account">
+<x-buyer.account-nav />
+<main class="b-account-main"><div class="b-section-head"><div><h1 class="b-title">My Account</h1><p class="b-muted">Manage your buyer profile and marketplace activity.</p></div></div>
+<div class="b-dashboard-stats"><div class="b-card b-stat-card"><span class="b-muted">Orders</span><strong>3</strong></div><div class="b-card b-stat-card"><span class="b-muted">Wishlist</span><strong>4</strong></div><div class="b-card b-stat-card"><span class="b-muted">Unread Messages</span><strong>1</strong></div><div class="b-card b-stat-card"><span class="b-muted">Saved Addresses</span><strong>2</strong></div></div>
+<section class="b-card b-account-card"><div class="b-profile-top"><div class="b-profile-avatar">JD</div><div><h2 style="margin:0">Juan Dela Cruz</h2><div class="b-muted">juan@example.com</div><div style="margin-top:8px"><x-buyer.status-badge type="success">Verified Buyer</x-buyer.status-badge></div></div></div>
+<form class="b-form-grid"><div class="b-field"><label>First Name</label><input class="b-input" value="Juan"></div><div class="b-field"><label>Middle Initial</label><input class="b-input" value="D"></div><div class="b-field"><label>Last Name</label><input class="b-input" value="Dela Cruz"></div><div class="b-field"><label>Sex</label><select class="b-select"><option>Male</option><option>Female</option></select></div><div class="b-field"><label>Email</label><input class="b-input" type="email" value="juan@example.com"></div><div class="b-field"><label>Contact Number</label><input class="b-input" value="09171234567"></div><div class="b-field"><label>Birthday</label><input class="b-input" type="date" value="2003-04-15" data-account-birthday></div><div class="b-field"><label>Age</label><input class="b-input" readonly data-account-age></div><div class="b-span-2"><button class="b-btn b-btn-primary" type="button">Save Changes</button></div></form></section>
+<section class="b-section"><div class="b-section-head"><h2 class="b-section-title">Recommended for You</h2></div><div class="b-product-grid">@foreach(array_slice($buyerProducts,4,4) as $product)<x-buyer.product-card :product="$product" />@endforeach</div></section>
+</main></div></div></div></x-buyer.layout>

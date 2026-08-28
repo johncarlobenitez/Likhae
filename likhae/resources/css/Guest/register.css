@@ -1,43 +1,41 @@
-@import "tailwindcss";
-
-@source "../../views/Registration/**/*.blade.php";
-@source "../../js/auth/**/*.js";
-
-@theme {
-    --font-sans: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+.g-register-card {
+    padding: 34px;
 }
 
-html { scroll-behavior: smooth; }
-body { margin: 0; min-width: 320px; }
-button, a, input, select { -webkit-tap-highlight-color: transparent; }
-button { cursor: pointer; }
-
-@layer components {
-    .auth-tab { @apply relative flex h-[52px] items-center justify-center text-sm font-semibold text-[#9b948c] transition hover:text-[#d92d2f]; }
-    .auth-tab.is-active { @apply text-[#d92d2f]; }
-    .auth-tab.is-active::after { content: ""; @apply absolute bottom-[-1px] left-0 right-0 h-[2px] bg-[#d92d2f]; }
-    .form-section { @apply mt-9 border-t border-[#eee9e3] pt-8; }
-    .form-subsection { @apply mt-8 border-t border-[#eee9e3] pt-6; }
-    .form-subsection h3 { @apply text-sm font-black text-[#111]; }
-    .form-help { @apply mt-1 text-xs leading-5 text-[#918a82]; }
-    .form-section-heading { @apply flex items-start gap-3; }
-    .form-section-heading h2 { @apply text-base font-black; }
-    .form-section-heading p { @apply mt-1 text-xs text-[#928b83]; }
-    .form-section-number { @apply grid h-7 w-7 shrink-0 place-items-center bg-[#111] text-[10px] font-black text-white; }
-    .form-label { @apply mb-2 block text-xs font-bold text-[#4e4944]; }
-    .form-label span { @apply text-[#d92d2f]; }
-    .form-input { @apply h-12 w-full border border-[#ddd6ce] bg-white px-4 text-sm outline-none transition placeholder:text-[#c2bbb3] focus:border-[#d92d2f] focus:ring-1 focus:ring-[#d92d2f]/10 disabled:cursor-not-allowed disabled:bg-[#f7f4f0]; }
-    .role-card { @apply flex items-center gap-4 border border-[#ddd6ce] bg-white p-4 text-left transition hover:border-[#d92d2f] hover:bg-[#fff8f8]; }
-    .role-card.is-selected { @apply border-2 border-[#d92d2f] bg-[#fff5f5]; }
-    .role-icon { @apply grid h-11 w-11 shrink-0 place-items-center bg-[#111] text-sm font-black text-white; }
-    .role-card.is-selected .role-icon { @apply bg-[#d92d2f]; }
-    .role-card strong, .role-card small { @apply block; }
-    .role-card small { @apply mt-1 text-xs font-normal text-[#928b83]; }
-    .password-toggle { @apply absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-[#d92d2f]; }
-    .strength-track { @apply mt-2 h-1 bg-[#eee9e3]; }
-    .strength-track span { @apply block h-full w-0 bg-[#d92d2f] transition-all; }
-    .file-preview { @apply mt-2 min-h-4 text-xs text-[#6f6861]; }
+.g-register-card h1 {
+    margin: 0 0 8px;
+    font-size: 34px;
+    letter-spacing: -0.05em;
 }
 
-@media (max-width: 480px) { body { background: #fff; } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .001ms !important; animation-duration: .001ms !important; } }
+.g-register-card p {
+    color: var(--likhae-muted);
+    line-height: 1.6;
+}
+
+.g-register-highlights {
+    display: grid;
+    gap: 9px;
+    margin: 22px 0;
+}
+
+.g-register-highlight {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 12px;
+    background: #fbf8f5;
+    border: 1px solid var(--likhae-border);
+    border-radius: 11px;
+}
+
+.g-register-highlight-icon {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    flex: none;
+    color: var(--likhae-burgundy);
+    background: var(--likhae-burgundy-soft);
+    border-radius: 9px;
+}

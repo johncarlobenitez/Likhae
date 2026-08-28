@@ -1,68 +1,10 @@
-@include('components.marketplace.product-data')
-<x-marketplace.layout title="Discover" :buyer="true">
-<section class="lk-catalog-hero lk-container">
-    <span class="lk-kicker">DISCOVER</span>
-    <h1>Find something<br><em>made with intention.</em></h1>
-    <p>Curated products from Filipino makers, studios, and independent regional brands.</p>
-</section>
-
-<section class="lk-catalog lk-container" data-catalog>
-    <aside class="lk-filters" aria-label="Catalog filters">
-        <h3>Filter by</h3>
-        <details open>
-            <summary>Category <span>+</span></summary>
-            <label><input type="checkbox" data-filter="category" value="Wear"> Wear (Clothing & Accessories)</label>
-            <label><input type="checkbox" data-filter="category" value="Live"> Live (Home & Objects)</label>
-            <label><input type="checkbox" data-filter="category" value="Taste"> Taste (Pantry & Coffee)</label>
-            <label><input type="checkbox" data-filter="category" value="Glow"> Glow (Botanical Care)</label>
-            <label><input type="checkbox" data-filter="category" value="Move"> Move (Activewear)</label>
-        </details>
-        <details open>
-            <summary>Location / Region <span>+</span></summary>
-            <label><input type="checkbox" data-filter="location" value="Cebu City"> Cebu City</label>
-            <label><input type="checkbox" data-filter="location" value="Benguet"> Benguet / Baguio</label>
-            <label><input type="checkbox" data-filter="location" value="Marikina"> Marikina</label>
-            <label><input type="checkbox" data-filter="location" value="Davao City"> Davao City</label>
-            <label><input type="checkbox" data-filter="location" value="Manila"> Metro Manila</label>
-        </details>
-        <details>
-            <summary>Price Range <span>+</span></summary>
-            <label><input type="checkbox" data-filter="price" value="under-1000"> Under ₱1,000</label>
-            <label><input type="checkbox" data-filter="price" value="1000-2500"> ₱1,000 – ₱2,500</label>
-            <label><input type="checkbox" data-filter="price" value="over-2500"> Above ₱2,500</label>
-        </details>
-        <details>
-            <summary>Availability <span>+</span></summary>
-            <label><input type="checkbox" data-filter="availability" value="in-stock" checked> In Stock</label>
-            <label><input type="checkbox" data-filter="availability" value="limited"> Limited Drop</label>
-        </details>
-    </aside>
-
-    <div class="lk-results">
-        <div class="lk-results__bar">
-            <div><strong data-result-count>{{ count($likhaeProducts) }}</strong> pieces found</div>
-            <div class="lk-chips">
-                <button type="button" class="is-active" data-chip="All">All</button>
-                <button type="button" data-chip="Wear">Wear</button>
-                <button type="button" data-chip="Live">Live</button>
-                <button type="button" data-chip="Taste">Taste</button>
-                <button type="button" data-chip="Glow">Glow</button>
-                <button type="button" data-chip="Move">Move</button>
-            </div>
-            <select data-sort aria-label="Sort products">
-                <option value="featured">Sort: Featured</option>
-                <option value="newest">Sort: Newest</option>
-                <option value="low">Price: Low to High</option>
-                <option value="high">Price: High to Low</option>
-                <option value="rating">Top Rated</option>
-            </select>
-        </div>
-
-        <div class="lk-product-grid lk-product-grid--catalog" data-catalog-grid>
-            @foreach($likhaeProducts as $product)
-                <x-marketplace.product-card :product="$product" :buyer="true" />
-            @endforeach
-        </div>
-    </div>
-</section>
-</x-marketplace.layout>
+@php
+$searchQuery=trim((string)request('q',''));
+$selectedCategory=trim((string)request('category',''));
+@endphp
+<x-buyer.layout title="Products"><div class="b-page" data-buyer-products-page><div class="b-container">
+<x-buyer.breadcrumbs :items="[['label'=>'Products','url'=>null]]" />
+<div class="b-products-head"><div><h1 class="b-title">@if($searchQuery)Search results for “{{ $searchQuery }}”@elseif($selectedCategory){{ $selectedCategory }}@else Explore Products @endif</h1><p class="b-muted">{{ count($buyerProducts) }} products available across LIKHAE.</p></div><button class="b-btn b-btn-secondary b-filter-mobile-btn" type="button" data-buyer-filter-toggle>Filters</button></div>
+<div class="b-catalog"><aside class="b-card b-filters" data-buyer-filter-panel><div class="b-filter-group"><strong>Find in results</strong><input class="b-input" type="search" value="{{ $searchQuery }}" placeholder="Product, seller, category..." data-buyer-product-filter-search></div><div class="b-filter-group"><strong>Category</strong><label class="b-filter-option"><input type="radio" name="buyer_category_filter" value="" data-buyer-category-filter {{ $selectedCategory===''?'checked':'' }}> All categories</label>@foreach(['Electronics','Bags','Home & Living','Beauty & Health','Sports & Outdoors','Books & Stationery','Pet Supplies'] as $category)<label class="b-filter-option"><input type="radio" name="buyer_category_filter" value="{{ $category }}" data-buyer-category-filter {{ $selectedCategory===$category?'checked':'' }}> {{ $category }}</label>@endforeach</div><div class="b-filter-group"><strong>Price Range</strong><div class="b-price-fields"><input class="b-input" placeholder="Min"><input class="b-input" placeholder="Max"></div></div><div class="b-filter-group"><strong>Rating</strong><label class="b-filter-option"><input type="checkbox"> 4★ & above</label></div><div class="b-filter-group"><strong>Availability</strong><label class="b-filter-option"><input type="checkbox"> In stock</label></div></aside>
+<section class="b-catalog-main"><div class="b-catalog-toolbar"><div class="b-active-filter-row"><span class="b-filter-chip">Trusted sellers</span><span class="b-filter-chip">Philippines</span></div><select class="b-select b-sort-select" data-buyer-sort><option value="relevant">Most Relevant</option><option value="best-selling">Best Selling</option><option value="highest-rated">Highest Rated</option><option value="price-low">Price Low to High</option><option value="price-high">Price High to Low</option></select></div><div class="b-product-grid" data-buyer-product-grid>@foreach($buyerProducts as $product)<x-buyer.product-card :product="$product" />@endforeach</div></section></div>
+</div></div></x-buyer.layout>

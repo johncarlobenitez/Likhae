@@ -1,53 +1,51 @@
-@props(['buyer' => false])
-<header class="lk-header" data-header>
-    <div class="lk-header__inner">
-        <a class="lk-logo" href="{{ $buyer ? route('buyer.home') : url('/') }}" aria-label="LIKHAE home">LIKHAE</a>
-        <nav class="lk-nav" aria-label="Primary navigation">
-            <a href="{{ $buyer ? route('buyer.products') : url('/products') }}">Discover</a>
-            <a href="{{ $buyer ? route('buyer.local-finds') : url('/products?filter=local') }}">Local</a>
-            <a href="{{ $buyer ? route('buyer.products') . '?sort=newest' : url('/products?sort=newest') }}">New</a>
-            <a href="{{ $buyer ? route('buyer.home') . '#stories' : url('/#stories') }}">Stories</a>
-        </nav>
-        <form class="lk-search" action="{{ $buyer ? route('buyer.products') : url('/products') }}" method="get" role="search" data-search-form>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.4-4.4m2.4-5.1a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-            <input name="q" autocomplete="off" placeholder="Search makers, products, places..." aria-label="Search LIKHAE" data-search-input>
-            <div class="lk-search__suggestions" data-search-suggestions hidden></div>
-        </form>
-        <div class="lk-actions">
-            @if($buyer)
-                <a class="lk-icon-link" href="{{ route('buyer.wishlist') }}" aria-label="Saved pieces">♡</a>
-                <a class="lk-icon-link lk-bag-link" href="{{ route('buyer.cart') }}" aria-label="Shopping bag">Bag <span class="lk-count" data-cart-count>0</span></a>
-                <a class="lk-icon-link" href="{{ route('buyer.messages') }}" aria-label="Messages">Messages</a>
-                <a class="lk-icon-link lk-notif-link" href="{{ route('buyer.notifications') }}" aria-label="Notifications">
-                    <span class="lk-notif-dot"></span>●
-                </a>
-                <a class="lk-account-link" href="{{ route('buyer.account') }}">Account</a>
-            @else
-                <span class="lk-guest-chip">Guest</span>
-                <a class="lk-account-link" href="{{ route('login') }}">Sign In</a>
-            @endif
-        </div>
-        <button class="lk-menu-button" type="button" aria-label="Open menu" data-mobile-menu-button>☰</button>
-    </div>
-    <div class="lk-mobile-menu" data-mobile-menu hidden>
-        <a href="{{ $buyer ? route('buyer.products') : url('/products') }}">Discover</a>
-        <a href="{{ $buyer ? route('buyer.local-finds') : url('/products?filter=local') }}">Local finds</a>
-        <a href="{{ $buyer ? route('buyer.products') . '?sort=newest' : url('/products?sort=newest') }}">New & Noteworthy</a>
-        <a href="{{ $buyer ? route('buyer.flash-deals') : url('/products?filter=limited') }}">Limited Drops</a>
-        @if($buyer)
-            <a href="{{ route('buyer.wishlist') }}">Wishlist</a>
-            <a href="{{ route('buyer.cart') }}">Shopping Bag (<span data-cart-count>0</span>)</a>
-            <a href="{{ route('buyer.messages') }}">Messages</a>
-            <a href="{{ route('buyer.notifications') }}">Notifications</a>
-            <a href="{{ route('buyer.account') }}">Account Profile</a>
-            <form action="{{ route('logout') }}" method="POST" style="margin-top:8px">
-                @csrf
-                <button type="submit" class="lk-text-link" style="color:var(--coral)">Sign Out</button>
-            </form>
-        @else
-            <a href="{{ route('login') }}">Sign In</a>
-            <a href="{{ route('register') }}">Create Account</a>
-        @endif
-    </div>
+<header class="b-header">
+<div class="b-container">
+<div class="b-header-row">
+<div class="b-header-left">
+<button class="b-icon-button b-mobile-toggle" type="button" aria-label="Open navigation" data-buyer-mobile-toggle>☰</button>
+<a class="b-brand" href="{{ route('buyer.home') }}">LIKHAE</a>
+<button class="b-category-btn" type="button" data-buyer-category-toggle>Categories ▾</button>
+<nav class="b-category-menu" data-buyer-category-menu>
+@foreach(['Fashion','Electronics','Home & Living','Beauty & Health','Sports & Outdoors','Toys & Games','Automotive','Books & Stationery','Groceries','Pet Supplies','Shoes & Accessories','Others'] as $category)
+<a href="{{ route('buyer.products',['category'=>$category]) }}">{{ $category }}</a>
+@endforeach
+</nav>
+</div>
+<form class="b-search" action="{{ route('buyer.products') }}" method="GET" role="search">
+<button class="b-search-button" aria-label="Search">⌕</button>
+<input class="b-input" name="q" value="{{ request('q') }}" placeholder="Search for products, brands and more..." autocomplete="off" data-buyer-search>
+<div class="b-search-suggestions" data-buyer-search-suggestions></div>
+</form>
+<nav class="b-header-actions">
+<a class="b-icon-link desktop-only" href="{{ route('buyer.wishlist') }}" aria-label="Wishlist">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    <span class="b-count-badge" data-buyer-wishlist-count>0</span>
+</a>
+<a class="b-icon-link" href="{{ route('buyer.cart') }}" aria-label="Cart">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+    <span class="b-count-badge" data-buyer-cart-count>0</span>
+</a>
+<a class="b-icon-link desktop-only" href="{{ route('buyer.messages') }}" aria-label="Messages">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+</a>
+<a class="b-icon-link desktop-only" href="{{ route('buyer.notifications') }}" aria-label="Notifications">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+</a>
+<a class="b-icon-link" href="{{ route('buyer.account') }}" aria-label="Account">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="22" height="22"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+</a>
+</nav>
+</div>
+<nav class="b-mobile-nav" data-buyer-mobile-nav>
+<a href="{{ route('buyer.home') }}">Home</a>
+<a href="{{ route('buyer.products') }}">Products</a>
+<a href="{{ route('buyer.cart') }}">Cart</a>
+<a href="{{ route('buyer.orders') }}">Orders</a>
+<a href="{{ route('buyer.messages') }}">Chat</a>
+<a href="{{ route('buyer.notifications') }}">Notifications</a>
+<a href="{{ route('buyer.wishlist') }}">Wishlist</a>
+<a href="{{ route('buyer.account') }}">Account</a>
+<form action="{{ route('logout') }}" method="POST">@csrf<button type="submit">Logout</button></form>
+</nav>
+</div>
 </header>
-

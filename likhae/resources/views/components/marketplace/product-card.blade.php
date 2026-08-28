@@ -1,24 +1,57 @@
-@props(['product', 'buyer' => false])
-<article class="lk-product-card" data-product-card data-product-id="{{ $product['id'] }}">
-    <a class="lk-product-card__media" href="{{ $buyer ? route('buyer.product-details', $product['slug']) : url('/products/'.$product['slug']) }}">
-        <img src="{{ $product['image'] }}" alt="{{ $product['name'] }}" loading="lazy">
-        @if(!empty($product['badge']))
-            <span class="lk-badge {{ strtolower(str_replace(' ', '-', $product['badge'])) }}">{{ $product['badge'] }}</span>
-        @endif
+@props([
+    'product' => [],
+])
+
+@php
+    $id = $product['id'] ?? 'product';
+    $name = $product['name'] ?? 'Marketplace Product';
+    $slug = $product['slug'] ?? $id;
+    $image = $product['image'] ?? '/images/guest/products/headphones.svg';
+    $seller = $product['seller'] ?? 'LIKHAE Seller';
+    $category = $product['category'] ?? 'Others';
+    $price = (float) ($product['price'] ?? 0);
+    $oldPrice = isset($product['old_price']) ? (float) $product['old_price'] : null;
+    $discount = $product['discount'] ?? null;
+    $rating = $product['rating'] ?? 4.8;
+    $reviews = $product['reviews'] ?? 0;
+    $sold = $product['sold'] ?? 0;
+@endphp
+
+<article
+    class="g-product-card"
+    data-guest-product-card
+    data-category="{{ $category }}"
+    data-price="{{ $price }}"
+    data-rating="{{ $rating }}"
+    data-sold="{{ $sold }}"
+    data-search="{{ strtolower($name . ' ' . $seller . ' ' . $category) }}"
+>
+    <a class="g-product-image" href="{{ url('/products/' . $slug) }}">
+        <img src="{{ asset(ltrim($image, '/')) }}" alt="{{ $name }}" loading="lazy">
     </a>
-    <div class="lk-product-card__meta">
-        <div>
-            <p class="lk-eyebrow">{{ $product['maker'] }} · {{ $product['location'] }}</p>
-            <h3><a href="{{ $buyer ? route('buyer.product-details', $product['slug']) : url('/products/'.$product['slug']) }}">{{ $product['name'] }}</a></h3>
-            <div class="lk-price-row">
-                <strong>₱{{ number_format($product['price']) }}</strong>
-                @if(!empty($product['compareAt']))
-                    <del>₱{{ number_format($product['compareAt']) }}</del>
-                @endif
-            </div>
-            <p class="lk-rating">★ {{ $product['rating'] }} <span>({{ $product['reviews'] }})</span></p>
+
+    <div class="g-product-body">
+        <a href="{{ url('/products/' . $slug) }}">
+            <h3 class="g-product-name">{{ $name }}</h3>
+        </a>
+
+        <div class="g-product-seller">{{ $seller }}</div>
+
+        <div class="g-price">
+            <span class="g-price-current">₱{{ number_format($price, 2) }}</span>
+
+            @if($oldPrice)
+                <span class="g-price-old">₱{{ number_format($oldPrice, 2) }}</span>
+            @endif
+
+            @if($discount)
+                <span class="g-discount">{{ $discount }}% OFF</span>
+            @endif
         </div>
-        <button class="lk-heart" type="button" aria-label="Save {{ $product['name'] }}" data-wishlist-toggle data-product-id="{{ $product['id'] }}" data-requires-buyer="{{ $buyer ? 'false' : 'true' }}">♡</button>
+
+        <div class="g-product-meta">
+            <span><span class="g-rating">★</span> {{ $rating }} ({{ $reviews }})</span>
+            <span>{{ $sold }} sold</span>
+        </div>
     </div>
 </article>
-

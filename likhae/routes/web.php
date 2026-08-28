@@ -7,19 +7,19 @@ use Illuminate\Support\Facades\Route;
 require __DIR__.'/admin.php';
 
 Route::get('/', function () {
-    return view('Guest.home');
+    return view('guest.home');
 });
 
 Route::get('/products', function () {
-    return view('Guest.products');
+    return view('guest.products');
 });
 
 Route::get('/products/{slug}', function (string $slug) {
-    return view('Guest.product-details');
+    return view('guest.product-details');
 });
 
 Route::get('/login', function () {
-    return view('Guest.auth.login');
+    return view('guest.auth.login');
 })->name('login');
 
 Route::post('/login', function (\Illuminate\Http\Request $request) {
@@ -69,6 +69,15 @@ Route::prefix('address/philippines')->name('address.philippines.')->group(functi
 Route::post('/logout', function () {
     return redirect('/login');
 })->name('logout');
+
+Route::get('/auth/google', function () {
+    return back()->with('status', 'Google login is not available yet.');
+})->name('google.placeholder');
+
+Route::get('/guest/continue', function () {
+    request()->session()->put('demo_user', ['email' => 'guest', 'role' => 'guest']);
+    return redirect('/');
+})->name('guest.continue');
 
 Route::get('/admin/home', fn () => redirect('/admin/dashboard'))->name('admin.home');
 

@@ -1,3 +1,1 @@
-@php
-$likhaeProducts = $likhaeProducts ?? \App\Support\MarketplaceData::all();
-@endphp
+@props(['products'=>[]])<script type="application/json" data-buyer-product-data>@json($products)</script>

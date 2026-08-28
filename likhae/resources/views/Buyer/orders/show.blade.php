@@ -1,53 +1,11 @@
-@props(['id' => 'LKH-2026-0825-1048'])
-<x-marketplace.layout title="Order Tracking" :buyer="true">
-<section class="lk-page-head lk-container">
-    <span class="lk-kicker">ORDER #{{ $id }}</span>
-    <h1>On the way to you.</h1>
-    <p>Estimated delivery: August 27–28, 2026 via Standard Express Delivery</p>
-</section>
-
-<section class="lk-container lk-tracking">
-    <div class="lk-tracking-card">
-        <h2>Shipment Progression</h2>
-        <div style="margin-top:24px">
-            @foreach([
-                ['Order Confirmed', 'Aug 25 · 10:48 AM', 1],
-                ['Seller Preparing Order', 'Aug 25 · 1:20 PM', 1],
-                ['Handed Over to Courier', 'Aug 26 · 8:05 AM', 1],
-                ['In Transit (Cebu Sorting Hub)', 'Aug 26 · 4:40 PM', 2],
-                ['Out for Delivery', 'Estimated Aug 27', 0],
-                ['Delivered', '', 0]
-            ] as $step)
-                <div class="lk-track-step {{ $step[2] === 1 ? 'is-done' : ($step[2] === 2 ? 'is-active' : '') }}">
-                    <b>{{ $step[2] === 1 ? '✓' : ($step[2] === 2 ? '●' : '○') }}</b>
-                    <div>
-                        <strong>{{ $step[0] }}</strong>
-                        @if($step[1])
-                            <small>{{ $step[1] }}</small>
-                        @endif
-                    </div>
-                </div>
-            @endforeach
-        </div>
-    </div>
-
-    <aside class="lk-summary-card">
-        <h2>Order Details</h2>
-        <p><strong>Maker:</strong> Wear Sundays · Cebu City</p>
-        <p><strong>Item:</strong> Linen Lounge Set (Terracotta / M · Qty 1)</p>
-        <p><strong>Shipping:</strong> Standard Express (₱120)</p>
-        <p><strong>Payment:</strong> Cash on Delivery</p>
-        <p><strong>Address:</strong> 18 Narra Street, Brgy. Lahug, Cebu City</p>
-        <div class="lk-summary-total">
-            <span>Total</span>
-            <strong>₱2,010</strong>
-        </div>
-        <a class="lk-btn lk-btn--secondary lk-btn--wide" href="{{ route('buyer.messages') }}" style="margin-top:16px">
-            Message Seller
-        </a>
-        <a class="lk-btn lk-btn--ghost lk-btn--wide" href="{{ route('buyer.orders') }}" style="margin-top:8px">
-            ← Back to Orders
-        </a>
-    </aside>
-</section>
-</x-marketplace.layout>
+@php $id=$id??request()->route('id')??'001234'; @endphp
+<x-buyer.layout title="Order Details"><div class="b-page"><div class="b-container">
+<x-buyer.breadcrumbs :items="[['label'=>'My Orders','url'=>route('buyer.orders')],['label'=>'Order #'.$id,'url'=>null]]" />
+<div class="b-section-head"><div><h1 class="b-title">Order #LKH-2026-{{ $id }}</h1><p class="b-muted">Placed on August 29, 2026</p></div><x-buyer.status-badge type="warning">In Transit</x-buyer.status-badge></div>
+<div class="b-order-detail-grid"><div>
+<section class="b-card b-timeline">@foreach([['done','Order Placed','Aug 29 · 9:42 AM'],['done','Seller Preparing Order','Aug 29 · 2:10 PM'],['done','Shipped','Aug 30 · 10:20 AM'],['current','In Transit','Aug 30 · 5:30 PM'],['','Out for Delivery','Pending'],['','Delivered','Pending']] as [$state,$label,$time])<div class="b-timeline-item {{ $state }}"><div class="b-timeline-dot">{{ $state==='done'?'✓':'' }}</div><div><strong>{{ $label }}</strong><div class="b-muted" style="font-size:12px">{{ $time }}</div></div></div>@endforeach</section>
+<section class="b-card" style="padding:20px;margin-top:16px"><h2 style="margin-top:0">Product</h2><div class="b-order-body"><div class="b-order-image"><img src="{{ asset('images/buyer/products/headphones.svg') }}" alt=""></div><div><strong>Premium Wireless Headphones</strong><div class="b-muted" style="font-size:12px">Black · Standard · Qty 1</div></div><strong>₱2,499.00</strong></div></section>
+</div>
+<aside><section class="b-card" style="padding:20px;margin-bottom:16px"><h2 style="margin-top:0;font-size:18px">Delivery</h2><div class="b-muted" style="font-size:12px">Courier</div><strong>LIKHAE Courier Partner</strong><div class="b-muted" style="font-size:12px;margin-top:12px">Tracking Number</div><strong>LKH-C-8294012</strong><div class="b-muted" style="font-size:12px;margin-top:12px">Shipping Address</div><strong>Brgy. San Isidro, Antipolo City, Rizal</strong></section>
+<section class="b-card" style="padding:20px"><h2 style="margin-top:0;font-size:18px">Payment Summary</h2><div class="b-summary-row"><span>Subtotal</span><strong>₱2,499.00</strong></div><div class="b-summary-row"><span>Shipping</span><strong>₱60.00</strong></div><div class="b-summary-row"><span>Discount</span><strong>-₱200.00</strong></div><div class="b-summary-row b-summary-total"><span>Total</span><strong>₱2,359.00</strong></div><div style="display:grid;gap:8px;margin-top:15px"><a class="b-btn b-btn-secondary" href="{{ route('buyer.messages') }}">Message Seller</a><a class="b-btn b-btn-secondary" href="{{ route('buyer.messages') }}">Contact Support</a></div></section></aside></div>
+</div></div></x-buyer.layout>

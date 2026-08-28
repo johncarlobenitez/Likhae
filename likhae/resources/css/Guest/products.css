@@ -1,1 +1,101 @@
-@import './home.css';
+.g-products-head {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.g-products-head p {
+    margin: 7px 0 0;
+}
+
+.g-catalog {
+    display: grid;
+    grid-template-columns: 245px minmax(0, 1fr);
+    gap: 20px;
+}
+
+.g-filters {
+    height: max-content;
+    position: sticky;
+    top: 94px;
+    padding: 18px;
+}
+
+.g-filter-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.g-filter-group {
+    padding: 15px 0;
+    border-top: 1px solid var(--likhae-border);
+}
+
+.g-filter-group:first-of-type {
+    border-top: 0;
+}
+
+.g-filter-group > strong {
+    display: block;
+    margin-bottom: 10px;
+    font-size: 13px;
+}
+
+.g-filter-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 9px 0;
+    color: #4f4f4f;
+    font-size: 13px;
+}
+
+.g-filter-option input {
+    accent-color: var(--likhae-burgundy);
+}
+
+.g-price-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+}
+
+.g-catalog-main {
+    min-width: 0;
+}
+
+.g-catalog-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.g-active-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.g-filter-chip {
+    padding: 7px 10px;
+    color: var(--likhae-burgundy);
+    background: var(--likhae-burgundy-soft);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 750;
+}
+
+.g-sort-select {
+    width: auto;
+    min-width: 175px;
+}
+
+.g-filter-mobile-btn {
+    display: none;
+}

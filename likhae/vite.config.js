@@ -11,6 +11,10 @@ export default defineConfig({
                 'resources/js/app.js',
 
                 // Buyer
+                'resources/css/Buyer/app.css',
+                'resources/css/Buyer/registration.css',
+                'resources/js/buyer/app.js',
+                'resources/js/buyer/registration.js',
                 'resources/css/Buyer/home.css',
                 'resources/css/Buyer/products.css',
                 'resources/css/Buyer/product-details.css',

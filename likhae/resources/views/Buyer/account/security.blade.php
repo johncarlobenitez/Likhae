@@ -1,58 +1,6 @@
-<x-marketplace.layout title="Account Security" :buyer="true">
-<section class="lk-page-head lk-container">
-    <span class="lk-kicker">LOGIN & SAFETY</span>
-    <h1>Account Security</h1>
-</section>
-
-<section class="lk-account-layout lk-container">
-    <x-marketplace.account-nav current="security" />
-
-    <section class="lk-account-card">
-        <h2>Change Password</h2>
-        <form class="lk-form" data-password-form style="max-width:480px">
-            <label>Current Password
-                <input type="password" required placeholder="••••••••">
-            </label>
-            <label>New Password
-                <input type="password" required placeholder="Minimum 8 characters">
-            </label>
-            <label>Confirm New Password
-                <input type="password" required placeholder="Re-enter new password">
-            </label>
-            <div style="margin-top:12px">
-                <button class="lk-btn lk-btn--primary" type="submit">Update Password</button>
-            </div>
-        </form>
-
-        <hr>
-
-        <h2>Connected Accounts</h2>
-        <div style="display:grid;gap:14px;margin-top:16px">
-            <div class="lk-connected-row" style="padding:14px;border:1px solid var(--line);border-radius:10px">
-                <div>
-                    <strong>Google Account</strong>
-                    <p style="color:var(--slate);margin:2px 0 0;font-size:0.85rem">Ready for Socialite linking</p>
-                </div>
-                <button class="lk-btn lk-btn--secondary" type="button">Connect Google</button>
-            </div>
-        </div>
-
-        <hr>
-
-        <h2>Active Sessions</h2>
-        <div style="margin-top:14px">
-            <div style="padding:12px;background:var(--sand);border-radius:8px;display:flex;justify-content:space-between;align-items:center">
-                <div>
-                    <strong>Chrome on Windows 11 (This Device)</strong>
-                    <small style="display:block;color:var(--slate)">Cebu City, Philippines · Active Now</small>
-                </div>
-                <span class="lk-status-pill lk-status-pill--approved">ACTIVE</span>
-            </div>
-        </div>
-        <form method="POST" action="{{ route('logout') }}" style="margin-top:20px">
-            @csrf
-            <button class="lk-btn lk-btn--secondary" type="submit">Log Out All Sessions</button>
-        </form>
-    </section>
-</section>
-</x-marketplace.layout>
+<x-buyer.layout title="Security"><div class="b-page"><div class="b-container"><div class="b-account">
+<x-buyer.account-nav />
+<main class="b-account-main"><div class="b-section-head"><div><h1 class="b-title">Security</h1><p class="b-muted">Update your password and protect your LIKHAE account.</p></div></div>
+<section class="b-card b-account-card" style="max-width:760px"><form class="b-form-grid"><div class="b-field b-span-2"><label>Current Password</label><div style="position:relative"><input class="b-input" id="currentPassword" type="password"><button class="b-btn b-btn-ghost" type="button" style="position:absolute;right:4px;top:2px;min-height:38px" data-password-toggle="currentPassword">Show</button></div></div><div class="b-field"><label>New Password</label><input class="b-input" id="newPassword" type="password" data-new-password><div class="b-security-meter"><span data-password-meter></span></div><p class="b-help">Use 8+ characters with numbers, uppercase letters, and symbols.</p></div><div class="b-field"><label>Confirm New Password</label><input class="b-input" type="password"></div><div class="b-span-2"><button class="b-btn b-btn-primary" type="button">Change Password</button></div></form></section>
+<section class="b-card b-account-card" style="max-width:760px;margin-top:16px"><h2 style="margin-top:0">Account Protection</h2><div class="b-alert b-alert-warning">Two-factor authentication and login sessions should only be enabled when your backend supports them.</div></section>
+</main></div></div></div></x-buyer.layout>

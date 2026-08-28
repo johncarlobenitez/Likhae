@@ -1,1 +1,259 @@
-@import './home.css';
+.g-product-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(360px, .92fr);
+    gap: 28px;
+}
+
+.g-gallery {
+    display: grid;
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: 11px;
+}
+
+.g-thumbnails {
+    display: grid;
+    align-content: start;
+    gap: 9px;
+}
+
+.g-thumbnail {
+    padding: 0;
+    overflow: hidden;
+    aspect-ratio: 1 / 1;
+    border: 1px solid var(--likhae-border);
+    border-radius: 10px;
+    background: #fff;
+}
+
+.g-thumbnail.is-active {
+    border: 2px solid var(--likhae-burgundy);
+}
+
+.g-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.g-main-image {
+    min-height: 580px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: #f3eee8;
+    border: 1px solid var(--likhae-border);
+    border-radius: 18px;
+}
+
+.g-main-image img {
+    width: 100%;
+    height: 100%;
+    min-height: 580px;
+    object-fit: cover;
+}
+
+.g-product-panel {
+    height: max-content;
+    padding: 24px;
+}
+
+.g-product-panel h1 {
+    margin: 7px 0 10px;
+    font-size: clamp(28px, 4vw, 38px);
+    line-height: 1.06;
+    letter-spacing: -0.045em;
+}
+
+.g-product-kicker {
+    color: var(--likhae-burgundy);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.g-product-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 11px 0 20px;
+    color: var(--likhae-muted);
+    font-size: 13px;
+}
+
+.g-product-panel .g-price-current {
+    font-size: 29px;
+}
+
+.g-stock {
+    margin-top: 9px;
+    color: var(--likhae-success);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.g-option-group {
+    margin-top: 20px;
+}
+
+.g-option-group > strong {
+    display: block;
+    margin-bottom: 9px;
+    font-size: 13px;
+}
+
+.g-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.g-option {
+    min-width: 54px;
+    min-height: 38px;
+    border: 1px solid var(--likhae-border);
+    border-radius: 9px;
+    background: #fff;
+}
+
+.g-option:hover {
+    border-color: #cdbcb1;
+}
+
+.g-option.is-selected {
+    color: var(--likhae-burgundy);
+    border-color: var(--likhae-burgundy);
+    box-shadow: 0 0 0 2px rgba(143,23,25,.08);
+}
+
+.g-option:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+    text-decoration: line-through;
+}
+
+.g-qty {
+    display: inline-grid;
+    grid-template-columns: 38px 48px 38px;
+    overflow: hidden;
+    border: 1px solid var(--likhae-border);
+    border-radius: 9px;
+}
+
+.g-qty button,
+.g-qty input {
+    height: 38px;
+    border: 0;
+    background: #fff;
+    text-align: center;
+}
+
+.g-qty button:hover {
+    background: #f5f1ed;
+}
+
+.g-product-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+    margin-top: 22px;
+}
+
+.g-secondary-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 9px;
+}
+
+.g-product-content {
+    margin-top: 26px;
+}
+
+.g-tabs {
+    display: flex;
+    overflow-x: auto;
+    gap: 4px;
+    border-bottom: 1px solid var(--likhae-border);
+}
+
+.g-tab {
+    padding: 13px 15px;
+    border: 0;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 750;
+    white-space: nowrap;
+}
+
+.g-tab.is-active {
+    color: var(--likhae-burgundy);
+    border-bottom: 2px solid var(--likhae-burgundy);
+}
+
+.g-tab-panel {
+    display: none;
+    padding: 22px 0;
+}
+
+.g-tab-panel.is-active {
+    display: block;
+}
+
+.g-spec-table {
+    overflow: hidden;
+    border: 1px solid var(--likhae-border);
+    border-radius: 13px;
+}
+
+.g-spec-row {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    border-bottom: 1px solid var(--likhae-border);
+}
+
+.g-spec-row:last-child {
+    border-bottom: 0;
+}
+
+.g-spec-row span,
+.g-spec-row strong {
+    padding: 12px 14px;
+    font-size: 13px;
+}
+
+.g-spec-row span {
+    background: #faf8f5;
+    color: var(--likhae-muted);
+}
+
+.g-seller-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 18px;
+    margin-top: 18px;
+}
+
+.g-seller-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.g-seller-avatar {
+    width: 48px;
+    height: 48px;
+    display: grid;
+    place-items: center;
+    flex: none;
+    color: var(--likhae-burgundy);
+    background: var(--likhae-burgundy-soft);
+    border-radius: 50%;
+    font-weight: 850;
+}
+
+.g-seller-info small {
+    display: block;
+    margin-top: 3px;
+    color: var(--likhae-muted);
+}

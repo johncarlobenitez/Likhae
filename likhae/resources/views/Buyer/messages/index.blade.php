@@ -1,75 +1,10 @@
-<x-marketplace.layout title="Messages" :buyer="true">
-<section class="lk-messages lk-container" data-messages-page>
-    <aside class="lk-conversations">
-        <span class="lk-kicker">MESSAGES</span>
-        <h1>Conversations</h1>
-        <input placeholder="Search conversations..." data-conversation-search aria-label="Search conversations">
-        <div style="margin-top:16px;display:grid;gap:6px">
-            <button class="lk-conversation is-active" type="button">
-                <span class="lk-avatar">WS</span>
-                <span>
-                    <strong>Wear Sundays</strong>
-                    <small>Yes, the Terracotta M is available.</small>
-                </span>
-            </button>
-            <button class="lk-conversation" type="button">
-                <span class="lk-avatar">HN</span>
-                <span>
-                    <strong>Habi Norte</strong>
-                    <small>Your tote is handwoven to order.</small>
-                </span>
-            </button>
-            <button class="lk-conversation" type="button">
-                <span class="lk-avatar">CS</span>
-                <span>
-                    <strong>Clay Story</strong>
-                    <small>New stoneware batch arriving this Friday.</small>
-                </span>
-            </button>
-        </div>
-    </aside>
-
-    <section class="lk-chat">
-        <header>
-            <div>
-                <strong style="font-size:1.1rem;display:block">Wear Sundays</strong>
-                <small style="color:var(--slate);display:flex;align-items:center;gap:6px;margin-top:2px">
-                    <i style="display:inline-block;width:7px;height:7px;background:#6a9f66;border-radius:50%"></i>
-                    Active now · Cebu City Studio
-                </small>
-            </div>
-        </header>
-
-        {{-- Product Reference Card --}}
-        <div style="margin:12px 0 6px;padding:10px 14px;background:var(--paper);border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;gap:12px">
-            <img src="https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&w=120&q=80" alt="Linen Lounge Set" style="width:44px;height:44px;border-radius:6px;object-fit:cover">
-            <div style="flex:1">
-                <small style="color:var(--slate);text-transform:uppercase;font-size:0.65rem;font-weight:700">Referenced Product</small>
-                <strong style="display:block;font-size:0.9rem">Linen Lounge Set — ₱1,890</strong>
-            </div>
-            <a href="{{ route('buyer.product-details', 'linen-lounge-set') }}" class="lk-text-link" style="font-size:0.8rem">View Item</a>
-        </div>
-
-        <div class="lk-chat-thread" data-chat-thread>
-            <div class="lk-message lk-message--them">
-                Hi Maria! Thank you for your interest in Wear Sundays. How can we help you today with the Linen Lounge Set?
-                <small>10:24 AM</small>
-            </div>
-            <div class="lk-message lk-message--me">
-                Hello! Is the Terracotta color in Medium available for immediate dispatch to Cebu City?
-                <small>10:26 AM</small>
-            </div>
-            <div class="lk-message lk-message--them">
-                Yes! The Terracotta M is in stock. We currently have 4 pieces left from this weekly batch and can ship tomorrow morning.
-                <small>10:28 AM</small>
-            </div>
-        </div>
-
-        <form class="lk-chat-compose" data-chat-form>
-            <button type="button" aria-label="Attach photo or image" style="border:0;background:none;font-size:1.4rem;cursor:pointer;padding:0 8px">+</button>
-            <input placeholder="Write a message to Wear Sundays..." required data-chat-input aria-label="Message input">
-            <button class="lk-btn lk-btn--primary" type="submit">Send</button>
-        </form>
-    </section>
-</section>
-</x-marketplace.layout>
+<x-buyer.layout title="Messages"><div class="b-page"><div class="b-container">
+<x-buyer.breadcrumbs :items="[['label'=>'Messages','url'=>null]]" />
+<section class="b-card b-inbox" data-buyer-messages><aside class="b-conversations"><div class="b-inbox-title">Messages</div>
+@foreach([['Metro Finds PH','Your order has been shipped.','10:32 AM',true],['Urban Carry Co.','The brown variant is available.','Yesterday',false],['Stride PH','Thank you for your order!','Aug 26',false]] as $i=>[$name,$message,$time,$unread])
+<div class="b-conversation {{ $i===0?'is-active':'' }}" data-conversation data-name="{{ $name }}"><div class="b-avatar">{{ strtoupper(substr($name,0,1)) }}</div><div class="b-conversation-copy"><div style="display:flex;justify-content:space-between"><strong>{{ $name }}</strong><small class="b-muted">{{ $time }}</small></div><span>{{ $message }}</span></div>@if($unread)<span class="b-notification-dot"></span>@endif</div>@endforeach
+</aside>
+<div class="b-chat"><header class="b-chat-head"><div style="display:flex;gap:10px;align-items:center"><button class="b-icon-button" data-show-conversations>←</button><div><strong data-chat-name>Metro Finds PH</strong><div class="b-muted" style="font-size:11px">Usually replies within an hour</div></div></div><a class="b-btn b-btn-secondary" href="{{ route('buyer.products') }}">Visit Store</a></header>
+<div class="b-chat-messages" data-chat-body><div class="b-bubble-row"><div class="b-bubble">Hi! Your order has been shipped.<time>10:28 AM</time></div></div><div class="b-bubble-row mine"><div class="b-bubble">Thank you! I’ll keep an eye on tracking.<time>10:30 AM</time></div></div></div>
+<form class="b-chat-compose" data-chat-form><input class="b-input" placeholder="Type a message..." data-chat-input><button class="b-btn b-btn-primary" type="submit">Send</button></form></div></section>
+</div></div></x-buyer.layout>

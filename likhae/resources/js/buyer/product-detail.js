@@ -1,0 +1,11 @@
+import{$,$$,readStore,writeStore,toast}from"./utils.js";
+export function initBuyerProductDetail(){
+ const p=$("[data-buyer-product-detail]");if(!p)return;const main=$("[data-buyer-main-image]",p),stock=+p.dataset.stock||1,qty=$("[data-product-quantity]",p);
+ $$("[data-buyer-thumbnail]",p).forEach(t=>t.addEventListener("click",()=>{$$("[data-buyer-thumbnail]",p).forEach(x=>x.classList.remove("is-active"));t.classList.add("is-active");if(main){main.src=t.dataset.image;main.alt=t.dataset.alt||main.alt}}));
+ $$("[data-option-group]",p).forEach(g=>$$("[data-option]",g).forEach(o=>o.addEventListener("click",()=>{if(o.disabled)return;$$("[data-option]",g).forEach(x=>x.classList.remove("is-selected"));o.classList.add("is-selected")})));
+ $("[data-quantity-minus]",p)?.addEventListener("click",()=>qty.value=Math.max(1,+qty.value-1));$("[data-quantity-plus]",p)?.addEventListener("click",()=>qty.value=Math.min(stock,+qty.value+1));
+ const add=()=>{const opts=$$("[data-option].is-selected",p).map(x=>x.textContent.trim()),cart=readStore("likhae_buyer_cart",[]),id=p.dataset.productId;let e=cart.find(x=>x.id===id&&JSON.stringify(x.options||[])===JSON.stringify(opts));if(e)e.qty=Math.min(stock,+e.qty+(+qty.value||1));else cart.push({id,name:p.dataset.productName,price:+p.dataset.productPrice,image:p.dataset.productImage,qty:+qty.value||1,stock,options:opts});writeStore("likhae_buyer_cart",cart);toast("Added to cart.")};
+ $("[data-buyer-add-cart]",p)?.addEventListener("click",add);$("[data-buyer-buy-now]",p)?.addEventListener("click",()=>{add();location.href="/buyer/cart"});
+ $("[data-buyer-wishlist]",p)?.addEventListener("click",()=>{let w=readStore("likhae_buyer_wishlist",[]),id=p.dataset.productId;if(w.includes(id)){w=w.filter(x=>x!==id);toast("Removed from wishlist.")}else{w.push(id);toast("Saved to wishlist.")}writeStore("likhae_buyer_wishlist",w)});
+ $$("[data-product-tab]",p).forEach(b=>b.addEventListener("click",()=>{$$("[data-product-tab]",p).forEach(x=>x.classList.remove("is-active"));$$("[data-product-panel]",p).forEach(x=>x.classList.remove("is-active"));b.classList.add("is-active");$(`[data-product-panel="${b.dataset.productTab}"]`,p)?.classList.add("is-active")}));
+}

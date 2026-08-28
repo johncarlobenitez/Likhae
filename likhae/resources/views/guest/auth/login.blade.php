@@ -1,84 +1,167 @@
-<x-marketplace.layout title="Sign In" :hide-nav="true">
-<div class="lk-auth-shell">
-    <section class="lk-auth-art">
-        <img src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1400&q=90" alt="LIKHAE curated fashion and lifestyle">
-        <div class="lk-auth-art__overlay"></div>
-        <div class="lk-auth-art__copy">
-            <a class="lk-logo lk-logo--light" href="/">LIKHAE</a>
-            <span class="lk-kicker lk-kicker--light">A MARKETPLACE FOR THINGS WITH A STORY</span>
-            <h1>Discover what<br><em>Filipino makers</em><br>are making next.</h1>
-            <p>Thoughtfully made objects, regional crafts, and independent studios from across the Philippine islands.</p>
-        </div>
-    </section>
-    <section class="lk-auth-form-wrap">
-        <div class="lk-auth-form">
-            <a class="lk-logo lk-auth-mobile-logo" href="/">LIKHAE</a>
-            <span class="lk-kicker">WELCOME BACK</span>
-            <h2>Sign in to LIKHAE</h2>
-            <p>Save favorite pieces, message makers directly, track orders, and shop the curated edit.</p>
-            
-            @if(isset($errors) && $errors->any())
-                <div class="lk-form-alert" role="alert">
-                    {{ $errors->first() }}
-                </div>
-            @endif
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
-            @if(session('status'))
-                <div class="lk-form-alert" style="background:#e8f0e8;color:#2e5c33;border-color:#b9d5ba">
-                    {{ session('status') }}
-                </div>
-            @endif
+    <title>Sign In — LIKHAE</title>
 
-            <form method="POST" action="{{ route('login.post') }}" class="lk-form">
-                @csrf
-                <label>Email address
-                    <input type="email" name="email" value="{{ old('email') }}" required autocomplete="email" placeholder="you@example.com">
-                </label>
-                <label>Password
-                    <div class="lk-password-field">
-                        <input type="password" name="password" required autocomplete="current-password" data-password placeholder="••••••••">
-                        <button type="button" data-toggle-password aria-label="Toggle password visibility">Show</button>
+    @vite([
+        'resources/css/Guest/auth/login.css',
+        'resources/js/app.js'
+    ])
+</head>
+
+<body class="min-h-screen bg-[#f5f2ed] text-[#111111] antialiased">
+    <main class="min-h-screen px-4 py-12 sm:py-16">
+        <div class="mx-auto w-full max-w-[420px]">
+
+            {{-- Brand --}}
+            <a href="{{ url('/') }}" class="mb-8 inline-flex items-center gap-2">
+                <span class="grid h-8 w-8 place-items-center rounded-md bg-[#d92d2f] text-sm font-black text-white">
+                    L
+                </span>
+                <span class="text-xl font-black tracking-tight">LIKHAE</span>
+            </a>
+
+            {{-- Auth Card --}}
+            <section class="border border-[#ddd6ce] bg-white shadow-[0_18px_45px_rgba(0,0,0,0.06)]">
+
+                {{-- Tabs --}}
+                <div class="grid grid-cols-2 border-b border-[#e6e0d8]">
+                    <a href="{{ route('login') }}" class="auth-tab is-active">
+                        Sign In
+                    </a>
+                    <a href="{{ route('register') }}" class="auth-tab">
+                        Create Account
+                    </a>
+                </div>
+
+                <div class="p-7 sm:p-8">
+                    <p class="text-center text-sm text-[#746e67]">
+                        Welcome back to LIKHAE
+                    </p>
+
+                    @if ($errors->any())
+                        <div class="mt-5 border border-[#f1c7c8] bg-[#fff2f2] px-4 py-3 text-sm text-[#b82024]">
+                            <ul class="space-y-1">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    @if (session('status'))
+                        <div class="mt-5 border border-[#bfe2d7] bg-[#effaf6] px-4 py-3 text-sm text-[#087c5c]">
+                            {{ session('status') }}
+                        </div>
+                    @endif
+
+                    <form method="POST" action="{{ route('login.post') }}" class="mt-7">
+                        @csrf
+
+                        {{-- Email --}}
+                        <div>
+                            <label for="email" class="mb-2 block text-[10px] font-bold uppercase tracking-[0.18em] text-[#8c857d]">
+                                Email
+                            </label>
+                            <input
+                                id="email"
+                                name="email"
+                                type="email"
+                                value="{{ old('email') }}"
+                                autocomplete="email"
+                                required
+                                autofocus
+                                placeholder="juan@email.com"
+                                class="auth-input"
+                            >
+                        </div>
+
+                        {{-- Password --}}
+                        <div class="mt-5">
+                            <label for="password" class="mb-2 block text-[10px] font-bold uppercase tracking-[0.18em] text-[#8c857d]">
+                                Password
+                            </label>
+                            <div class="relative">
+                                <input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    autocomplete="current-password"
+                                    required
+                                    placeholder="••••••••"
+                                    class="auth-input pr-12"
+                                >
+                                <button
+                                    id="togglePassword"
+                                    type="button"
+                                    class="absolute inset-y-0 right-0 grid w-12 place-items-center text-[#b3aca4] transition hover:text-[#d92d2f]"
+                                    aria-label="Show password"
+                                >
+                                    <svg id="eyeOpen" viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.7">
+                                        <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+                                        <circle cx="12" cy="12" r="2.7"></circle>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        {{-- Remember/Forgot --}}
+                        <div class="mt-5 flex items-center justify-between gap-4">
+                            <label class="flex cursor-pointer items-center gap-2 text-sm text-[#746e67]">
+                                <input type="checkbox" name="remember" class="h-4 w-4 accent-[#d92d2f]">
+                                <span>Remember me</span>
+                            </label>
+                            <a href="#" class="text-xs font-semibold text-[#d92d2f] transition hover:text-[#b82024]">
+                                Forgot password?
+                            </a>
+                        </div>
+
+                        {{-- Submit --}}
+                        <button
+                            type="submit"
+                            class="mt-5 flex h-12 w-full items-center justify-center gap-2 bg-[#d92d2f] px-5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(217,45,47,0.18)] transition hover:bg-[#bd2024]"
+                        >
+                            <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8">
+                                <path d="M10 17l5-5-5-5"></path>
+                                <path d="M15 12H4"></path>
+                                <path d="M14 4h5v16h-5"></path>
+                            </svg>
+                            Sign In
+                        </button>
+                    </form>
+
+                    {{-- Divider --}}
+                    <div class="my-5 flex items-center gap-3">
+                        <div class="h-px flex-1 bg-[#e5dfd7]"></div>
+                        <span class="text-[11px] text-[#b0a9a1]">or continue with</span>
+                        <div class="h-px flex-1 bg-[#e5dfd7]"></div>
                     </div>
-                </label>
-                <div class="lk-form-row">
-                    <label class="lk-checkbox">
-                        <input type="checkbox" name="remember">
-                        <span>Remember me</span>
-                    </label>
-                    <a href="#" class="lk-text-link" style="color:var(--slate)">Forgot password?</a>
+
+                    {{-- Social --}}
+                    <div class="grid grid-cols-2 gap-3">
+                        <a href="{{ url('/auth/google') }}" class="social-btn">Google</a>
+                        <a href="{{ url('/auth/facebook') }}" class="social-btn">Facebook</a>
+                    </div>
                 </div>
-                <button class="lk-btn lk-btn--primary lk-btn--wide" type="submit">Sign In</button>
-            </form>
-
-            <div class="lk-or"><span>OR</span></div>
-
-            <a class="lk-btn lk-btn--google lk-btn--wide" href="{{ route('google.placeholder') }}">
-                <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-                    <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.616z"/>
-                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
-                    <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707 0-.59.102-1.167.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/>
-                    <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/>
-                </svg>
-                Continue with Google
-            </a>
-            
-            <a class="lk-btn lk-btn--secondary lk-btn--wide" href="{{ route('guest.continue') }}" style="margin-top:10px">
-                Continue as Guest
-            </a>
-
-            <p class="lk-auth-foot">
-                New to LIKHAE? <a href="{{ route('register') }}" class="lk-text-link" style="color:var(--coral);font-weight:700">Create a buyer account</a>
-            </p>
-
-            <details class="lk-demo-credentials">
-                <summary>Developer Demo Credentials</summary>
-                <div style="margin-top:8px;line-height:1.6;font-size:0.75rem">
-                    <p><strong>Buyer:</strong> <code>buyer@likhae.com</code> / <code>buyer</code></p>
-                    <p><strong>Seller:</strong> <code>seller@likhae.com</code> / <code>seller</code></p>
-                    <p><strong>Admin:</strong> <code>admin@likhae.com</code> / <code>admin</code></p>
-                </div>
-            </details>
+            </section>
         </div>
-    </section>
-</div>
-</x-marketplace.layout>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const password = document.getElementById('password');
+            const toggle = document.getElementById('togglePassword');
+            if (!password || !toggle) return;
+            toggle.addEventListener('click', () => {
+                const hidden = password.type === 'password';
+                password.type = hidden ? 'text' : 'password';
+                toggle.setAttribute('aria-label', hidden ? 'Hide password' : 'Show password');
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,41 +1,43 @@
-<footer class="lk-footer">
-    <div class="lk-container">
-        <div class="lk-footer__grid">
+<footer style="margin-top:44px;background:#fff;border-top:1px solid var(--likhae-border)">
+    <div class="g-container" style="padding:34px 0">
+        <div style="display:grid;grid-template-columns:minmax(220px,1.6fr) repeat(3,minmax(130px,1fr));gap:24px">
             <div>
-                <a class="lk-logo lk-logo--light" href="/">LIKHAE</a>
-                <p>An editorial marketplace celebrating Filipino makers, regional craft traditions, and objects made for slow, considered living.</p>
-                <p style="margin-top:16px;font-size:0.8rem;color:#8f9ba5">Based in the Philippines · Supporting independent makers nationwide.</p>
+                <a class="g-brand" href="{{ url('/') }}">LIKHAE</a>
+                <p class="g-muted" style="max-width:390px;line-height:1.65;font-size:13px">
+                    A modern multi-category marketplace built to make everyday shopping simpler,
+                    safer, and more organized.
+                </p>
             </div>
+
             <div>
-                <h4>Discover</h4>
-                <a href="{{ url('/products') }}">All Products</a>
-                <a href="{{ url('/products?category=Wear') }}">Wear</a>
-                <a href="{{ url('/products?category=Live') }}">Live</a>
-                <a href="{{ url('/products?category=Taste') }}">Taste</a>
-                <a href="{{ url('/products?category=Glow') }}">Glow</a>
-                <a href="{{ url('/products?category=Move') }}">Move</a>
+                <strong style="font-size:13px">Shop</strong>
+                <div style="display:grid;gap:8px;margin-top:10px;font-size:13px;color:var(--likhae-muted)">
+                    <a href="{{ url('/products') }}">All Products</a>
+                    <a href="{{ url('/products') }}?category=Electronics">Electronics</a>
+                    <a href="{{ url('/products') }}?category=Fashion">Fashion</a>
+                </div>
             </div>
+
             <div>
-                <h4>Regions</h4>
-                <a href="{{ url('/products?location=Cebu') }}">Cebu Studio Edit</a>
-                <a href="{{ url('/products?location=Benguet') }}">Benguet Highland Craft</a>
-                <a href="{{ url('/products?location=Marikina') }}">Marikina Leathercraft</a>
-                <a href="{{ url('/products?location=Davao') }}">Davao Botanicals</a>
-                <a href="{{ url('/products?location=Manila') }}">Manila Independent Design</a>
+                <strong style="font-size:13px">Account</strong>
+                <div style="display:grid;gap:8px;margin-top:10px;font-size:13px;color:var(--likhae-muted)">
+                    <a href="{{ route('login') }}">Sign In</a>
+                    <a href="{{ route('register') }}">Register</a>
+                </div>
             </div>
+
             <div>
-                <h4>Trust & Care</h4>
-                <a href="{{ route('register') }}">Join as a Buyer</a>
-                <a href="{{ route('login') }}">Sign In</a>
-                <p>Authentic Local Guarantee</p>
-                <p>Protected Transactions</p>
-                <p>Verified Maker Network</p>
+                <strong style="font-size:13px">Trust</strong>
+                <div style="display:grid;gap:8px;margin-top:10px;font-size:13px;color:var(--likhae-muted)">
+                    <span>Buyer Protection</span>
+                    <span>Secure Checkout</span>
+                    <span>Order Tracking</span>
+                </div>
             </div>
         </div>
-        <div class="lk-footer__bottom">
-            <span>© {{ date('Y') }} LIKHAE Marketplace. All rights reserved.</span>
-            <span>Crafted with intention in the Philippines.</span>
+
+        <div style="margin-top:26px;padding-top:18px;border-top:1px solid var(--likhae-border);font-size:12px;color:var(--likhae-muted)">
+            © {{ date('Y') }} LIKHAE. All rights reserved.
         </div>
     </div>
 </footer>
-

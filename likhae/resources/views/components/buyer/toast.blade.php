@@ -1,2 +1,1 @@
-<div class="lk-toast" data-toast hidden role="status" aria-live="polite"></div>
-
+<div class="b-toast-wrap" id="buyerToastWrap">@if(session('status'))<div class="b-toast">{{ session('status') }}</div>@endif</div>

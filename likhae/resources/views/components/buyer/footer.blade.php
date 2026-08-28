@@ -1,41 +1,6 @@
-<footer class="lk-footer">
-    <div class="lk-container">
-        <div class="lk-footer__grid">
-            <div>
-                <a class="lk-logo lk-logo--light" href="/">LIKHAE</a>
-                <p>An editorial marketplace celebrating Filipino makers, regional craft traditions, and objects made for slow, considered living.</p>
-                <p style="margin-top:16px;font-size:0.8rem;color:#8f9ba5">Based in the Philippines · Supporting independent makers nationwide.</p>
-            </div>
-            <div>
-                <h4>Discover</h4>
-                <a href="{{ url('/products') }}">All Products</a>
-                <a href="{{ url('/products?category=Wear') }}">Wear</a>
-                <a href="{{ url('/products?category=Live') }}">Live</a>
-                <a href="{{ url('/products?category=Taste') }}">Taste</a>
-                <a href="{{ url('/products?category=Glow') }}">Glow</a>
-                <a href="{{ url('/products?category=Move') }}">Move</a>
-            </div>
-            <div>
-                <h4>Regions</h4>
-                <a href="{{ url('/products?location=Cebu') }}">Cebu Studio Edit</a>
-                <a href="{{ url('/products?location=Benguet') }}">Benguet Highland Craft</a>
-                <a href="{{ url('/products?location=Marikina') }}">Marikina Leathercraft</a>
-                <a href="{{ url('/products?location=Davao') }}">Davao Botanicals</a>
-                <a href="{{ url('/products?location=Manila') }}">Manila Independent Design</a>
-            </div>
-            <div>
-                <h4>Trust & Care</h4>
-                <a href="{{ route('register') }}">Join as a Buyer</a>
-                <a href="{{ route('login') }}">Sign In</a>
-                <p>Authentic Local Guarantee</p>
-                <p>Protected Transactions</p>
-                <p>Verified Maker Network</p>
-            </div>
-        </div>
-        <div class="lk-footer__bottom">
-            <span>© {{ date('Y') }} LIKHAE Marketplace. All rights reserved.</span>
-            <span>Crafted with intention in the Philippines.</span>
-        </div>
-    </div>
+<footer style="margin-top:44px;background:#fff;border-top:1px solid var(--b)">
+<div class="b-container" style="padding:34px 0;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap">
+<div><a class="b-brand" href="{{ route('buyer.home') }}">LIKHAE</a><p class="b-muted" style="max-width:480px;font-size:13px">Everything you need, all in one place — with secure checkout, order tracking, and buyer protection.</p></div>
+<div class="b-muted" style="font-size:13px">Trusted sellers · Secure payments · Easy tracking</div>
+</div>
 </footer>
-
