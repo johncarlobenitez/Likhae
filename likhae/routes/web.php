@@ -2,97 +2,404 @@
 
 use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\PhilippineAddressController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-require __DIR__.'/admin.php';
+
+/*
+|--------------------------------------------------------------------------
+| Route Files
+|--------------------------------------------------------------------------
+|
+| Keep role-specific routes separated.
+|
+*/
+
+require __DIR__ . '/admin.php';
+require __DIR__ . '/seller.php';
+require __DIR__ . '/Buyer.php';
+
+
+/*
+|--------------------------------------------------------------------------
+| Guest Marketplace
+|--------------------------------------------------------------------------
+*/
 
 Route::get('/', function () {
     return view('guest.home');
-});
+})->name('home');
+
 
 Route::get('/products', function () {
     return view('guest.products');
-});
+})->name('products');
+
 
 Route::get('/products/{slug}', function (string $slug) {
-    return view('guest.product-details');
-});
+    return view('guest.product-details', [
+        'slug' => $slug,
+    ]);
+})->name('products.show');
+
+
+/*
+|--------------------------------------------------------------------------
+| Authentication
+|--------------------------------------------------------------------------
+|
+| Current structure:
+|
+| resources/views/auth/login.blade.php
+| resources/views/auth/register.blade.php
+| resources/views/auth/pending.blade.php
+| resources/views/auth/seller.blade.php
+|
+*/
+
+
+/*
+|--------------------------------------------------------------------------
+| Login Page
+|--------------------------------------------------------------------------
+*/
 
 Route::get('/login', function () {
-    return view('guest.auth.login');
+    return view('auth.login');
 })->name('login');
 
-Route::post('/login', function (\Illuminate\Http\Request $request) {
-    // Demo role-based login (replace with real Auth + roles later)
-    $roles = [
-        'admin@likhae.com'     => ['password' => 'admin',     'role' => 'admin'],
-        'admintest@likhae.com' => ['password' => 'admin',     'role' => 'admin'],
-        'buyer@likhae.com'     => ['password' => 'buyer',     'role' => 'buyer'],
-        'seller@likhae.com'    => ['password' => 'seller',    'role' => 'seller'],
-        'courier@likhae.com'   => ['password' => 'courier',   'role' => 'courier'],
-    ];
 
-    $user = $roles[$request->email] ?? null;
+/*
+|--------------------------------------------------------------------------
+| Demo Login
+|--------------------------------------------------------------------------
+|
+| Frontend/demo authentication only.
+| Replace this with Laravel Auth later.
+|
+*/
 
-    if (!$user || $user['password'] !== $request->password) {
-        return back()->withErrors(['email' => 'Invalid credentials.'])->withInput();
-    }
+Route::post('/login', function (Request $request) {
 
-    $request->session()->regenerate();
-    $request->session()->put('demo_user', [
-        'email' => $request->email,
-        'role' => $user['role'],
+    $request->validate([
+        'email' => [
+            'required',
+            'email',
+        ],
+
+        'password' => [
+            'required',
+            'string',
+        ],
     ]);
 
-    $redirects = [
-        'admin'   => '/admin/dashboard',
-        'buyer'   => '/buyer/home',
-        'seller'  => '/seller/home',
-        'courier' => '/courier/home',
+
+    $roles = [
+
+        'admin@likhae.com' => [
+            'password' => 'admin',
+            'role' => 'admin',
+        ],
+
+        'admintest@likhae.com' => [
+            'password' => 'admin',
+            'role' => 'admin',
+        ],
+
+        'buyer@likhae.com' => [
+            'password' => 'buyer',
+            'role' => 'buyer',
+        ],
+
+        'seller@likhae.com' => [
+            'password' => 'seller',
+            'role' => 'seller',
+        ],
+
+        'courier@likhae.com' => [
+            'password' => 'courier',
+            'role' => 'courier',
+        ],
+
     ];
 
-    return redirect($redirects[$user['role']])->with('status', 'Signed in as '.$user['role'].'.');
+
+    $user =
+        $roles[$request->email]
+        ?? null;
+
+
+    if (
+        !$user
+        ||
+        $user['password'] !== $request->password
+    ) {
+
+        return back()
+            ->withErrors([
+                'email' => 'Invalid email or password.',
+            ])
+            ->withInput(
+                $request->only('email')
+            );
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Regenerate Session
+    |--------------------------------------------------------------------------
+    */
+
+    $request
+        ->session()
+        ->regenerate();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Store Demo User
+    |--------------------------------------------------------------------------
+    */
+
+    $request
+        ->session()
+        ->put(
+            'demo_user',
+            [
+                'email' => $request->email,
+                'role' => $user['role'],
+            ]
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Role Redirects
+    |--------------------------------------------------------------------------
+    */
+
+    $redirects = [
+
+        'admin' =>
+            route('admin.dashboard'),
+
+        'buyer' =>
+            route('buyer.home'),
+
+        'seller' =>
+            route('seller.home'),
+
+        'courier' =>
+            route('courier.home'),
+
+    ];
+
+
+    return redirect(
+        $redirects[$user['role']]
+    )->with(
+        'status',
+        'Signed in as ' . ucfirst($user['role']) . '.'
+    );
+
 })->name('login.post');
 
+
+/*
+|--------------------------------------------------------------------------
+| Registration
+|--------------------------------------------------------------------------
+|
+| Shared registration page:
+|
+| Buyer  -> personal information + ID
+| Seller -> personal information + business information + permit
+|
+*/
+
 Route::get('/register', function () {
-    return view('Registration.register');
+    return view('auth.register');
 })->name('register');
 
-Route::post('/register', [RegistrationController::class, 'store'])->name('register.store');
 
-Route::prefix('address/philippines')->name('address.philippines.')->group(function () {
-    Route::get('/provinces', [PhilippineAddressController::class, 'provinces'])->name('provinces');
-    Route::get('/provinces/{province}/municipalities', [PhilippineAddressController::class, 'municipalities'])->name('municipalities');
-    Route::get('/municipalities/{municipality}/barangays', [PhilippineAddressController::class, 'barangays'])->name('barangays');
-});
+Route::post(
+    '/register',
+    [
+        RegistrationController::class,
+        'store',
+    ]
+)->name('register.store');
 
-Route::post('/logout', function () {
-    return redirect('/login');
+
+/*
+|--------------------------------------------------------------------------
+| Philippine Address API
+|--------------------------------------------------------------------------
+|
+| Province
+|      ↓
+| Municipality / City
+|      ↓
+| Barangay
+|
+*/
+
+Route::prefix('address/philippines')
+    ->name('address.philippines.')
+    ->group(function () {
+        Route::get('/regions',                                    [PhilippineAddressController::class, 'regions'])->name('regions');
+        Route::get('/regions/{region}/provinces',                 [PhilippineAddressController::class, 'provinces'])->name('provinces');
+        Route::get('/provinces/{province}/municipalities',        [PhilippineAddressController::class, 'municipalities'])->name('municipalities');
+        Route::get('/municipalities/{municipality}/barangays',    [PhilippineAddressController::class, 'barangays'])->name('barangays');
+    });
+
+
+/*
+|--------------------------------------------------------------------------
+| Logout
+|--------------------------------------------------------------------------
+*/
+
+Route::post('/logout', function (Request $request) {
+
+    /*
+    |--------------------------------------------------------------------------
+    | Remove Demo Login
+    |--------------------------------------------------------------------------
+    */
+
+    $request
+        ->session()
+        ->forget('demo_user');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Invalidate Current Session
+    |--------------------------------------------------------------------------
+    */
+
+    $request
+        ->session()
+        ->invalidate();
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Regenerate CSRF Token
+    |--------------------------------------------------------------------------
+    */
+
+    $request
+        ->session()
+        ->regenerateToken();
+
+
+    return redirect()
+        ->route('login')
+        ->with(
+            'status',
+            'You have been signed out.'
+        );
+
 })->name('logout');
 
+
+/*
+|--------------------------------------------------------------------------
+| Social Login Placeholder
+|--------------------------------------------------------------------------
+*/
+
 Route::get('/auth/google', function () {
-    return back()->with('status', 'Google login is not available yet.');
+
+    return back()->with(
+        'status',
+        'Google login is not available yet.'
+    );
+
 })->name('google.placeholder');
 
-Route::get('/guest/continue', function () {
-    request()->session()->put('demo_user', ['email' => 'guest', 'role' => 'guest']);
-    return redirect('/');
+
+/*
+|--------------------------------------------------------------------------
+| Continue as Guest
+|--------------------------------------------------------------------------
+*/
+
+Route::get('/guest/continue', function (Request $request) {
+
+    $request
+        ->session()
+        ->put(
+            'demo_user',
+            [
+                'email' => 'guest',
+                'role' => 'guest',
+            ]
+        );
+
+
+    return redirect()
+        ->route('home');
+
 })->name('guest.continue');
 
-Route::get('/admin/home', fn () => redirect('/admin/dashboard'))->name('admin.home');
+
+/*
+|--------------------------------------------------------------------------
+| Admin Compatibility Redirect
+|--------------------------------------------------------------------------
+|
+| Your real Admin dashboard route comes from routes/admin.php.
+|
+*/
+
+Route::get('/admin/home', function () {
+
+    return redirect()
+        ->route('admin.dashboard');
+
+})->name('admin.home');
+
+
+/*
+|--------------------------------------------------------------------------
+| Courier Frontend Preview
+|--------------------------------------------------------------------------
+|
+| Courier does not currently have its own route file in the structure
+| you showed, so these remain here temporarily.
+|
+*/
 
 Route::get('/courier/home', function () {
-    return view('Courier.home');
+
+    /*
+    |--------------------------------------------------------------
+    | Change this once resources/views/Courier/home.blade.php
+    | is finalized.
+    |--------------------------------------------------------------
+    */
+
+    if (view()->exists('Courier.home')) {
+        return view('Courier.home');
+    }
+
+
+    return view('auth.pending', [
+        'accountType' => 'Courier',
+    ]);
+
 })->name('courier.home');
 
+
 Route::get('/courier/application-status', function () {
-    return view('Seller.auth.application-status');
+
+    return view('auth.pending', [
+        'accountType' => 'Courier',
+    ]);
+
 })->name('courier.application-status');
-
-Route::get('/buyer/pending', function () {
-    return view('Buyer.pending');
-})->name('buyer.pending');
-
-Route::get('/seller/application-status', function () {
-    return view('Seller.auth.application-status');
-})->name('seller.application-status');

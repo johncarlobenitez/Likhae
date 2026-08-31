@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'LIKHAE Admin')</title>
-    @vite(['resources/css/admin/app.css', 'resources/js/seller/app.js'])
+    @vite(['resources/css/admin/app.css', 'resources/js/admin/app.js'])
+    @stack('styles')
 </head>
 <body>
 <div class="admin-shell">

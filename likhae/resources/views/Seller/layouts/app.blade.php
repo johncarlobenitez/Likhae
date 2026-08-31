@@ -9,6 +9,7 @@
         'resources/css/seller/app.css',
         'resources/js/seller/app.js'
     ])
+    @stack('styles')
 </head>
 <body>
     <div class="seller-shell">

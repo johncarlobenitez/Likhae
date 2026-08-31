@@ -7,14 +7,20 @@ export default defineConfig({
     plugins: [
         laravel({
             input: [
-                // Global
-                'resources/js/app.js',
+                // Auth (login + register)
+                'resources/css/Guest/auth/login.css',
+                'resources/css/Guest/auth/register.css',
+                'resources/js/buyer/registration.js',
+
+                // Guest
+                'resources/css/Guest/home.css',
+                'resources/css/Guest/products.css',
+                'resources/css/Guest/product-details.css',
 
                 // Buyer
                 'resources/css/Buyer/app.css',
                 'resources/css/Buyer/registration.css',
                 'resources/js/buyer/app.js',
-                'resources/js/buyer/registration.js',
                 'resources/css/Buyer/home.css',
                 'resources/css/Buyer/products.css',
                 'resources/css/Buyer/product-details.css',
@@ -33,18 +39,9 @@ export default defineConfig({
                 'resources/css/Buyer/local-finds.css',
                 'resources/css/Buyer/security.css',
 
-                // Guest
-                'resources/css/Guest/home.css',
-                'resources/css/Guest/products.css',
-                'resources/css/Guest/product-details.css',
-                'resources/css/Guest/auth/login.css',
-                'resources/css/Guest/auth/register.css',
-                'resources/css/Guest/register.css',
-                'resources/js/auth/register.js',
-                'resources/js/guest/auth/register.js',
-
                 // Admin
                 'resources/css/admin/app.css',
+                'resources/js/admin/app.js',
 
                 // Seller
                 'resources/css/seller/app.css',

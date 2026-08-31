@@ -1,6 +1,5 @@
 @extends('Seller.layouts.app')
 @section('title', 'Dashboard — LIKHAE Seller')
-@push('styles') @vite('resources/css/seller/dashboard.css') @endpush
 
 @section('content')
 <x-seller.page-header eyebrow="OVERVIEW" title="Good evening, Maria" description="Here’s what needs your attention and how your store is performing today.">
