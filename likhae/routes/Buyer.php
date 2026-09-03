@@ -17,94 +17,57 @@ $buyerProducts = [
     ['id'=>'pet-supplies','slug'=>'pet-supplies','name'=>'Everyday Pet Care Starter Set','category'=>'Pet Supplies','seller'=>'Happy Paws PH','location'=>'Quezon City','price'=>799,'old_price'=>949,'discount'=>16,'rating'=>4.9,'reviews'=>98,'sold'=>220,'stock'=>28,'image'=>'https://images.unsplash.com/photo-1601758124510-52d02ddb7cbd?w=400&q=80'],
 ];
 
-View::share('buyerProducts', $buyerProducts);
+View::share('buyerProducts', collect($buyerProducts));
 
 Route::prefix('buyer')->name('buyer.')->group(function () {
-    Route::get('/pending', function () {
-        return redirect()->route('buyer.home');
-    })->name('pending');
+    Route::get('/pending', fn () => redirect()->route('buyer.home'))->name('pending');
 
-    Route::get('/home', function () {
-        return view('Buyer.home');
-    })->name('home');
+    Route::get('/home', fn () => view('Buyer.home'))->name('home');
 
-    Route::get('/products', function () {
-        return view('Buyer.products.products');
-    })->name('products');
+    Route::get('/products', fn () => view('Buyer.products', ['mode' => 'grid']))->name('products');
+    Route::get('/products/{slug}', fn (string $slug) => view('Buyer.products', [
+        'mode' => 'details',
+        'selectedSlug' => $slug,
+    ]))->name('product-details');
 
-    Route::get('/products/{slug}', function (string $slug) {
-        return view('Buyer.products.product-details');
-    })->name('product-details');
+    Route::get('/flash-deals', fn () => view('Buyer.products', [
+        'mode' => 'grid',
+        'focus' => 'deals',
+    ]))->name('flash-deals');
+    Route::get('/local-finds', fn () => view('Buyer.products', [
+        'mode' => 'grid',
+        'focus' => 'local',
+    ]))->name('local-finds');
 
-    Route::get('/flash-deals', function () {
-        return view('Buyer.flash-deals.index');
-    })->name('flash-deals');
+    Route::get('/cart', fn () => view('Buyer.cart'))->name('cart');
+    Route::get('/checkout', fn () => view('Buyer.checkout'))->name('checkout');
+    Route::post('/checkout', fn () => view('Buyer.checkout'))->name('checkout.post');
+    Route::post('/order', fn () => redirect()->route('buyer.orders.success'))->name('order.store');
 
-    Route::get('/local-finds', function () {
-        return view('Buyer.local-finds.index');
-    })->name('local-finds');
+    Route::get('/orders/success', fn () => view('Buyer.orders', ['mode' => 'success']))->name('orders.success');
+    Route::get('/orders', fn () => view('Buyer.orders', ['mode' => 'index']))->name('orders');
+    Route::get('/orders/{id}', fn (string $id) => view('Buyer.orders', [
+        'mode' => 'show',
+        'selectedOrderId' => $id,
+    ]))->name('orders.show');
+    Route::get('/orders/{id}/review', fn (string $id) => view('Buyer.orders', [
+        'mode' => 'review',
+        'selectedOrderId' => $id,
+    ]))->name('orders.review');
 
-    Route::get('/cart', function () {
-        return view('Buyer.cart.index');
-    })->name('cart');
+    Route::get('/messages', fn () => view('Buyer.messages'))->name('messages');
+    Route::get('/wishlist', fn () => view('Buyer.wishlist'))->name('wishlist');
+    Route::get('/notifications', fn () => view('Buyer.notifications'))->name('notifications');
 
-    Route::get('/notifications', function () {
-        return view('Buyer.notifications.index');
-    })->name('notifications');
+    Route::get('/shop/{seller}', fn (string $seller) => view('Buyer.shop', [
+        'sellerSlug' => $seller,
+    ]))->name('shop');
 
-    Route::get('/wishlist', function () {
-        return view('Buyer.wishlist.index');
-    })->name('wishlist');
-
-    Route::get('/checkout', function () {
-        return view('Buyer.checkout.index');
-    })->name('checkout');
-
-    Route::post('/checkout', function () {
-        return view('Buyer.checkout.index');
-    })->name('checkout.post');
-
-    Route::post('/order', function () {
-        return redirect('/buyer/orders/success');
-    })->name('order.store');
-
-    Route::get('/orders/success', function () {
-        return view('Buyer.orders.success');
-    })->name('orders.success');
-
-    Route::get('/orders', function () {
-        return view('Buyer.orders.index');
-    })->name('orders');
-
-    Route::get('/orders/{id}', function (string $id) {
-        return view('Buyer.orders.show');
-    })->name('orders.show');
-
-    Route::get('/orders/{id}/review', function (string $id) {
-        return view('Buyer.orders.review');
-    })->name('orders.review');
-
-    Route::get('/messages', function () {
-        return view('Buyer.messages.index');
-    })->name('messages');
-
-    Route::get('/account', function () {
-        return view('Buyer.account.profile');
-    })->name('account');
-
-    Route::get('/account/profile', function () {
-        return view('Buyer.account.profile');
-    })->name('account.profile');
-
-    Route::get('/account/addresses', function () {
-        return view('Buyer.account.addresses');
-    })->name('account.addresses');
-
-    Route::get('/account/security', function () {
-        return view('Buyer.account.security');
-    })->name('account.security');
-
-    Route::get('/account/reviews', function () {
-        return view('Buyer.account.reviews');
-    })->name('account.reviews');
+    Route::get('/account', fn () => view('Buyer.account', [
+        'tab' => request('tab', 'profile'),
+    ]))->name('account');
+    Route::get('/account/profile', fn () => view('Buyer.account', ['tab' => 'profile']))->name('account.profile');
+    Route::get('/account/addresses', fn () => view('Buyer.account', ['tab' => 'addresses']))->name('account.addresses');
+    Route::get('/account/security', fn () => view('Buyer.account', ['tab' => 'security']))->name('account.security');
+    Route::get('/account/reviews', fn () => view('Buyer.account', ['tab' => 'reviews']))->name('account.reviews');
 });

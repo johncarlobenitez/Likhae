@@ -1,2 +1,9 @@
-@props(['title'=>'Nothing here yet','message'=>'There is no content to display right now.','action'=>null,'href'=>'#'])
-<div class="b-card b-empty"><div class="b-empty-icon">🛍️</div><h3>{{ $title }}</h3><p>{{ $message }}</p>@if($action)<a class="b-btn b-btn-primary" href="{{ $href }}">{{ $action }}</a>@endif</div>
+@props(['title' => 'Nothing here yet', 'message' => 'Once there is activity, it will appear here.', 'action' => null, 'href' => null])
+<div class="lk-empty">
+    <div class="lk-empty-icon">⌁</div>
+    <h3>{{ $title }}</h3>
+    <p>{{ $message }}</p>
+    @if($action && $href)
+        <a class="lk-btn lk-btn-dark" href="{{ $href }}">{{ $action }}</a>
+    @endif
+</div>

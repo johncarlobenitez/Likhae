@@ -8,8 +8,8 @@ export default defineConfig({
         laravel({
             input: [
                 // Auth (login + register)
-                'resources/css/Guest/auth/login.css',
-                'resources/css/Guest/auth/register.css',
+                'resources/css/auth/login.css',
+                'resources/css/auth/register.css',
                 'resources/js/buyer/registration.js',
 
                 // Guest
