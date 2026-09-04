@@ -1,5 +1,0 @@
-@layer components {
-    .stock-edit { @apply flex min-w-28 border border-[#E5E0D9]; }
-    .stock-edit input { @apply w-14 px-2 text-xs outline-none; }
-    .stock-edit button { @apply bg-[#171717] px-3 text-[9px] font-black text-white; }
-}

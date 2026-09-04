@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="csrf-token"
+        content="{{ csrf_token() }}"
+    >
+
+    <title>Create Account — LIKHAE</title>
+
+    @vite([
+        'resources/css/auth/register.css',
+        'resources/js/auth/register.js'
+    ])
+</head>
+
+<body>
+
+<div class="register-page">
+
+    {{-- =========================================================
+        LEFT PANEL
+    ========================================================== --}}
+    <aside class="register-side">
+
+        <div class="register-side__inner">
+
+            <a
+                href="{{ url('/') }}"
+                class="register-brand"
+            >
+                <span class="register-brand__mark">
+                    L
+                </span>
+
+                <span class="register-brand__name">
+                    LIKHAE
+                </span>
+            </a>
+
+
+            <div class="register-side__content">
+
+                <span class="register-eyebrow">
+                    Join the LIKHAE marketplace
+                </span>
+
+
+                <h1>
+                    One marketplace.
+                    <br>
+                    Two ways to join.
+                </h1>
+
+
+                <p>
+                    Create a buyer account to discover products across
+                    every category, or register as a seller and start
+                    building your store on LIKHAE.
+                </p>
+
+
+                <div class="register-side__features">
+
+                    <div class="register-feature">
+
+                        <span class="register-feature__icon">
+                            ✓
+                        </span>
+
+                        <div>
+                            <strong>
+                                Verified accounts
+                            </strong>
+
+                            <span>
+                                Buyer and seller registrations are
+                                reviewed before approval.
+                            </span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="register-feature">
+
+                        <span class="register-feature__icon">
+                            ✓
+                        </span>
+
+                        <div>
+                            <strong>
+                                Philippine address support
+                            </strong>
+
+                            <span>
+                                Province, Municipality / City,
+                                and Barangay selection.
+                            </span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="register-feature">
+
+                        <span class="register-feature__icon">
+                            ✓
+                        </span>
+
+                        <div>
+                            <strong>
+                                Secure verification
+                            </strong>
+
+                            <span>
+                                Submit the required identification
+                                and business documents.
+                            </span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <p class="register-side__footer">
+                LIKHAE · General Multi-Category Marketplace
+            </p>
+
+        </div>
+
+    </aside>
+
+
+    {{-- =========================================================
+        RIGHT PANEL
+    ========================================================== --}}
+    <main class="register-main">
+
+        <div class="register-container">
+
+            {{-- =================================================
+                HEADER
+            ================================================== --}}
+            <header class="register-header">
+
+                <span class="register-header__eyebrow">
+                    Account Registration
+                </span>
+
+                <h2>
+                    Create your account
+                </h2>
+
+                <p>
+                    Choose your account type and complete each
+                    registration step.
+                </p>
+
+            </header>
+
+
+            {{-- =================================================
+                ERRORS
+            ================================================== --}}
+            @if ($errors->any())
+
+                <div class="register-alert register-alert--error">
+
+                    <strong>
+                        Please check the following:
+                    </strong>
+
+                    <ul>
+
+                        @foreach ($errors->all() as $error)
+
+                            <li>
+                                {{ $error }}
+                            </li>
+
+                        @endforeach
+
+                    </ul>
+
+                </div>
+
+            @endif
+
+
+            @if (session('status'))
+
+                <div class="register-alert register-alert--success">
+                    {{ session('status') }}
+                </div>
+
+            @endif
+
+
+            {{-- =================================================
+                ACCOUNT TYPE
+            ================================================== --}}
+            <section class="account-type-section">
+
+                <div class="account-type-label">
+                    Register as
+                </div>
+
+
+                <div
+                    class="account-type-toggle"
+                    role="radiogroup"
+                    aria-label="Account type"
+                >
+
+                    {{-- BUYER --}}
+                    <button
+                        type="button"
+                        class="account-type-option is-active"
+                        data-account-type="buyer"
+                        aria-pressed="true"
+                    >
+
+                        <span class="account-type-option__icon">
+                            🛍
+                        </span>
+
+
+                        <span class="account-type-option__content">
+
+                            <strong>
+                                Buyer
+                            </strong>
+
+                            <small>
+                                Shop products and manage orders
+                            </small>
+
+                        </span>
+
+
+                        <span class="account-type-option__check">
+                            ✓
+                        </span>
+
+                    </button>
+
+
+                    {{-- SELLER --}}
+                    <button
+                        type="button"
+                        class="account-type-option"
+                        data-account-type="seller"
+                        aria-pressed="false"
+                    >
+
+                        <span class="account-type-option__icon">
+                            🏪
+                        </span>
+
+
+                        <span class="account-type-option__content">
+
+                            <strong>
+                                Seller
+                            </strong>
+
+                            <small>
+                                Open a store and sell products
+                            </small>
+
+                        </span>
+
+
+                        <span class="account-type-option__check">
+                            ✓
+                        </span>
+
+                    </button>
+
+                </div>
+
+            </section>
+
+
+            {{-- =================================================
+                PROGRESS
+            ================================================== --}}
+            <section class="registration-progress">
+
+                <div class="progress-top">
+
+                    <div>
+
+                        <span class="progress-label">
+                            Registration progress
+                        </span>
+
+                        <strong data-progress-title>
+                            Personal Information
+                        </strong>
+
+                    </div>
+
+
+                    <span
+                        class="progress-counter"
+                        data-progress-counter
+                    >
+                        Step 1 of 4
+                    </span>
+
+                </div>
+
+
+                <div class="progress-track">
+
+                    <div
+                        class="progress-fill"
+                        data-progress-fill
+                    ></div>
+
+                </div>
+
+
+                <div
+                    class="progress-steps"
+                    data-progress-steps
+                >
+
+                    <button
+                        type="button"
+                        class="progress-step is-active"
+                        data-progress-step="0"
+                    >
+                        <span>1</span>
+                        <small>Personal</small>
+                    </button>
+
+
+                    <button
+                        type="button"
+                        class="progress-step"
+                        data-progress-step="1"
+                    >
+                        <span>2</span>
+                        <small>Contact</small>
+                    </button>
+
+
+                    <button
+                        type="button"
+                        class="progress-step"
+                        data-progress-step="2"
+                    >
+                        <span>3</span>
+                        <small>Address</small>
+                    </button>
+
+
+                    <button
+                        type="button"
+                        class="progress-step seller-progress-step"
+                        data-progress-step="3"
+                        data-seller-progress-step
+                        hidden
+                    >
+                        <span>4</span>
+                        <small>Business</small>
+                    </button>
+
+
+                    <button
+                        type="button"
+                        class="progress-step"
+                        data-progress-step="verification"
+                        data-verification-progress-step
+                    >
+                        <span data-verification-step-number>
+                            4
+                        </span>
+
+                        <small>
+                            Verification
+                        </small>
+                    </button>
+
+                </div>
+
+            </section>
+
+
+            {{-- =================================================
+                REGISTRATION FORM
+            ================================================== --}}
+            <form
+                method="POST"
+                action="{{ route('register.store') }}"
+                enctype="multipart/form-data"
+                class="register-form"
+                id="registrationForm"
+                novalidate
+            >
+
+                @csrf
+
+
+                <input
+                    type="hidden"
+                    name="account_type"
+                    id="accountType"
+                    value="{{ old('account_type', 'buyer') }}"
+                >
+
+
+                {{-- =================================================
+                    STEP 1 — PERSONAL INFORMATION
+                ================================================== --}}
+                <section
+                    class="register-step is-active"
+                    data-form-step
+                    data-step="personal"
+                >
+
+                    <div class="register-section">
+
+                        <div class="register-section__head">
+
+                            <span class="register-section__number">
+                                01
+                            </span>
+
+                            <div>
+
+                                <h3>
+                                    Personal Information
+                                </h3>
+
+                                <p>
+                                    Tell us about yourself.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="register-grid">
+
+                            {{-- LAST NAME --}}
+                            <div class="register-field">
+
+                                <label for="last_name">
+                                    Last Name
+                                    <span>*</span>
+                                </label>
+
+                                <input
+                                    id="last_name"
+                                    name="last_name"
+                                    type="text"
+                                    value="{{ old('last_name') }}"
+                                    placeholder="Dela Cruz"
+                                    autocomplete="family-name"
+                                    required
+                                >
+
+                            </div>
+
+
+                            {{-- FIRST NAME --}}
+                            <div class="register-field">
+
+                                <label for="first_name">
+                                    First Name
+                                    <span>*</span>
+                                </label>
+
+                                <input
+                                    id="first_name"
+                                    name="first_name"
+                                    type="text"
+                                    value="{{ old('first_name') }}"
+                                    placeholder="Juan"
+                                    autocomplete="given-name"
+                                    required
+                                >
+
+                            </div>
+
+
+                            {{-- MIDDLE INITIAL --}}
+                            <div class="register-field">
+
+                                <label for="middle_initial">
+                                    Middle Initial
+                                </label>
+
+                                <input
+                                    id="middle_initial"
+                                    name="middle_initial"
+                                    type="text"
+                                    value="{{ old('middle_initial') }}"
+                                    maxlength="2"
+                                    placeholder="D"
+                                >
+
+                            </div>
+
+
+                            {{-- SEX --}}
+                            <div class="register-field">
+
+                                <label for="sex">
+                                    Sex
+                                    <span>*</span>
+                                </label>
+
+                                <select
+                                    id="sex"
+                                    name="sex"
+                                    required
+                                >
+
+                                    <option value="">
+                                        Select sex
+                                    </option>
+
+                                    <option
+                                        value="Male"
+                                        {{ old('sex') === 'Male' ? 'selected' : '' }}
+                                    >
+                                        Male
+                                    </option>
+
+                                    <option
+                                        value="Female"
+                                        {{ old('sex') === 'Female' ? 'selected' : '' }}
+                                    >
+                                        Female
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+
+                            {{-- BIRTHDAY --}}
+                            <div class="register-field">
+
+                                <label for="birthday">
+                                    Birthday
+                                    <span>*</span>
+                                </label>
+
+                                <input
+                                    id="birthday"
+                                    name="birthday"
+                                    type="date"
+                                    value="{{ old('birthday') }}"
+                                    required
+                                >
+
+                            </div>
+
+
+                            {{-- AGE --}}
+                            <div class="register-field">
+
+                                <label for="age">
+                                    Age
+                                    <span>*</span>
+                                </label>
+
+                                <input
+                                    id="age"
+                                    name="age"
+                                    type="number"
+                                    value="{{ old('age') }}"
+                                    placeholder="Auto-generated"
+                                    readonly
+                                    required
+                                >
+
+                                <small>
+                                    Automatically calculated from
+                                    your birthday.
+                                </small>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                {{-- =================================================
+                    STEP 2 — CONTACT INFORMATION
+                ================================================== --}}
+                <section
+                    class="register-step"
+                    data-form-step
+                    data-step="contact"
+                    hidden
+                >
+
+                    <div class="register-section">
+
+                        <div class="register-section__head">
+
+                            <span class="register-section__number">
+                                02
+                            </span>
+
+                            <div>
+
+                                <h3>
+                                    Contact Information
+                                </h3>
+
+                                <p>
+                                    We'll use these details for
+                                    important account updates.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="register-grid">
+
+                            {{-- EMAIL --}}
+                            <div class="register-field">
+
+                                <label for="email">
+                                    Email Address
+                                    <span>*</span>
+                                </label>
+
+                                <input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    value="{{ old('email') }}"
+                                    placeholder="juan@email.com"
+                                    autocomplete="email"
+                                    required
+                                >
+
+                            </div>
+
+
+                            {{-- CONTACT --}}
+                            <div class="register-field">
+
+                                <label for="contact_no">
+                                    Contact Number
+                                    <span>*</span>
+                                </label>
+
+
+                                <div class="phone-input">
+
+                                    <span class="phone-input__prefix">
+                                        +63
+                                    </span>
+
+
+                                    <input
+                                        id="contact_no"
+                                        name="contact_no"
+                                        type="tel"
+                                        value="{{ old('contact_no') }}"
+                                        placeholder="917 123 4567"
+                                        inputmode="numeric"
+                                        autocomplete="tel"
+                                        required
+                                    >
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                {{-- =================================================
+                    STEP 3 — ADDRESS
+                ================================================== --}}
+                <section
+                    class="register-step"
+                    data-form-step
+                    data-step="address"
+                    hidden
+                >
+
+                    <div class="register-section">
+
+                        <div class="register-section__head">
+
+                            <span class="register-section__number">
+                                03
+                            </span>
+
+                            <div>
+
+                                <h3>
+                                    Address
+                                </h3>
+
+                                <p>
+                                    Select your Philippine location and
+                                    enter your detailed address.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="register-grid">
+
+                            {{-- REGION --}}
+                            <div class="register-field register-field--full">
+                                <label for="region">Region <span>*</span></label>
+                                <select id="region" name="region" required data-address-region>
+                                    <option value="">Loading regions…</option>
+                                </select>
+                            </div>
+
+                            {{-- PROVINCE --}}
+                            <div class="register-field">
+                                <label for="province">Province <span>*</span></label>
+                                <select id="province" name="province" required disabled data-address-province>
+                                    <option value="">Select province</option>
+                                </select>
+                            </div>
+
+                            {{-- MUNICIPALITY --}}
+                            <div class="register-field">
+                                <label for="municipality">Municipality / City <span>*</span></label>
+                                <select id="municipality" name="municipality" required disabled data-address-municipality>
+                                    <option value="">Select municipality / city</option>
+                                </select>
+                            </div>
+
+                            {{-- BARANGAY --}}
+                            <div class="register-field">
+                                <label for="barangay">Barangay <span>*</span></label>
+                                <select id="barangay" name="barangay" required disabled data-address-barangay>
+                                    <option value="">Select barangay</option>
+                                </select>
+                            </div>
+
+                            {{-- STREET / PUROK --}}
+                            <div class="register-field">
+                                <label for="street">Street / Purok <span>*</span></label>
+                                <input id="street" name="street" type="text"
+                                    value="{{ old('street') }}" placeholder="e.g. Mahogany Street / Purok 3" required>
+                            </div>
+
+                            {{-- HOUSE NUMBER --}}
+                            <div class="register-field">
+                                <label for="house_number">House / Unit Number</label>
+                                <input id="house_number" name="house_number" type="text"
+                                    value="{{ old('house_number') }}" placeholder="e.g. Blk 12 Lot 3">
+                            </div>
+
+                            {{-- POSTAL --}}
+                            <div class="register-field">
+                                <label for="postal_code">Postal Code</label>
+                                <input id="postal_code" name="postal_code" type="text" inputmode="numeric"
+                                    value="{{ old('postal_code') }}" placeholder="e.g. 1870">
+                            </div>
+
+                            {{-- LANDMARK --}}
+                            <div class="register-field">
+                                <label for="landmark">Landmark / Additional Details</label>
+                                <input id="landmark" name="landmark" type="text"
+                                    value="{{ old('landmark') }}" placeholder="e.g. Near barangay hall">
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                {{-- =================================================
+                    SELLER STEP — BUSINESS INFORMATION
+                ================================================== --}}
+                <section
+                    class="register-step"
+                    id="sellerSection"
+                    data-form-step
+                    data-step="business"
+                    data-seller-step
+                    hidden
+                >
+
+                    <div class="register-section seller-section">
+
+                        <div class="register-section__head">
+
+                            <span class="register-section__number">
+                                04
+                            </span>
+
+                            <div>
+
+                                <h3>
+                                    Business Information
+                                </h3>
+
+                                <p>
+                                    Tell us about your LIKHAE store.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="register-grid">
+
+                            {{-- BUSINESS NAME --}}
+                            <div class="register-field">
+
+                                <label for="business_name">
+                                    Business Name
+                                    <span>*</span>
+                                </label>
+
+                                <input
+                                    id="business_name"
+                                    name="business_name"
+                                    type="text"
+                                    value="{{ old('business_name') }}"
+                                    placeholder="Juan's General Store"
+                                    data-seller-required
+                                >
+
+                            </div>
+
+
+                            {{-- BUSINESS CATEGORY --}}
+                            <div class="register-field">
+
+                                <label for="line_of_business">
+                                    Line of Business
+                                    <span>*</span>
+                                </label>
+
+                                <select
+                                    id="line_of_business"
+                                    name="line_of_business"
+                                    data-seller-required
+                                >
+
+                                    <option value="">
+                                        Select category
+                                    </option>
+
+
+                                    @foreach([
+                                        'Fashion',
+                                        'Electronics',
+                                        'Home & Living',
+                                        'Beauty & Health',
+                                        'Sports & Outdoors',
+                                        'Toys & Games',
+                                        'Automotive',
+                                        'Books & Stationery',
+                                        'Groceries',
+                                        'Pet Supplies',
+                                        'Shoes & Accessories',
+                                        'Bags',
+                                        'Watches',
+                                        'Appliances',
+                                        'Mobile Devices',
+                                        'Computer Accessories',
+                                        'Office Supplies',
+                                        'Others'
+                                    ] as $category)
+
+                                        <option
+                                            value="{{ $category }}"
+                                            {{ old('line_of_business') === $category ? 'selected' : '' }}
+                                        >
+                                            {{ $category }}
+                                        </option>
+
+                                    @endforeach
+
+                                </select>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+                {{-- =================================================
+                    FINAL STEP — VERIFICATION
+                ================================================== --}}
+                <section
+                    class="register-step"
+                    data-form-step
+                    data-step="verification"
+                    hidden
+                >
+
+                    <div class="register-section">
+
+                        <div class="register-section__head">
+
+                            <span class="register-section__number">
+                                <span data-verification-number>
+                                    04
+                                </span>
+                            </span>
+
+
+                            <div>
+
+                                <h3>
+                                    Account Verification
+                                </h3>
+
+                                <p>
+                                    Upload the documents required for
+                                    your account type.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="upload-grid">
+
+                            {{-- VALID ID --}}
+                            <div class="upload-box">
+
+                                <input
+                                    id="valid_id"
+                                    name="valid_id"
+                                    type="file"
+                                    accept=".jpg,.jpeg,.png,.pdf"
+                                    required
+                                    data-file-input
+                                >
+
+
+                                <label
+                                    for="valid_id"
+                                    class="upload-box__label"
+                                >
+
+                                    <span class="upload-box__icon">
+                                        ↑
+                                    </span>
+
+                                    <strong>
+                                        Upload Valid ID
+                                    </strong>
+
+                                    <span>
+                                        JPG, JPEG, PNG or PDF
+                                    </span>
+
+                                    <small data-file-name>
+                                        No file selected
+                                    </small>
+
+                                </label>
+
+                            </div>
+
+
+                            {{-- SELLER BUSINESS PERMIT --}}
+                            <div
+                                class="upload-box seller-upload"
+                                id="businessPermitUpload"
+                                hidden
+                            >
+
+                                <input
+                                    id="business_permit"
+                                    name="business_permit"
+                                    type="file"
+                                    accept=".jpg,.jpeg,.png,.pdf"
+                                    data-file-input
+                                    data-seller-required
+                                >
+
+
+                                <label
+                                    for="business_permit"
+                                    class="upload-box__label"
+                                >
+
+                                    <span class="upload-box__icon">
+                                        ↑
+                                    </span>
+
+                                    <strong>
+                                        Upload Business Permit
+                                    </strong>
+
+                                    <span>
+                                        JPG, JPEG, PNG or PDF
+                                    </span>
+
+                                    <small data-file-name>
+                                        No file selected
+                                    </small>
+
+                                </label>
+
+                            </div>
+
+                        </div>
+
+
+                        {{-- APPROVAL --}}
+                        <div class="approval-notice">
+
+                            <span class="approval-notice__icon">
+                                i
+                            </span>
+
+
+                            <div>
+
+                                <strong>
+                                    Administrator approval required
+                                </strong>
+
+                                <p>
+                                    After submitting your registration,
+                                    please wait for the administrator's
+                                    approval. The decision will be sent
+                                    to your registered email.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        {{-- TERMS --}}
+                        <label class="register-terms">
+
+                            <input
+                                type="checkbox"
+                                name="terms"
+                                value="1"
+                                required
+                            >
+
+                            <span>
+                                I confirm that the information provided
+                                is correct and I agree to LIKHAE's terms
+                                and marketplace policies.
+                            </span>
+
+                        </label>
+
+                    </div>
+
+                </section>
+
+
+                {{-- =================================================
+                    VALIDATION MESSAGE
+                ================================================== --}}
+                <div
+                    class="step-validation-message"
+                    data-step-error
+                    hidden
+                >
+                    Please complete all required fields before continuing.
+                </div>
+
+
+                {{-- =================================================
+                    NAVIGATION
+                ================================================== --}}
+                <div class="register-navigation">
+
+                    <div class="register-navigation__left">
+
+                        <button
+                            type="button"
+                            class="register-back"
+                            data-step-back
+                            hidden
+                        >
+                            <span>
+                                ←
+                            </span>
+
+                            Back
+                        </button>
+
+
+                        <a
+                            href="{{ route('login') }}"
+                            class="register-login-link"
+                            data-login-link
+                        >
+                            Already registered?
+
+                            <strong>
+                                Sign in
+                            </strong>
+                        </a>
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        class="register-next"
+                        data-step-next
+                    >
+
+                        Continue
+
+                        <span>
+                            →
+                        </span>
+
+                    </button>
+
+
+                    <button
+                        type="submit"
+                        class="register-submit"
+                        data-submit-button
+                        hidden
+                    >
+
+                        <span data-submit-label>
+                            Submit Buyer Application
+                        </span>
+
+
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <path d="M5 12h14"></path>
+                            <path d="m13 6 6 6-6 6"></path>
+                        </svg>
+
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </main>
+
+</div>
+
+</body>
+</html>

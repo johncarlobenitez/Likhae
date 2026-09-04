@@ -1,6 +1,0 @@
-@layer components {
-    .pickup-row { @apply grid gap-3 border-b border-[#E5E0D9] p-4 md:grid-cols-[44px_1fr_1fr_1fr_auto_auto] md:items-center; }
-    .pickup-row strong { @apply block text-xs; }
-    .pickup-row span:not(.status-badge) { @apply mt-1 block text-[10px] text-[#96918B]; }
-    .courier-mark { @apply grid h-10 w-10 place-items-center bg-[#171717] text-[10px] font-black text-white; }
-}
