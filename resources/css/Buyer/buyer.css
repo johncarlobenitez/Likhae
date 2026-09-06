@@ -3187,3 +3187,923 @@ body.lk-sidebar-is-collapsed .lk-nav-toggle {
     .lk-brand-text strong { font-size: 14px; }
     .lk-footer { align-items: flex-start; flex-direction: column; padding-inline: 14px; }
 }
+
+/* =================================================================
+   DARK MODE — Buyer  (html.dark)
+   Covers: ALL components with lighter fonts throughout
+================================================================= */
+
+html.dark {
+    --lk-cream: #0f0d0b;
+    --lk-paper: #161210;
+    --lk-card: #1e1a17;
+    --lk-ink: #f0ebe4;
+    --lk-muted: #c8b8a8;
+    --lk-faint: #9b8f82;
+    --lk-border: #2e2720;
+    --lk-border-strong: #3d342b;
+}
+
+html.dark body,
+html.dark body.lk-buyer-body { color: var(--lk-ink); background: var(--lk-cream); }
+
+/* Sidebar */
+html.dark .lk-sidebar { background: #161210; border-right: 1px solid var(--lk-border); }
+html.dark .lk-sidebar-head { border-bottom-color: var(--lk-border); }
+html.dark .lk-brand-text strong { color: var(--lk-ink); }
+html.dark .lk-brand-text small { color: var(--lk-muted); }
+html.dark .lk-side-toggle,
+html.dark .lk-mobile-menu { background: #1e1a17; border-color: var(--lk-border); color: var(--lk-muted); }
+html.dark .lk-side-toggle:hover,
+html.dark .lk-mobile-menu:hover { background: #2e2720; color: var(--lk-ink); }
+html.dark .lk-sidebar-profile,
+html.dark .lk-profile-box { background: #1e1a17; border-color: var(--lk-border); }
+html.dark .lk-sidebar-profile-copy strong,
+html.dark .lk-profile-box strong { color: var(--lk-ink); }
+html.dark .lk-sidebar-profile-copy span,
+html.dark .lk-profile-box span { color: var(--lk-muted); }
+html.dark .lk-sidebar-scroll { scrollbar-color: #3d342b transparent; }
+html.dark .lk-nav-label { color: var(--lk-muted); }
+html.dark .lk-nav-link,
+html.dark .lk-nav-toggle { color: var(--lk-muted); }
+html.dark .lk-nav-link:hover,
+html.dark .lk-nav-toggle:hover { color: var(--lk-ink); background: #2e2720; }
+html.dark .lk-nav-link.is-active,
+html.dark .lk-nav-toggle.is-active { color: var(--lk-red); background: #2d1414; }
+html.dark .lk-nav-count { background: #2d1414; color: var(--lk-red); }
+html.dark .lk-nav-submenu { background: #0f0d0b; }
+html.dark .lk-nav-submenu a { color: var(--lk-muted); }
+html.dark .lk-nav-submenu a::before { background: var(--lk-border); }
+html.dark .lk-nav-submenu a:hover,
+html.dark .lk-nav-submenu a.is-active { color: var(--lk-red); }
+html.dark .lk-nav-submenu a.is-active::before { background: var(--lk-red); }
+html.dark .lk-sidebar-foot { border-top-color: var(--lk-border); }
+html.dark .lk-sidebar-foot form { background: #161210; }
+html.dark .lk-logout { color: var(--lk-muted); }
+html.dark .lk-logout:hover { color: #fff; background: #2d1117; border-color: #b91c1c; }
+
+/* Header */
+html.dark .lk-header { background: #161210; border-bottom-color: var(--lk-border); }
+html.dark .lk-header-title strong { color: var(--lk-ink); }
+html.dark .lk-header-title span { color: var(--lk-muted); }
+html.dark .lk-search { background: #1e1a17; border-color: var(--lk-border); }
+html.dark .lk-search:focus-within { border-color: var(--lk-red); }
+html.dark .lk-search input { background: transparent; color: var(--lk-ink); }
+html.dark .lk-search input::placeholder { color: var(--lk-faint); }
+html.dark .lk-search button { color: var(--lk-muted); }
+html.dark .lk-icon-btn { background: #1e1a17; border-color: var(--lk-border); color: var(--lk-muted); }
+html.dark .lk-icon-btn:hover { background: #2e2720; color: var(--lk-ink); }
+html.dark .lk-badge { background: var(--lk-red); color: #fff; }
+html.dark .lk-profile-container { background: #1e1a17; border-color: var(--lk-border); }
+html.dark .lk-profile-container:hover { background: #2e2720; }
+html.dark .lk-profile-info strong { color: var(--lk-ink); }
+html.dark .lk-profile-info span { color: var(--lk-muted); }
+
+/* Footer */
+html.dark .lk-footer { background: #161210; border-top-color: var(--lk-border); }
+html.dark .lk-footer span,
+html.dark .lk-footer p { color: var(--lk-muted); }
+html.dark .lk-footer nav a { color: var(--lk-muted); }
+html.dark .lk-footer nav a:hover { color: var(--lk-red); }
+
+/* Cards & containers */
+html.dark .lk-card { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-kicker { color: var(--lk-red); }
+html.dark .lk-muted { color: var(--lk-muted); }
+html.dark .lk-section { background: transparent; }
+html.dark .lk-section-head h2 { color: var(--lk-ink); }
+html.dark .lk-section-head p { color: var(--lk-muted); }
+html.dark .lk-page-title h1 { color: var(--lk-ink); }
+html.dark .lk-page-title p { color: var(--lk-muted); }
+
+/* Buttons */
+html.dark .lk-btn-light { background: #1e1a17; border-color: var(--lk-border); color: var(--lk-ink); }
+html.dark .lk-btn-light:hover:not(:disabled) { background: #2e2720; }
+html.dark .lk-btn-dark { background: #f0ebe4; color: #201b17; }
+html.dark .lk-text-link { color: var(--lk-red); }
+html.dark .lk-text-link:hover { color: var(--lk-red-dark); }
+html.dark .lk-clear-filters { color: var(--lk-red); border-color: var(--lk-red); }
+
+/* Pills & badges */
+html.dark .lk-pill { background: #2e2720; border-color: var(--lk-border); color: var(--lk-muted); }
+html.dark .lk-pill-red { background: #2d1414; border-color: #7f1d1d; color: var(--lk-red); }
+html.dark .lk-pill-success { background: #052e16; border-color: #166534; color: #34d399; }
+html.dark .lk-pill-muted { background: #1e1a17; border-color: var(--lk-border); color: var(--lk-faint); }
+html.dark .lk-status { background: #2e2720; border-color: var(--lk-border); color: var(--lk-muted); }
+html.dark .lk-status.is-active,
+html.dark .lk-status.is-paid,
+html.dark .lk-status.is-completed,
+html.dark .lk-status.is-delivered { color: var(--lk-red); background: #2d1414; border-color: #7f1d1d; }
+html.dark .lk-status.is-pending,
+html.dark .lk-status.is-processing { color: #fbbf24; background: #2d1f00; border-color: #92400e; }
+html.dark .lk-status.is-cancelled { color: #f87171; background: #2d1117; border-color: #b91c1c; }
+
+/* Inputs */
+html.dark .lk-field label,
+html.dark .lk-field-label { color: var(--lk-muted); }
+html.dark .lk-field input,
+html.dark .lk-field select,
+html.dark .lk-field textarea { background: #1e1a17; border-color: var(--lk-border); color: var(--lk-ink); }
+html.dark .lk-field input::placeholder,
+html.dark .lk-field textarea::placeholder { color: var(--lk-faint); }
+html.dark .lk-field input:focus,
+html.dark .lk-field select:focus,
+html.dark .lk-field textarea:focus { border-color: var(--lk-red); box-shadow: 0 0 0 3px rgba(143,23,25,.15); }
+html.dark .lk-filter-select,
+html.dark .lk-catalog-sort select { background: #1e1a17; border-color: var(--lk-border); color: var(--lk-ink); }
+html.dark .lk-note-chip { background: #2d1414; border-color: #7f1d1d; color: var(--lk-red); }
+
+/* Tables */
+html.dark .lk-table { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-table th { background: #161210; border-bottom-color: var(--lk-border); color: var(--lk-muted); font-weight: 600; }
+html.dark .lk-table td { border-bottom-color: var(--lk-border); color: var(--lk-ink); }
+html.dark .lk-table tbody tr:hover td { background: #2e2720; }
+html.dark .lk-table strong { color: var(--lk-ink); }
+html.dark .lk-table small { color: var(--lk-muted); }
+html.dark .lk-table-wrap { background: transparent; }
+
+/* Products */
+html.dark .lk-product-card { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-product-card:hover { border-color: var(--lk-red); }
+html.dark .lk-product-media { background: #1e1a17; }
+html.dark .lk-product-body { background: var(--lk-card); }
+html.dark .lk-product-category { color: var(--lk-muted); }
+html.dark .lk-product-name { color: var(--lk-ink); }
+html.dark .lk-product-title-link:hover .lk-product-name { color: var(--lk-red); }
+html.dark .lk-product-seller { color: var(--lk-muted); }
+html.dark .lk-product-seller:hover { color: var(--lk-red); }
+html.dark .lk-product-sold { color: var(--lk-faint); }
+html.dark .lk-product-price-row strong { color: var(--lk-ink); }
+html.dark .lk-product-price-row del { color: var(--lk-faint); }
+html.dark .lk-product-heart { background: rgba(30,26,23,.8); color: var(--lk-muted); }
+html.dark .lk-product-heart:hover,
+html.dark .lk-product-heart.is-active { background: #2d1414; color: var(--lk-red); }
+html.dark .lk-add-cart { background: #1e1a17; border-color: var(--lk-border); color: var(--lk-muted); }
+html.dark .lk-add-cart:hover:not(:disabled) { background: var(--lk-red); color: #fff; border-color: var(--lk-red); }
+html.dark .lk-btn-view { background: #1e1a17; border-color: var(--lk-border); color: var(--lk-muted); }
+html.dark .lk-btn-view:hover { background: #2e2720; color: var(--lk-ink); }
+
+/* Quick & category cards */
+html.dark .lk-quick-card { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-quick-card:hover { border-color: var(--lk-red); }
+html.dark .lk-quick-card strong { color: var(--lk-ink); }
+html.dark .lk-quick-card small { color: var(--lk-muted); }
+html.dark .lk-quick-icon { background: #2d1414; }
+html.dark .lk-category-card { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-category-card:hover { border-color: var(--lk-red); }
+html.dark .lk-category-icon { background: #1e1a17; }
+html.dark .lk-category-card strong { color: var(--lk-ink); }
+html.dark .lk-category-card small { color: var(--lk-muted); }
+
+/* Hero & banners */
+html.dark .lk-hero { background: linear-gradient(135deg, #1e1208 0%, #2d1a10 100%); }
+html.dark .lk-hero h1 { color: #f0ebe4; }
+html.dark .lk-hero-stats > div { border-color: rgba(255,255,255,.1); }
+html.dark .lk-hero-stats strong { color: #f0ebe4; }
+html.dark .lk-hero-stats span { color: var(--lk-muted); }
+html.dark .lk-deal-banner { background: linear-gradient(135deg, #2d1a10 0%, #1e1208 100%); }
+html.dark .lk-countdown > div { background: rgba(0,0,0,.4); }
+html.dark .lk-countdown b { color: #f0ebe4; }
+html.dark .lk-countdown small { color: var(--lk-muted); }
+html.dark .lk-hero-product { background: #1e1a17; border-color: var(--lk-border); }
+
+/* Filters */
+html.dark .lk-filter-card { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-filter-heading { border-bottom-color: var(--lk-border); }
+html.dark .lk-filter-heading h2,
+html.dark .lk-filter-card h3 { color: var(--lk-ink); }
+html.dark .lk-filter-heading output { color: var(--lk-red); }
+html.dark .lk-category-item,
+html.dark .lk-sort-btn { color: var(--lk-muted); }
+html.dark .lk-category-item:hover,
+html.dark .lk-sort-btn:hover { color: var(--lk-ink); background: #2e2720; }
+html.dark .lk-category-item.is-active,
+html.dark .lk-sort-btn.is-active { color: var(--lk-red); background: #2d1414; }
+html.dark .lk-category-item small { color: var(--lk-faint); }
+html.dark .lk-price-display { color: var(--lk-ink); }
+html.dark .lk-price-range { background: #1e1a17; border-color: var(--lk-border); }
+
+/* Toolbar */
+html.dark .lk-products-toolbar { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-toolbar-info { color: var(--lk-muted); }
+html.dark .lk-toolbar-info strong { color: var(--lk-ink); }
+html.dark .lk-toolbar-info small { color: var(--lk-faint); }
+html.dark .lk-view-toggle { background: #1e1a17; border-color: var(--lk-border); color: var(--lk-muted); }
+html.dark .lk-view-toggle:hover,
+html.dark .lk-view-toggle.is-active { background: #2d1414; border-color: var(--lk-red); color: var(--lk-red); }
+
+/* Empty states */
+html.dark .lk-products-empty,
+html.dark .lk-wishlist-empty,
+html.dark .lk-empty-state { background: transparent; }
+html.dark .lk-empty-icon { background: #1e1a17; color: var(--lk-muted); }
+html.dark .lk-products-empty h2,
+html.dark .lk-wishlist-empty h2,
+html.dark .lk-empty-state h2 { color: var(--lk-ink); }
+html.dark .lk-products-empty p,
+html.dark .lk-wishlist-empty p,
+html.dark .lk-empty-state p { color: var(--lk-muted); }
+
+/* Product detail */
+html.dark .lk-detail-main-img { background: #1e1a17; border-color: var(--lk-border); }
+html.dark .lk-detail-image-placeholder { background: #1e1a17; color: var(--lk-faint); }
+html.dark .lk-detail-discount { background: #2d1414; color: var(--lk-red); }
+html.dark .lk-stars svg { stroke: var(--lk-gold); }
+html.dark .lk-stars small { color: var(--lk-muted); }
+html.dark .lk-review-bar { background: #2e2720; }
+html.dark .lk-review-bar > i { background: var(--lk-red); }
+
+/* Orders */
+html.dark .lk-order-card,
+html.dark .lk-order-row { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-order-card:hover { border-color: var(--lk-red); }
+html.dark .lk-order-item { border-bottom-color: var(--lk-border); }
+html.dark .lk-order-item-name { color: var(--lk-ink); }
+html.dark .lk-order-item-meta { color: var(--lk-muted); }
+html.dark .lk-order-total { color: var(--lk-ink); }
+html.dark .lk-order-modal-card { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-order-modal-card h2 { color: var(--lk-ink); }
+html.dark .lk-order-modal-card p { color: var(--lk-muted); }
+html.dark .lk-order-modal::backdrop { background: rgba(0,0,0,.65); }
+html.dark .lk-order-status { color: var(--lk-muted); }
+
+/* Cart */
+html.dark .lk-cart-item { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-cart-item-name { color: var(--lk-ink); }
+html.dark .lk-cart-summary { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-cart-summary h2 { color: var(--lk-ink); }
+html.dark .lk-cart-row { border-bottom-color: var(--lk-border); color: var(--lk-muted); }
+html.dark .lk-cart-row strong { color: var(--lk-ink); }
+html.dark .lk-qty-btn { background: #1e1a17; border-color: var(--lk-border); color: var(--lk-muted); }
+html.dark .lk-qty-btn:hover { background: #2e2720; color: var(--lk-ink); }
+html.dark .lk-cart-empty { background: transparent; color: var(--lk-muted); }
+
+/* Messages & chat */
+html.dark .lk-messages-layout { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-messages-layout h2 { color: var(--lk-ink); }
+html.dark .lk-conversation-panel { border-right-color: var(--lk-border); background: #161210; }
+html.dark .lk-convo-item { border-bottom-color: var(--lk-border); }
+html.dark .lk-convo-item:hover,
+html.dark .lk-convo-item.is-active { background: #2e2720; }
+html.dark .lk-convo-name { color: var(--lk-ink); }
+html.dark .lk-convo-preview { color: var(--lk-muted); }
+html.dark .lk-convo-time { color: var(--lk-faint); }
+html.dark .lk-chat-body { background: var(--lk-cream); }
+html.dark .lk-chat-list { background: transparent; }
+html.dark .lk-bubble { background: #2e2720; color: var(--lk-ink); }
+html.dark .lk-bubble.is-mine { background: #2d1414; color: var(--lk-ink); }
+html.dark .lk-chat-time { color: var(--lk-faint); }
+html.dark .lk-chat-head { background: var(--lk-card); border-bottom-color: var(--lk-border); }
+html.dark .lk-chat-head h2 { color: var(--lk-ink); }
+html.dark .lk-chat-compose { background: var(--lk-card); border-top-color: var(--lk-border); }
+html.dark .lk-chat-compose input { background: #1e1a17; border-color: var(--lk-border); color: var(--lk-ink); }
+html.dark .lk-chat-compose input::placeholder { color: var(--lk-faint); }
+html.dark .lk-chat-compose button { color: var(--lk-muted); }
+
+/* Notifications */
+html.dark .lk-notif-item { border-bottom-color: var(--lk-border); }
+html.dark .lk-notif-item:hover { background: #2e2720; }
+html.dark .lk-notif-icon { background: #1e1a17; color: var(--lk-muted); }
+html.dark .lk-notif-title { color: var(--lk-ink); }
+html.dark .lk-notif-body { color: var(--lk-muted); }
+html.dark .lk-notif-time { color: var(--lk-faint); }
+html.dark .lk-notif-panel { background: var(--lk-card); }
+
+/* Account & profile */
+html.dark .lk-address-card { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-address-card.is-default { border-color: var(--lk-red); background: #1e1210; }
+html.dark .lk-address-label { color: var(--lk-muted); }
+html.dark .lk-address-meta { color: var(--lk-faint); }
+html.dark .lk-reward-card { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-reward-card h3 { color: var(--lk-ink); }
+html.dark .lk-voucher-card { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-voucher-card::before { border-color: var(--lk-border); }
+html.dark .lk-voucher-title { color: var(--lk-ink); }
+html.dark .lk-voucher-desc { color: var(--lk-muted); }
+html.dark .lk-account-nav { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-account-nav a { color: var(--lk-muted); }
+html.dark .lk-account-nav a:hover,
+html.dark .lk-account-nav a.is-active { color: var(--lk-red); background: #2d1414; }
+html.dark .lk-account-form h2 { color: var(--lk-ink); }
+html.dark .lk-account-form p { color: var(--lk-muted); }
+
+/* Auth dialog */
+html.dark .lk-auth-dialog-card { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-auth-dialog h2 { color: var(--lk-ink); }
+html.dark .lk-auth-dialog p { color: var(--lk-muted); }
+html.dark .lk-auth-dialog-icon { background: #2d1414; color: var(--lk-red); }
+html.dark .lk-auth-dialog-close { color: var(--lk-muted); }
+html.dark .lk-auth-dialog-close:hover { color: var(--lk-ink); background: #2e2720; }
+html.dark .lk-auth-dialog::backdrop { background: rgba(0,0,0,.65); }
+
+/* Guest pages */
+html.dark .lk-header.is-guest { background: #161210; border-bottom-color: var(--lk-border); }
+html.dark .lk-guest-brand strong { color: var(--lk-ink); }
+html.dark .lk-guest-shell { background: var(--lk-cream); }
+
+/* Utility */
+html.dark .lk-store-avatar { border-color: var(--lk-border); background: #1e1a17; }
+html.dark .lk-storefront { background: var(--lk-card); border-color: var(--lk-border); }
+html.dark .lk-storefront-name { color: var(--lk-ink); }
+html.dark .lk-tabs { border-bottom-color: var(--lk-border); background: transparent; }
+html.dark .lk-tab { color: var(--lk-muted); }
+html.dark .lk-tab.is-active { color: var(--lk-red); border-bottom-color: var(--lk-red); }
+html.dark .lk-pagination a,
+html.dark .lk-pagination button { background: #1e1a17; border-color: var(--lk-border); color: var(--lk-muted); }
+html.dark .lk-pagination .is-active { background: #2d1414; color: var(--lk-red); border-color: var(--lk-red); }
+/* Logout Button */
+html.dark .lk-logout-btn,
+html.dark .lk-logout,
+html.dark [data-logout] { 
+    background: #1e1a17; 
+    border-color: var(--lk-border); 
+    color: var(--lk-muted); 
+}
+html.dark .lk-logout-btn:hover,
+html.dark .lk-logout:hover,
+html.dark [data-logout]:hover {
+    background: #2d1414;
+    border-color: #7f1d1d;
+    color: var(--lk-red);
+}
+
+/* Account Management Navigation */
+html.dark .lk-account-sidebar,
+html.dark .account-nav,
+html.dark .settings-nav { 
+    background: var(--lk-card); 
+    border-color: var(--lk-border); 
+}
+html.dark .lk-account-sidebar a,
+html.dark .account-nav a,
+html.dark .settings-nav a { 
+    color: var(--lk-muted); 
+    background: transparent;
+}
+html.dark .lk-account-sidebar a:hover,
+html.dark .account-nav a:hover,
+html.dark .settings-nav a:hover { 
+    color: var(--lk-ink); 
+    background: #2e2720; 
+}
+html.dark .lk-account-sidebar a.is-active,
+html.dark .account-nav a.is-active,
+html.dark .settings-nav a.is-active { 
+    color: var(--lk-red); 
+    background: #2d1414; 
+    border-left-color: var(--lk-red);
+}
+
+/* Appearance/Settings Section */
+html.dark .lk-appearance-section,
+html.dark .appearance-panel,
+html.dark .settings-panel { 
+    background: var(--lk-card); 
+    border-color: var(--lk-border); 
+}
+html.dark .lk-appearance-section h3,
+html.dark .appearance-panel h3,
+html.dark .settings-panel h3 { 
+    color: var(--lk-ink); 
+}
+html.dark .lk-appearance-section p,
+html.dark .appearance-panel p,
+html.dark .settings-panel p { 
+    color: var(--lk-muted); 
+}
+html.dark .lk-theme-option,
+html.dark .theme-toggle,
+html.dark .appearance-option { 
+    background: #1e1a17; 
+    border-color: var(--lk-border); 
+}
+html.dark .lk-theme-option:hover,
+html.dark .theme-toggle:hover,
+html.dark .appearance-option:hover { 
+    border-color: var(--lk-red); 
+}
+html.dark .lk-theme-option.is-active,
+html.dark .theme-toggle.is-active,
+html.dark .appearance-option.is-active { 
+    background: #2d1414; 
+    border-color: var(--lk-red); 
+}
+html.dark .lk-theme-label,
+html.dark .theme-label { 
+    color: var(--lk-ink); 
+}
+/* Theme Toggle Button - Dark Mode */
+html.dark #themeToggle {
+    background: #1e1a17 !important;
+    border: none !important;
+    color: var(--lk-ink) !important;
+}
+
+html.dark #themeToggle:hover {
+    background: #2e2720 !important;
+    color: var(--lk-ink) !important;
+}
+
+html.dark #themeToggle .lk-nav-icon {
+    color: var(--lk-muted);
+}
+
+html.dark #themeToggle .lk-nav-text {
+    color: var(--lk-ink) !important;
+}
+
+html.dark #themeToggle .lk-nav-text span:first-child {
+    color: var(--lk-ink) !important;
+    font-weight: 600;
+}
+
+html.dark #themeToggle .lk-nav-text span:last-child {
+    color: var(--lk-muted) !important;
+}
+
+html.dark #themeToggleBadge {
+    background: #c92d2f !important;
+    color: #fff !important;
+}
+
+html.dark button[data-title="Appearance"] {
+    background: #1e1a17 !important;
+    color: var(--lk-ink) !important;
+}
+
+html.dark button[data-title="Appearance"]:hover {
+    background: #2e2720 !important;
+}
+
+html.dark button[data-title="Appearance"] span {
+    color: inherit;
+}
+
+html.dark button[data-title="Appearance"] .lk-nav-icon svg {
+    stroke: var(--lk-muted);
+    color: var(--lk-muted);
+}
+
+html.dark button[data-title="Appearance"] [style*="flex-direction"] {
+    color: var(--lk-ink) !important;
+}
+
+html.dark button[data-title="Appearance"] [style*="opacity"] {
+    color: var(--lk-muted) !important;
+}
+
+/* Messages & Chat Sidebar */
+html.dark .lk-messages-sidebar,
+html.dark .chat-sidebar,
+html.dark .messages-panel { 
+    background: #161210; 
+    border-right-color: var(--lk-border); 
+}
+html.dark .lk-msg-header,
+html.dark .chat-header,
+html.dark .messages-header { 
+    background: #1e1a17; 
+    border-bottom-color: var(--lk-border); 
+    color: var(--lk-ink); 
+}
+html.dark .lk-msg-search { 
+    background: #1e1a17; 
+    border-color: var(--lk-border); 
+}
+html.dark .lk-msg-search input { 
+    background: transparent; 
+    color: var(--lk-ink); 
+}
+html.dark .lk-msg-search input::placeholder { 
+    color: var(--lk-faint); 
+}
+html.dark .lk-msg-item,
+html.dark .chat-item { 
+    background: transparent; 
+    border-bottom-color: var(--lk-border); 
+}
+html.dark .lk-msg-item:hover,
+html.dark .chat-item:hover { 
+    background: #2e2720; 
+}
+html.dark .lk-msg-item.is-active,
+html.dark .chat-item.is-active { 
+    background: #2d1414; 
+    border-left-color: var(--lk-red); 
+}
+html.dark .lk-msg-title { 
+    color: var(--lk-ink); 
+}
+html.dark .lk-msg-preview,
+html.dark .chat-preview { 
+    color: var(--lk-muted); 
+}
+html.dark .lk-msg-time,
+html.dark .chat-time { 
+    color: var(--lk-faint); 
+}
+html.dark .lk-msg-badge { 
+    background: var(--lk-red); 
+    color: #fff; 
+}
+
+/* Tables & Data Containers */
+html.dark table,
+html.dark .lk-table-container,
+html.dark .data-table { 
+    background: var(--lk-card); 
+    border-color: var(--lk-border); 
+}
+html.dark table thead,
+html.dark table thead th { 
+    background: #161210; 
+    border-bottom-color: var(--lk-border); 
+    color: var(--lk-muted); 
+    font-weight: 600;
+}
+html.dark table tbody tr { 
+    border-bottom-color: var(--lk-border); 
+}
+html.dark table tbody tr:hover { 
+    background: #2e2720; 
+}
+html.dark table td,
+html.dark table th { 
+    color: var(--lk-ink); 
+}
+html.dark table td small,
+html.dark table th small { 
+    color: var(--lk-muted); 
+}
+html.dark table td strong { 
+    color: var(--lk-ink); 
+}
+
+/* Data Grid & Lists */
+html.dark .lk-data-grid,
+html.dark .data-container,
+html.dark .list-container { 
+    background: var(--lk-card); 
+    border-color: var(--lk-border); 
+}
+html.dark .lk-grid-row,
+html.dark .list-item,
+html.dark .data-row { 
+    border-bottom-color: var(--lk-border); 
+}
+html.dark .lk-grid-row:hover { 
+    background: #2e2720; 
+}
+html.dark .lk-grid-cell,
+html.dark .list-item-text { 
+    color: var(--lk-ink); 
+}
+html.dark .lk-grid-cell.muted,
+html.dark .list-item-meta { 
+    color: var(--lk-muted); 
+}
+
+/* Modal & Dialog Containers */
+html.dark .lk-modal,
+html.dark .modal,
+html.dark [role="dialog"] { 
+    background: var(--lk-card); 
+    border-color: var(--lk-border); 
+}
+html.dark .lk-modal-header,
+html.dark .modal-header { 
+    background: #1e1a17; 
+    border-bottom-color: var(--lk-border); 
+}
+html.dark .lk-modal-header h2,
+html.dark .modal-header h2 { 
+    color: var(--lk-ink); 
+}
+html.dark .lk-modal-body { 
+    background: transparent; 
+    color: var(--lk-ink); 
+}
+html.dark .lk-modal-body p,
+html.dark .modal-body p { 
+    color: var(--lk-muted); 
+}
+html.dark .lk-modal::backdrop,
+html.dark .modal::backdrop { 
+    background: rgba(0,0,0,.65); 
+}
+
+/* Form Containers & Sections */
+html.dark .lk-form-section,
+html.dark .form-group,
+html.dark .form-container { 
+    background: transparent; 
+}
+html.dark .lk-form-section h2,
+html.dark .form-group legend { 
+    color: var(--lk-ink); 
+}
+html.dark .lk-form-section p { 
+    color: var(--lk-muted); 
+}
+html.dark .lk-form-separator { 
+    border-top-color: var(--lk-border); 
+}
+
+/* Info Box & Alert Containers */
+html.dark .lk-info-box,
+html.dark .alert,
+html.dark .notice-box { 
+    background: #1e1a17; 
+    border-color: var(--lk-border); 
+}
+html.dark .lk-info-box-title,
+html.dark .alert-title { 
+    color: var(--lk-ink); 
+}
+html.dark .lk-info-box-text,
+html.dark .alert-text { 
+    color: var(--lk-muted); 
+}
+html.dark .lk-info-box.is-error,
+html.dark .alert.alert-danger { 
+    border-color: #7f1d1d; 
+}
+html.dark .lk-info-box.is-success,
+html.dark .alert.alert-success { 
+    border-color: #166534; 
+}
+
+/* Scrollable Containers */
+html.dark .lk-scroll-container,
+html.dark .scrollable { 
+    scrollbar-color: #3d342b transparent; 
+}
+
+/* TEXT VISIBILITY - All Headings & Text */
+html.dark h1, html.dark h2, html.dark h3, html.dark h4, html.dark h5, html.dark h6 {
+    color: var(--lk-ink) !important;
+}
+
+html.dark p { color: var(--lk-ink); }
+html.dark strong, html.dark b { color: var(--lk-ink) !important; }
+html.dark span { color: inherit; }
+html.dark label { color: var(--lk-muted); }
+html.dark small { color: var(--lk-muted); }
+
+/* Link Visibility */
+html.dark a { color: var(--lk-red); }
+html.dark a:hover { color: var(--lk-red-dark); }
+html.dark a strong { color: var(--lk-red); }
+
+/* All Input Types */
+html.dark input[type="text"],
+html.dark input[type="email"],
+html.dark input[type="password"],
+html.dark input[type="search"],
+html.dark input[type="date"],
+html.dark input[type="time"],
+html.dark input[type="number"],
+html.dark input[type="tel"],
+html.dark textarea,
+html.dark select,
+html.dark [contenteditable] {
+    background: #1e1a17 !important;
+    border-color: var(--lk-border) !important;
+    color: var(--lk-ink) !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+    color: var(--lk-faint) !important;
+}
+
+html.dark input:focus,
+html.dark textarea:focus,
+html.dark select:focus {
+    border-color: var(--lk-red) !important;
+    box-shadow: 0 0 0 3px rgba(143,23,25,.2) !important;
+}
+
+/* Form Labels & Descriptions */
+html.dark .lk-field-label,
+html.dark .form-label {
+    color: var(--lk-muted) !important;
+}
+
+html.dark .form-description,
+html.dark .form-help,
+html.dark .form-text {
+    color: var(--lk-muted) !important;
+}
+/* Force all remaining light elements to dark mode */
+html.dark body * { color: inherit; }
+html.dark .bg-white,
+html.dark [class*="bg-light"],
+html.dark [style*="background: #fff"],
+html.dark [style*="background: white"] {
+    background: var(--lk-card) !important;
+    color: var(--lk-ink) !important;
+}
+
+/* Ensure all badges and pills are visible */
+html.dark .badge { background: var(--lk-red); color: #fff; }
+html.dark .pill { background: #2e2720; color: var(--lk-ink); border-color: var(--lk-border); }
+
+/* Dropdown and select menus */
+html.dark [role="menu"],
+html.dark .dropdown-menu,
+html.dark .select-menu {
+    background: var(--lk-card) !important;
+    border-color: var(--lk-border) !important;
+}
+
+html.dark [role="menuitem"],
+html.dark .dropdown-item {
+    color: var(--lk-ink) !important;
+}
+
+html.dark [role="menuitem"]:hover,
+html.dark .dropdown-item:hover {
+    background: #2e2720 !important;
+    color: var(--lk-ink) !important;
+}
+
+/* Ensure focus states are visible */
+html.dark *:focus,
+html.dark *:focus-visible {
+    outline-color: var(--lk-red) !important;
+}
+
+/* Modals and overlays */
+html.dark dialog { background: var(--lk-card); color: var(--lk-ink); }
+html.dark .modal-backdrop { background: rgba(0,0,0,.7); }
+
+/* Code blocks */
+html.dark code,
+html.dark pre {
+    background: #1e1a17 !important;
+    color: #e6edf3 !important;
+    border-color: var(--lk-border) !important;
+}
+
+/* Success, error, warning alerts */
+html.dark .alert-success { background: #052e16; border-color: #166534; color: #34d399; }
+html.dark .alert-error,
+html.dark .alert-danger { background: #2d1117; border-color: #b91c1c; color: #f87171; }
+html.dark .alert-warning { background: #2d1f00; border-color: #92400e; color: #fbbf24; }
+html.dark .alert-info { background: #1c2d4a; border-color: #1f6feb; color: #58a6ff; }
+
+/* Ensure text inside cards is readable */
+html.dark .lk-card *,
+html.dark .sl-card *,
+html.dark .ad-card * {
+    color: inherit;
+}
+
+html.dark .lk-card strong,
+html.dark .sl-card strong,
+html.dark .ad-card strong {
+    color: var(--lk-ink);
+}
+
+
+html.dark .lk-overlay { background: rgba(0,0,0,.55); }
+html.dark .lk-overlay-open { visibility: visible; opacity: 1; }
+/* AGGRESSIVE - Force ALL sidebar footer elements dark */
+html.dark .lk-sidebar-foot button {
+    background: #1e1a17 !important;
+    color: var(--lk-ink) !important;
+    border: none !important;
+}
+
+html.dark .lk-sidebar-foot button:hover {
+    background: #2e2720 !important;
+}
+
+html.dark .lk-sidebar-foot button * {
+    color: inherit !important;
+}
+
+html.dark .lk-sidebar-foot button svg {
+    stroke: var(--lk-muted) !important;
+    fill: none !important;
+}
+
+html.dark .lk-sidebar-foot button strong,
+html.dark .lk-sidebar-foot button span {
+    color: var(--lk-ink) !important;
+}
+
+html.dark .lk-sidebar-foot [style] {
+    background: transparent !important;
+    color: var(--lk-ink) !important;
+}
+
+html.dark #themeToggleBadge {
+    background: #c92d2f !important;
+    color: #fff !important;
+}
+
+html.dark .lk-logout {
+    background: #1e1a17 !important;
+    color: var(--lk-ink) !important;
+}
+
+html.dark .lk-logout:hover {
+    background: #2d1117 !important;
+    color: #ff4444 !important;
+}
+
+html.dark .lk-logout svg {
+    stroke: var(--lk-muted) !important;
+}
+
+html.dark .lk-sidebar-foot form button {
+    background: #1e1a17 !important;
+}
+
+html.dark .lk-sidebar-foot form button:hover {
+    background: #2d1117 !important;
+}
+
+html.dark .lk-sidebar-foot form {
+    background: transparent !important;
+}
+/* SUPER AGGRESSIVE - Override ALL white/light colors in sidebar footer */
+html.dark .lk-sidebar-foot {
+    background: transparent !important;
+}
+
+html.dark .lk-sidebar-foot * {
+    background: transparent !important;
+    color: var(--lk-ink) !important;
+}
+
+html.dark .lk-sidebar-foot button span {
+    background: transparent !important;
+    color: var(--lk-ink) !important;
+}
+
+html.dark .lk-sidebar-foot button span span {
+    background: transparent !important;
+    color: var(--lk-ink) !important;
+}
+
+html.dark .lk-sidebar-foot #themeToggle span span span {
+    background: transparent !important;
+    color: var(--lk-ink) !important;
+}
+
+html.dark .lk-sidebar-foot #themeToggle span:first-child span:last-child span:first-child {
+    color: var(--lk-ink) !important;
+    background: transparent !important;
+}
+
+html.dark .lk-sidebar-foot #themeToggle span:first-child span:last-child span:last-child {
+    color: var(--lk-muted) !important;
+    background: transparent !important;
+}
+
+html.dark .lk-sidebar-foot svg {
+    color: var(--lk-muted) !important;
+    stroke: var(--lk-muted) !important;
+    fill: none !important;
+}
+
+html.dark .lk-sidebar-foot form {
+    background: transparent !important;
+}
+
+html.dark .lk-sidebar-foot form button {
+    background: #1e1a17 !important;
+    color: var(--lk-ink) !important;
+    border: none !important;
+}
+
+html.dark .lk-sidebar-foot form button span {
+    background: transparent !important;
+    color: var(--lk-ink) !important;
+}
+
+html.dark .lk-sidebar-foot form button:hover {
+    background: #2d1117 !important;
+}
+
+html.dark .lk-logout {
+    background: #1e1a17 !important;
+    color: var(--lk-ink) !important;
+}
+
+html.dark .lk-logout:hover {
+    background: #2d1117 !important;
+}
+
+html.dark .lk-logout span {
+    background: transparent !important;
+    color: var(--lk-ink) !important;
+}
+
+html.dark #themeToggleBadge {
+    background: #c92d2f !important;
+    color: #fff !important;
+}

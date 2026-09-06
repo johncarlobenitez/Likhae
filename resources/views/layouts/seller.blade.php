@@ -14,7 +14,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/css/seller/seller.css', 'resources/js/seller/seller.js'])
-</head>
+    <script>
+        (function(){var t=localStorage.getItem('likhae-theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}})();
+    </script></head>
 <body class="sl-body">
     @include('components.seller.sidebar', ['active' => $activePage])
 
@@ -34,6 +36,9 @@
     <div class="sl-overlay" data-sl-overlay></div>
     <div class="sl-toast" data-sl-toast role="status" aria-live="polite"></div>
 
+    @include('partials.darkmode')
     @stack('scripts')
 </body>
 </html>
+
+

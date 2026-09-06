@@ -90,6 +90,25 @@
     </nav>
 
     <div class="lk-sidebar-foot">
+        {{-- DARK MODE TOGGLE --}}
+        <button
+            id="themeToggle"
+            type="button"
+            class="lk-nav-link"
+            data-title="Appearance"
+            style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;background:none;border:none;"
+        >
+            <span style="display:flex;align-items:center;gap:8px;">
+                <span class="lk-nav-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>
+                </span>
+                <span class="lk-nav-text" style="flex-direction:column;align-items:flex-start;">
+                    <span style="display:block;font-weight:600;font-size:.8125rem;">Appearance</span>
+                    <span style="display:block;font-size:.7rem;opacity:.6;">Light / Dark Mode</span>
+                </span>
+            </span>
+            <span id="themeToggleBadge" style="border-radius:9999px;padding:2px 10px;font-size:.7rem;font-weight:700;background:#c92d2f;color:#fff;">ON</span>
+        </button>
         @if(Route::has('logout'))
             <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="lk-nav-link lk-logout" data-title="Logout"><span class="lk-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true">{!! $icons['logout'] !!}</svg></span><span class="lk-nav-text">Logout</span></button></form>
         @else
@@ -97,3 +116,4 @@
         @endif
     </div>
 </aside>
+

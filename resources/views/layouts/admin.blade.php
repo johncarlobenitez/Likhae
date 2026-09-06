@@ -10,7 +10,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/css/admin/admin.css', 'resources/js/admin/admin.js'])
     @stack('head')
-</head>
+    <script>
+        (function(){var t=localStorage.getItem('likhae-theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}})();
+    </script></head>
 <body class="ad-body">
     <div class="ad-app" data-admin-shell>
         <x-admin.sidebar :active="trim($__env->yieldContent('active', 'dashboard'))" />
@@ -50,6 +52,9 @@
         </form>
     </dialog>
 
+    @include('partials.darkmode')
     @stack('scripts')
 </body>
 </html>
+
+
