@@ -289,6 +289,72 @@
 
                     </button>
 
+
+                    {{-- LOGISTICS --}}
+                    <button
+                        type="button"
+                        class="account-type-option"
+                        data-account-type="logistics"
+                        aria-pressed="false"
+                    >
+
+                        <span class="account-type-option__icon">
+                            🏭
+                        </span>
+
+
+                        <span class="account-type-option__content">
+
+                            <strong>
+                                Logistics
+                            </strong>
+
+                            <small>
+                                Sorting center operations
+                            </small>
+
+                        </span>
+
+
+                        <span class="account-type-option__check">
+                            ✓
+                        </span>
+
+                    </button>
+
+
+                    {{-- RIDER --}}
+                    <button
+                        type="button"
+                        class="account-type-option"
+                        data-account-type="rider"
+                        aria-pressed="false"
+                    >
+
+                        <span class="account-type-option__icon">
+                            🛵
+                        </span>
+
+
+                        <span class="account-type-option__content">
+
+                            <strong>
+                                Rider
+                            </strong>
+
+                            <small>
+                                Delivery and pickup services
+                            </small>
+
+                        </span>
+
+
+                        <span class="account-type-option__check">
+                            ✓
+                        </span>
+
+                    </button>
+
                 </div>
 
             </section>
@@ -741,7 +807,7 @@
                             {{-- REGION --}}
                             <div class="register-field register-field--full">
                                 <label for="region">Region <span>*</span></label>
-                                <select id="region" name="region" required data-address-region>
+                                <select id="region" name="region" required data-address-region data-old-value="{{ old('region') }}">
                                     <option value="">Loading regions…</option>
                                 </select>
                             </div>
@@ -749,7 +815,7 @@
                             {{-- PROVINCE --}}
                             <div class="register-field">
                                 <label for="province">Province <span>*</span></label>
-                                <select id="province" name="province" required disabled data-address-province>
+                                <select id="province" name="province" required disabled data-address-province data-old-value="{{ old('province') }}">
                                     <option value="">Select province</option>
                                 </select>
                             </div>
@@ -757,7 +823,7 @@
                             {{-- MUNICIPALITY --}}
                             <div class="register-field">
                                 <label for="municipality">Municipality / City <span>*</span></label>
-                                <select id="municipality" name="municipality" required disabled data-address-municipality>
+                                <select id="municipality" name="municipality" required disabled data-address-municipality data-old-value="{{ old('municipality') }}">
                                     <option value="">Select municipality / city</option>
                                 </select>
                             </div>
@@ -765,7 +831,7 @@
                             {{-- BARANGAY --}}
                             <div class="register-field">
                                 <label for="barangay">Barangay <span>*</span></label>
-                                <select id="barangay" name="barangay" required disabled data-address-barangay>
+                                <select id="barangay" name="barangay" required disabled data-address-barangay data-old-value="{{ old('barangay') }}">
                                     <option value="">Select barangay</option>
                                 </select>
                             </div>

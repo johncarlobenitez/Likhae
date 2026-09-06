@@ -128,6 +128,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const seller =
             accountTypeInput?.value === 'seller';
 
+        const logistics =
+            accountTypeInput?.value === 'logistics';
+
+        const rider =
+            accountTypeInput?.value === 'rider';
 
         const steps = [
             {
@@ -169,6 +174,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
 
+        if (logistics) {
+
+            steps.push({
+                name:
+                    'logistics-business',
+
+                title:
+                    'Business Information',
+            });
+
+        }
+
+
+        if (rider) {
+
+            steps.push({
+                name:
+                    'rider-vehicle',
+
+                title:
+                    'Vehicle Information',
+            });
+
+        }
+
+
         steps.push({
             name:
                 'verification',
@@ -194,13 +225,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const seller =
             type === 'seller';
 
+        const logistics =
+            type === 'logistics';
+
+        const rider =
+            type === 'rider';
 
         if (accountTypeInput) {
 
             accountTypeInput.value =
-                seller
-                    ? 'seller'
-                    : 'buyer';
+                type;
 
         }
 
@@ -269,6 +303,123 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         );
 
+        /*
+        |--------------------------------------------------------------
+        | Logistics specific
+        |--------------------------------------------------------------
+        */
+
+        const logisticsStep =
+            document.querySelector(
+                '[data-logistics-step]'
+            );
+
+        const logisticsProgressStep =
+            document.querySelector(
+                '[data-logistics-progress-step]'
+            );
+
+        const logisticsBusinessPermitUpload =
+            document.getElementById(
+                'logisticsBusinessPermitUpload'
+            );
+
+        if (logisticsStep) {
+
+            logisticsStep.hidden =
+                !logistics;
+
+        }
+
+
+        if (logisticsProgressStep) {
+
+            logisticsProgressStep.hidden =
+                !logistics;
+
+        }
+
+
+        if (logisticsBusinessPermitUpload) {
+
+            logisticsBusinessPermitUpload.hidden =
+                !logistics;
+
+        }
+
+
+        const logisticsRequiredFields =
+            document.querySelectorAll(
+                '[data-logistics-required]'
+            );
+
+        logisticsRequiredFields.forEach(
+            (field) => {
+
+                field.required =
+                    logistics;
+
+            }
+        );
+
+        /*
+        |--------------------------------------------------------------
+        | Rider specific
+        |--------------------------------------------------------------
+        */
+
+        const riderStep =
+            document.querySelector(
+                '[data-rider-step]'
+            );
+
+        const riderProgressStep =
+            document.querySelector(
+                '[data-rider-progress-step]'
+            );
+
+        const riderVehicleSection =
+            document.getElementById(
+                'riderVehicleSection'
+            );
+
+        if (riderStep) {
+
+            riderStep.hidden =
+                !rider;
+
+        }
+
+
+        if (riderProgressStep) {
+
+            riderProgressStep.hidden =
+                !rider;
+
+        }
+
+
+        if (riderVehicleSection) {
+
+            riderVehicleSection.hidden =
+                !rider;
+
+        }
+
+
+        const riderRequiredFields =
+            document.querySelectorAll(
+                '[data-rider-required]'
+            );
+
+        riderRequiredFields.forEach(
+            (field) => {
+
+                field.required =
+                    rider;
+
+            }
+        );
 
         /*
         |--------------------------------------------------------------
@@ -279,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (verificationNumber) {
 
             verificationNumber.textContent =
-                seller
+                seller || logistics || rider
                     ? '05'
                     : '04';
 
@@ -289,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (verificationStepNumber) {
 
             verificationStepNumber.textContent =
-                seller
+                seller || logistics || rider
                     ? '5'
                     : '4';
 
@@ -304,10 +455,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (submitLabel) {
 
-            submitLabel.textContent =
-                seller
-                    ? 'Submit Seller Application'
-                    : 'Submit Buyer Application';
+            if (seller) {
+
+                submitLabel.textContent =
+                    'Submit Seller Application';
+
+            } else if (logistics) {
+
+                submitLabel.textContent =
+                    'Submit Logistics Application';
+
+            } else if (rider) {
+
+                submitLabel.textContent =
+                    'Submit Rider Application';
+
+            } else {
+
+                submitLabel.textContent =
+                    'Submit Buyer Application';
+
+            }
 
         }
 
@@ -1184,6 +1352,15 @@ document.addEventListener('DOMContentLoaded', () => {
     |--------------------------------------------------------------------------
     */
 
+    const region =
+        document.querySelector(
+            '[data-address-region]'
+        );
+
+    const oldRegion =
+        region?.dataset.oldValue
+        ?? '';
+
     const province =
         document.querySelector(
             '[data-address-province]'
@@ -1200,6 +1377,18 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelector(
             '[data-address-barangay]'
         );
+
+    const oldProvince =
+        province?.dataset.oldValue
+        ?? '';
+
+    const oldMunicipality =
+        municipality?.dataset.oldValue
+        ?? '';
+
+    const oldBarangay =
+        barangay?.dataset.oldValue
+        ?? '';
 
 
     function resetSelect(
@@ -1263,6 +1452,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 option.textContent =
                     label;
 
+                option.dataset.prv =
+                    record.prv ?? '';
+
+                option.dataset.mun =
+                    record.mun ?? '';
+
+                option.dataset.level =
+                    record.level ?? '';
+
 
                 select.appendChild(
                     option
@@ -1274,22 +1472,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 
-    async function loadProvinces() {
+    async function loadRegions() {
 
-        if (!province) {
+        if (!region) {
             return;
         }
 
 
         try {
 
-            province.innerHTML =
-                '<option value="">Loading provinces...</option>';
+            region.innerHTML =
+                '<option value="">Loading regions...</option>';
 
 
             const response =
                 await fetch(
-                    '/address/philippines/provinces',
+                    '/address/philippines/regions',
                     {
                         headers: {
                             Accept:
@@ -1301,8 +1499,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!response.ok) {
 
-                throw new Error(
-                    'Province request failed'
+                    throw new Error(
+                        'Region request failed'
                 );
 
             }
@@ -1324,37 +1522,116 @@ document.addEventListener('DOMContentLoaded', () => {
                     );
 
 
-            province.innerHTML =
-                '<option value="">Select province</option>';
+            region.innerHTML =
+                '<option value="">Select region</option>';
 
 
             addOptions(
-                province,
+                region,
                 records
             );
 
 
-            province.disabled =
+            region.disabled =
                 false;
 
         } catch (error) {
 
             console.error(
-                'Province API:',
+                'Region API:',
                 error
             );
 
 
-            province.innerHTML =
+            region.innerHTML =
                 '<option value="">Address service unavailable — refresh to retry</option>';
 
 
-            province.disabled =
+            region.disabled =
                 false;
 
         }
 
     }
+
+
+    region?.addEventListener(
+        'change',
+        async () => {
+
+            resetSelect(
+                province,
+                'Select province'
+            );
+
+            resetSelect(
+                municipality,
+                'Select municipality / city'
+            );
+
+            resetSelect(
+                barangay,
+                'Select barangay'
+            );
+
+
+            if (!region.value) {
+                return;
+            }
+
+
+            try {
+
+                province.innerHTML =
+                    '<option value="">Loading provinces...</option>';
+
+                const response =
+                    await fetch(
+                        `/address/philippines/regions/${encodeURIComponent(
+                            region.value
+                        )}/provinces`,
+                        {
+                            headers: {
+                                Accept:
+                                    'application/json'
+                            }
+                        }
+                    );
+
+
+                if (!response.ok) {
+                    throw new Error('Province request failed');
+                }
+
+
+                const result = await response.json();
+                const records = Array.isArray(result)
+                    ? result
+                    : (result.data ?? result.provinces ?? []);
+
+
+                province.innerHTML =
+                    '<option value="">Select province</option>';
+
+                addOptions(province, records);
+                province.disabled = false;
+
+                if (oldProvince) {
+                    province.value = oldProvince;
+                    province.dispatchEvent(new Event('change'));
+                }
+
+            } catch (error) {
+
+                console.error('Province API:', error);
+                province.innerHTML =
+                    '<option value="">Address service unavailable — refresh to retry</option>';
+                province.disabled = false;
+
+            }
+
+        }
+    );
 
 
     /*
@@ -1386,6 +1663,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
 
+                const selectedProvince =
+                    province.selectedOptions[0];
+
+                if (selectedProvince?.dataset.level === 'City') {
+                    municipality.innerHTML =
+                        '<option value="">Select municipality / city</option>';
+
+                    const cityOption = new Option(
+                        selectedProvince.textContent,
+                        selectedProvince.value
+                    );
+
+                    cityOption.dataset.prv =
+                        selectedProvince.dataset.prv ?? '';
+
+                    cityOption.dataset.mun = '0';
+                    municipality.appendChild(cityOption);
+                    municipality.disabled = false;
+
+                    if (oldMunicipality) {
+                        municipality.value = oldMunicipality;
+                    }
+
+                    return;
+                }
+
                 municipality.innerHTML =
                     '<option value="">Loading municipalities...</option>';
 
@@ -1394,7 +1697,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     await fetch(
                         `/address/philippines/provinces/${encodeURIComponent(
                             province.value
-                        )}/municipalities`,
+                        )}/municipalities?prv=${encodeURIComponent(
+                            province.selectedOptions[0]?.dataset.prv
+                            || province.value
+                        )}`,
                         {
                             headers: {
                                 Accept:
@@ -1441,6 +1747,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 municipality.disabled =
                     false;
+
+                if (oldMunicipality) {
+                    municipality.value = oldMunicipality;
+                    municipality.dispatchEvent(new Event('change'));
+                }
 
             } catch (error) {
 
@@ -1490,7 +1801,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     await fetch(
                         `/address/philippines/municipalities/${encodeURIComponent(
                             municipality.value
-                        )}/barangays`,
+                        )}/barangays?mun=${encodeURIComponent(
+                            municipality.selectedOptions[0]?.dataset.mun
+                            || municipality.value
+                        )}&prv=${encodeURIComponent(
+                            municipality.selectedOptions[0]?.dataset.prv
+                            || province.selectedOptions[0]?.dataset.prv
+                            || ''
+                        )}`,
                         {
                             headers: {
                                 Accept:
@@ -1538,6 +1856,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 barangay.disabled =
                     false;
 
+                if (oldBarangay) {
+                    barangay.value = oldBarangay;
+                }
+
             } catch (error) {
 
                 console.error(
@@ -1561,7 +1883,12 @@ document.addEventListener('DOMContentLoaded', () => {
     |--------------------------------------------------------------------------
     */
 
-    loadProvinces();
+    loadRegions().then(() => {
+        if (oldRegion) {
+            region.value = oldRegion;
+            region.dispatchEvent(new Event('change'));
+        }
+    });
 
 
     setAccountType(
@@ -1571,6 +1898,10 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
 });
+
+
+/* The address flow below is retained only for reference from the old form. */
+if (false) {
 const provinceSelect =
     document.querySelector(
         '[data-address-province]'
@@ -2067,3 +2398,4 @@ async function initializeAddressSelection() {
 
 
 initializeAddressSelection();
+}

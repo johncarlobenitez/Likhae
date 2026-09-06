@@ -13,14 +13,14 @@ class RegistrationController extends Controller
 {
     public function store(Request $request): RedirectResponse
     {
-        $role = $request->input('role');
+        $role = $request->input('role', $request->input('account_type'));
 
         $validated = $request->validate([
-            'role' => ['required', Rule::in(['buyer', 'seller', 'courier'])],
+            'role' => ['required', Rule::in(['buyer', 'seller', 'courier', 'logistics'])],
             'first_name' => ['required', 'string', 'max:80'],
             'last_name' => ['required', 'string', 'max:80'],
             'middle_initial' => ['nullable', 'string', 'max:2'],
-            'sex' => ['required', Rule::in(['male', 'female', 'prefer_not_to_say'])],
+            'sex' => ['required', Rule::in(['male', 'female', 'Male', 'Female', 'prefer_not_to_say'])],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'contact_number' => ['required', 'string', 'max:30'],
             'birthday' => ['required', 'date', 'before:today'],
@@ -29,21 +29,26 @@ class RegistrationController extends Controller
             'barangay' => ['required', 'string', 'max:120'],
             'house_number' => ['required', 'string', 'max:120'],
             'street' => ['required', 'string', 'max:255'],
-            'valid_id' => [Rule::requiredIf(in_array($role, ['buyer', 'seller'], true)), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'valid_id' => [Rule::requiredIf(in_array($role, ['buyer', 'seller', 'courier', 'logistics'], true)), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()],
             'terms' => ['accepted'],
-            'business_name' => [Rule::requiredIf($role === 'seller'), 'nullable', 'string', 'max:255'],
+            'business_name' => [Rule::requiredIf(in_array($role, ['seller', 'logistics'], true)), 'nullable', 'string', 'max:255'],
             'store_name' => [Rule::requiredIf($role === 'seller'), 'nullable', 'string', 'max:255'],
             'line_of_business' => [Rule::requiredIf($role === 'seller'), 'nullable', 'string', 'max:255'],
             'business_type' => ['nullable', 'string', 'max:100'],
             'dti_sec_number' => ['nullable', 'string', 'max:100'],
             'tin' => ['nullable', 'string', 'max:100'],
-            'business_permit' => [Rule::requiredIf($role === 'seller'), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'business_permit' => [Rule::requiredIf(in_array($role, ['seller', 'logistics'], true)), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'vehicle_type' => [Rule::requiredIf($role === 'courier'), 'nullable', Rule::in(['motorcycle', 'car', 'van', 'truck'])],
             'plate_number' => [Rule::requiredIf($role === 'courier'), 'nullable', 'string', 'max:30'],
             'or_cr' => [Rule::requiredIf($role === 'courier'), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'drivers_license' => [Rule::requiredIf($role === 'courier'), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'logistics_center_id' => [Rule::requiredIf($role === 'courier'), 'nullable', 'integer', 'exists:users,id'],
         ]);
+
+        if ($role === 'courier' && ! User::whereKey($validated['logistics_center_id'])->where('role', 'logistics')->where('status', 'active')->exists()) {
+            return back()->withErrors(['logistics_center_id' => 'Select an active logistics company.'])->withInput();
+        }
 
         $validIdPath = $request->hasFile('valid_id')
             ? $request->file('valid_id')->store('registration/valid-ids', 'public')
@@ -86,12 +91,14 @@ class RegistrationController extends Controller
             'plate_number' => $validated['plate_number'] ?? null,
             'or_cr_path' => $orCrPath,
             'drivers_license_path' => $driversLicensePath,
+            'logistics_center_id' => $validated['logistics_center_id'] ?? null,
         ]);
 
         $redirectRoute = match ($validated['role']) {
             'buyer' => 'buyer.pending',
             'seller' => 'seller.application-status',
             'courier' => 'courier.application-status',
+            'logistics' => 'logistics.application-status',
         };
 
         return redirect()->route($redirectRoute)
