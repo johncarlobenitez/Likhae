@@ -11,7 +11,6 @@
         ['type' => 'Dispute', 'title' => 'Urgent courier conduct complaint', 'message' => 'Case DSP-1880 was escalated and requires an administrator assignment.', 'time' => '18 min ago', 'tone' => 'warning', 'href' => route('admin.complaints')],
         ['type' => 'Registration', 'title' => '7 applications exceeded the review target', 'message' => 'Buyer, seller, and logistics-center documents are ready for review.', 'time' => '42 min ago', 'tone' => 'warning', 'href' => route('admin.registrations')],
         ['type' => 'Finance', 'title' => 'Settlement TXN-980138 failed', 'message' => 'The payment provider returned a timeout. No duplicate payout was created.', 'time' => '1 hr ago', 'tone' => 'danger', 'href' => route('admin.finance', ['tab' => 'payments'])],
-        ['type' => 'Delivery', 'title' => '8 active delivery exceptions', 'message' => 'Three shipments are urgent and five require logistics-center updates.', 'time' => '2 hrs ago', 'tone' => 'blue', 'href' => route('admin.orders', ['view' => 'delivery'])],
         ['type' => 'System', 'title' => 'Restricted products policy published', 'message' => 'Revision 3.2 is now visible to sellers and used during review.', 'time' => 'Yesterday', 'tone' => 'blue', 'href' => route('admin.settings', ['tab' => 'policies'])],
     ];
 @endphp

@@ -29,10 +29,7 @@
         'Discover meaningful local products'
     );
 
-    $heroPrice = max(
-        0,
-        (float) data_get($heroProduct, 'price', 0)
-    );
+    $heroPrice = 0;
 
     $heroCategoryValue = data_get($heroProduct, 'category.name')
         ?? data_get($heroProduct, 'category')
@@ -41,19 +38,6 @@
     $heroCategory = is_scalar($heroCategoryValue)
         ? (string) $heroCategoryValue
         : 'Featured Product';
-
-    /*
-    |--------------------------------------------------------------------------
-    | Front-end-safe optional routes
-    |--------------------------------------------------------------------------
-    */
-
-    $hasWishlistRoute =
-        \Illuminate\Support\Facades\Route::has('buyer.wishlist');
-
-    $wishlistUrl = $hasWishlistRoute
-        ? route('login')
-        : '#';
 
     /*
     |--------------------------------------------------------------------------
@@ -125,17 +109,17 @@
 
             <div class="lk-hero-actions">
                 <a
-                    href="{{ route('buyer.products') }}"
+                    href="{{ route('products') }}"
                     class="lk-btn lk-btn-red"
                 >
-                    Shop Now
+                    Browse Products
                 </a>
 
                 <a
-                    href="{{ route('login') }}"
+                    href="#categories-heading"
                     class="lk-btn lk-btn-light"
                 >
-                    Track Orders
+                    View Categories
                 </a>
             </div>
 
@@ -150,10 +134,6 @@
                     <span>Buyer Visits</span>
                 </div>
 
-                <div>
-                    <strong>4.8</strong>
-                    <span>Average Rating</span>
-                </div>
             </div>
         </div>
 
@@ -205,124 +185,6 @@
         </div>
     </section>
 
-    {{-- Quick actions --}}
-    <section class="lk-section" aria-labelledby="quick-actions-heading">
-        <div class="sr-only">
-            <h2 id="quick-actions-heading">Quick Actions</h2>
-        </div>
-
-        <div class="lk-quick-grid">
-            <a
-                href="{{ route('login') }}"
-                class="lk-quick-card"
-            >
-                <div class="lk-quick-icon">
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        aria-hidden="true"
-                    >
-                        <path d="M6 2h12l2 4v16H4V6z"/>
-                        <path d="M6 6h12"/>
-                        <path d="M8 11h8"/>
-                        <path d="M8 15h6"/>
-                    </svg>
-                </div>
-
-                <div>
-                    <strong>My Orders</strong>
-                    <small>Track and review</small>
-                </div>
-            </a>
-
-            <a
-                href="{{ $wishlistUrl }}"
-                class="lk-quick-card"
-                @if (!$hasWishlistRoute)
-                    data-frontend-placeholder
-                    onclick="return false;"
-                @endif
-            >
-                <div class="lk-quick-icon">
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        aria-hidden="true"
-                    >
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"/>
-                    </svg>
-                </div>
-
-                <div>
-                    <strong>Wishlist</strong>
-                    <small>Saved products</small>
-                </div>
-            </a>
-
-            <a
-                href="{{ route('login') }}"
-                class="lk-quick-card"
-            >
-                <div class="lk-quick-icon">
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        aria-hidden="true"
-                    >
-                        <path d="M4 5h16v11H8l-4 4z"/>
-                        <path d="M8 9h8"/>
-                        <path d="M8 13h5"/>
-                    </svg>
-                </div>
-
-                <div>
-                    <strong>Messages</strong>
-                    <small>Chat with sellers</small>
-                </div>
-            </a>
-
-            <a
-                href="{{ route('login', ['tab' => 'vouchers']) }}"
-                class="lk-quick-card"
-            >
-                <div class="lk-quick-icon">
-                    <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="1.8"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        aria-hidden="true"
-                    >
-                        <path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7"/>
-                        <path d="M2 7h20v5H2z"/>
-                        <path d="M12 7v14"/>
-                        <path d="M12 7H7.5A2.5 2.5 0 1 1 10 4.5z"/>
-                        <path d="M12 7h4.5A2.5 2.5 0 1 0 14 4.5z"/>
-                    </svg>
-                </div>
-
-                <div>
-                    <strong>Vouchers</strong>
-                    <small>Deals and rewards</small>
-                </div>
-            </a>
-        </div>
-    </section>
-
     {{-- Categories --}}
     <section
         class="lk-section"
@@ -342,7 +204,7 @@
             </div>
 
             <a
-                href="{{ route('buyer.products') }}"
+                href="{{ route('products') }}"
                 class="lk-text-link"
             >
                 View All
@@ -352,7 +214,7 @@
         <div class="lk-category-grid">
             @foreach ($categories as $category)
                 <a
-                    href="{{ route('buyer.products', ['category' => $category['slug']]) }}"
+                    href="{{ route('products', ['category' => $category['slug']]) }}"
                     class="lk-category-card"
                 >
                     <div class="lk-category-icon">
@@ -385,7 +247,7 @@
             </div>
 
             <a
-                href="{{ route('buyer.products', ['sort' => 'featured']) }}"
+                href="{{ route('products', ['sort' => 'featured']) }}"
                 class="lk-text-link"
             >
                 See All
@@ -395,7 +257,7 @@
         @if ($featuredProducts->isNotEmpty())
             <div class="lk-product-grid">
                 @foreach ($featuredProducts as $product)
-                    <x-buyer.product-card :product="$product"/>
+                    @include('guest.partials.product-card', ['product' => $product])
                 @endforeach
             </div>
         @else
@@ -475,10 +337,10 @@
             </div>
 
             <a
-                href="{{ route('buyer.products', ['sort' => 'best-selling']) }}"
+                href="{{ route('products', ['sort' => 'best-selling']) }}"
                 class="lk-btn lk-btn-gold"
             >
-                Shop Deals
+                View Deals
             </a>
         </div>
     </section>
@@ -502,7 +364,7 @@
             </div>
 
             <a
-                href="{{ route('buyer.products', ['sort' => 'best-rated']) }}"
+                href="{{ route('products', ['sort' => 'best-rated']) }}"
                 class="lk-text-link"
             >
                 See All
@@ -512,7 +374,7 @@
         @if ($recommendedProducts->isNotEmpty())
             <div class="lk-product-grid">
                 @foreach ($recommendedProducts as $product)
-                    <x-buyer.product-card :product="$product"/>
+                    @include('guest.partials.product-card', ['product' => $product])
                 @endforeach
             </div>
         @else
@@ -526,7 +388,7 @@
                 </p>
 
                 <a
-                    href="{{ route('buyer.products') }}"
+                    href="{{ route('products') }}"
                     class="mt-4 inline-flex items-center justify-center rounded-xl bg-red-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-red-950"
                 >
                     Explore Products

@@ -39,10 +39,6 @@
             ['label' => 'Categories', 'params' => ['view' => 'categories']],
             ['label' => 'Prohibited Item Monitor', 'params' => ['view' => 'monitor']],
         ]],
-        ['label' => 'Order & Delivery', 'key' => 'orders', 'icon' => 'orders', 'route' => 'admin.orders', 'items' => [
-            ['label' => 'Orders', 'params' => ['view' => 'orders']],
-            ['label' => 'Delivery Monitoring', 'params' => ['view' => 'delivery']],
-        ]],
         ['label' => 'Compliance & Disputes', 'key' => 'compliance', 'icon' => 'compliance', 'route' => 'admin.compliance', 'aliases' => ['complaints'], 'items' => [
             ['label' => 'Seller Compliance', 'route' => 'admin.compliance', 'params' => ['tab' => 'sellers']],
             ['label' => 'Product Violations', 'route' => 'admin.compliance', 'params' => ['tab' => 'violations']],
@@ -157,4 +153,3 @@
         @endif
     </div>
 </aside>
-

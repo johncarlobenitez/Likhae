@@ -51,7 +51,7 @@ body {
     color: var(--reg-text);
 
     font-family:
-        Inter,
+        Poppins,
         "Helvetica Neue",
         Arial,
         sans-serif;
@@ -94,8 +94,8 @@ a {
     display: grid;
 
     grid-template-columns:
-        minmax(340px, 0.72fr)
-        minmax(650px, 1.28fr);
+        minmax(300px, 0.6fr)
+        minmax(720px, 1.4fr);
 }
 
 
@@ -378,7 +378,7 @@ a {
 .register-container {
     width:
         min(
-            900px,
+            980px,
             100%
         );
 
@@ -545,7 +545,22 @@ a {
 
     border-radius: 10px;
 
+    color: var(--reg-red);
+
     font-size: 18px;
+}
+
+
+.account-type-option__icon svg {
+    width: 21px;
+    height: 21px;
+
+    fill: none;
+
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 
@@ -812,7 +827,7 @@ a {
 .register-form {
     display: grid;
 
-    gap: 14px;
+    gap: 20px;
 }
 
 
@@ -846,7 +861,7 @@ a {
 ========================================================= */
 
 .register-section {
-    padding: 22px;
+    padding: 30px;
 
     background: #ffffff;
 
@@ -869,7 +884,7 @@ a {
 
     gap: 12px;
 
-    margin-bottom: 20px;
+    margin-bottom: 26px;
 }
 
 
@@ -929,7 +944,7 @@ a {
             minmax(0, 1fr)
         );
 
-    gap: 15px;
+    gap: 20px;
 }
 
 
@@ -942,7 +957,7 @@ a {
 
     align-content: start;
 
-    gap: 7px;
+    gap: 9px;
 }
 
 

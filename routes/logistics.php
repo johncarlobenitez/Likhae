@@ -16,12 +16,40 @@ Route::prefix('logistics')
         |--------------------------------------------------------------------------
         */
 
-        Route::get('/', function () {
+        Route::get('/', fn () => view('logistics.landing'))->name('home');
 
-            return redirect()
-                ->route('logistics.dashboard');
+        Route::get('/login', function () {
+            return view('auth.workspace-login', [
+                'workspace' => 'logistics',
+                'accountLabel' => 'Logistics & Rider Portal',
+                'headline' => 'Coordinate every parcel movement.',
+                'description' => 'Logistics centers manage intake and assignments. Riders manage only their own pickup and delivery work.',
+                'homeRoute' => route('logistics.home'),
+                'loginRoute' => route('logistics.login.store'),
+                'registerRoute' => route('register', ['role' => 'logistics']),
+                'demoEmail' => 'logistics@likhae.com or rider@likhae.com',
+                'demoPassword' => 'Use the assigned demo password',
+            ]);
+        })->name('login');
 
-        })->name('home');
+        Route::post('/login', function (\Illuminate\Http\Request $request) {
+            $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
+            $accounts = [
+                'logistics@likhae.com' => ['password' => 'logistics', 'role' => 'logistics'],
+                'rider@likhae.com' => ['password' => 'rider', 'role' => 'rider'],
+            ];
+            $marketplaceAccounts = ['admin@likhae.com', 'buyer@likhae.com', 'seller@likhae.com'];
+            if (in_array($request->email, $marketplaceAccounts, true)) {
+                return back()->withErrors(['email' => 'This account belongs to the LIKHAE Marketplace. Use the Marketplace Login page.'])->withInput();
+            }
+            $user = $accounts[$request->email] ?? null;
+            if (!$user || $user['password'] !== $request->password) {
+                return back()->withErrors(['email' => 'Use a Logistics or Rider account for this portal.'])->withInput();
+            }
+            $request->session()->regenerate();
+            $request->session()->put('demo_user', ['email' => $request->email, 'role' => $user['role']]);
+            return redirect()->route($user['role'] === 'rider' ? 'rider.dashboard' : 'logistics.dashboard');
+        })->name('login.store');
 
 
 
@@ -81,6 +109,12 @@ Route::prefix('logistics')
             );
 
         })->name('parcels.tracking');
+
+        Route::get('/scanner', fn () => view('logistics.scanner'))->name('scanner');
+
+        Route::get('/waybills/{tracking}', function (string $tracking) {
+            return view('logistics.waybill', ['tracking' => $tracking]);
+        })->name('waybills.show');
 
 
 

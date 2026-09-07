@@ -14,6 +14,10 @@
         content="{{ csrf_token() }}"
     >
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <title>Create Account — LIKHAE</title>
 
     @vite([
@@ -233,7 +237,15 @@
                     >
 
                         <span class="account-type-option__icon">
-                            🛍
+                            <svg
+                                aria-hidden="true"
+                                focusable="false"
+                                viewBox="0 0 24 24"
+                            >
+                                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
+                                <path d="M3 6h18"></path>
+                                <path d="M16 10a4 4 0 0 1-8 0"></path>
+                            </svg>
                         </span>
 
 
@@ -266,7 +278,17 @@
                     >
 
                         <span class="account-type-option__icon">
-                            🏪
+                            <svg
+                                aria-hidden="true"
+                                focusable="false"
+                                viewBox="0 0 24 24"
+                            >
+                                <path d="m2 7 4.4-4.4A2 2 0 0 1 7.8 2h8.4a2 2 0 0 1 1.4.6L22 7"></path>
+                                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                                <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"></path>
+                                <path d="M2 7h20"></path>
+                                <path d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-2.6-2 2.7 2.7 0 0 1-5.2 0 2.7 2.7 0 0 1-5.2 0A2.7 2.7 0 0 1 4.4 12H4a2 2 0 0 1-2-2V7"></path>
+                            </svg>
                         </span>
 
 
@@ -299,7 +321,18 @@
                     >
 
                         <span class="account-type-option__icon">
-                            🏭
+                            <svg
+                                aria-hidden="true"
+                                focusable="false"
+                                viewBox="0 0 24 24"
+                            >
+                                <path d="M3 21h18"></path>
+                                <path d="M5 21V9l7-4 7 4v12"></path>
+                                <path d="M9 21v-7h6v7"></path>
+                                <path d="M9 11h.01"></path>
+                                <path d="M12 11h.01"></path>
+                                <path d="M15 11h.01"></path>
+                            </svg>
                         </span>
 
 
@@ -332,7 +365,18 @@
                     >
 
                         <span class="account-type-option__icon">
-                            🛵
+                            <svg
+                                aria-hidden="true"
+                                focusable="false"
+                                viewBox="0 0 24 24"
+                            >
+                                <circle cx="5.5" cy="17.5" r="3.5"></circle>
+                                <circle cx="18.5" cy="17.5" r="3.5"></circle>
+                                <path d="M15 6h2l2 5"></path>
+                                <path d="M5.5 17.5 9 11l3 6.5"></path>
+                                <path d="M9 11h4l2.5 6.5"></path>
+                                <path d="M12 11l3-4"></path>
+                            </svg>
                         </span>
 
 
@@ -524,27 +568,6 @@
 
                         <div class="register-grid">
 
-                            {{-- LAST NAME --}}
-                            <div class="register-field">
-
-                                <label for="last_name">
-                                    Last Name
-                                    <span>*</span>
-                                </label>
-
-                                <input
-                                    id="last_name"
-                                    name="last_name"
-                                    type="text"
-                                    value="{{ old('last_name') }}"
-                                    placeholder="Dela Cruz"
-                                    autocomplete="family-name"
-                                    required
-                                >
-
-                            </div>
-
-
                             {{-- FIRST NAME --}}
                             <div class="register-field">
 
@@ -570,7 +593,7 @@
                             <div class="register-field">
 
                                 <label for="middle_initial">
-                                    Middle Initial
+                                    Middle Name / Initial
                                 </label>
 
                                 <input
@@ -578,8 +601,30 @@
                                     name="middle_initial"
                                     type="text"
                                     value="{{ old('middle_initial') }}"
-                                    maxlength="2"
-                                    placeholder="D"
+                                    maxlength="80"
+                                    placeholder="Santos"
+                                    autocomplete="additional-name"
+                                >
+
+                            </div>
+
+
+                            {{-- LAST NAME --}}
+                            <div class="register-field">
+
+                                <label for="last_name">
+                                    Last Name
+                                    <span>*</span>
+                                </label>
+
+                                <input
+                                    id="last_name"
+                                    name="last_name"
+                                    type="text"
+                                    value="{{ old('last_name') }}"
+                                    placeholder="Dela Cruz"
+                                    autocomplete="family-name"
+                                    required
                                 >
 
                             </div>

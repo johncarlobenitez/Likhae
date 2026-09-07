@@ -19,6 +19,48 @@ $buyerProducts = [
 
 View::share('buyerProducts', collect($buyerProducts));
 
+$buyerSampleOrder = [
+    'id' => 'LK-2076',
+    'placed_at' => 'September 7, 2026, 9:14 AM',
+    'payment' => 'Cash on Delivery',
+    'status' => 'to-receive',
+    'status_label' => 'Delivered - Confirm Receipt',
+    'delivered_at' => 'September 7, 2026, 2:35 PM',
+    'auto_receive_at' => 'September 10, 2026',
+    'total' => 2579,
+    'products' => [[
+        'name' => 'Premium Wireless Headphones',
+        'image' => 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80',
+        'variant' => 'Black',
+        'quantity' => 1,
+        'price' => 2499,
+    ]],
+    'timeline' => [
+        ['label' => 'Order Placed', 'time' => 'September 7, 2026, 9:14 AM', 'done' => true],
+        ['label' => 'Seller Confirmed', 'time' => 'September 7, 2026, 9:30 AM', 'done' => true],
+        ['label' => 'Preparing Order', 'time' => 'September 7, 2026, 10:05 AM', 'done' => true],
+        ['label' => 'Ready for Pickup', 'time' => 'September 7, 2026, 11:20 AM', 'done' => true],
+        ['label' => 'Picked Up', 'time' => 'September 7, 2026, 12:10 PM', 'done' => true],
+        ['label' => 'At Sorting Center', 'time' => 'September 7, 2026, 12:45 PM', 'done' => true],
+        ['label' => 'Assigned to Rider', 'time' => 'September 7, 2026, 1:20 PM', 'done' => true],
+        ['label' => 'Out for Delivery', 'time' => 'September 7, 2026, 1:50 PM', 'done' => true],
+        ['label' => 'Delivered', 'time' => 'September 7, 2026, 2:35 PM', 'done' => true],
+        ['label' => 'Completed', 'time' => 'Waiting for buyer confirmation', 'done' => false],
+    ],
+];
+
+View::composer('Buyer.orders', function ($view) use ($buyerSampleOrder) {
+    $order = $buyerSampleOrder;
+
+    if (session('buyer_sample_order_received')) {
+        $order['status'] = 'completed';
+        $order['status_label'] = 'Completed';
+        $order['timeline'][9] = ['label' => 'Completed', 'time' => 'Confirmed by buyer', 'done' => true];
+    }
+
+    $view->with('buyerOrders', collect([$order]));
+});
+
 Route::prefix('buyer')->name('buyer.')->group(function () {
     Route::get('/pending', fn () => redirect()->route('buyer.home'))->name('pending');
 
@@ -63,6 +105,16 @@ Route::prefix('buyer')->name('buyer.')->group(function () {
     Route::post('/checkout', fn () => view('Buyer.checkout'))->name('checkout.post');
     Route::post('/order', fn () => redirect()->route('buyer.orders.success'))->name('order.store');
     Route::post('/orders/cancel', fn () => redirect()->route('buyer.orders')->with('status', 'Order cancelled.'))->name('orders.cancel');
+    Route::post('/orders/{id}/received', function (string $id) {
+        abort_unless($id === 'LK-2076', 404);
+        session(['buyer_sample_order_received' => true]);
+
+        return redirect()->route('buyer.orders.show', ['id' => $id])
+            ->with('buyer_notice', 'Order received. The order is now completed and ready for your review.');
+    })->name('orders.received');
+    Route::get('/orders/{id}/return', fn (string $id) => view('Buyer.orders', ['mode' => 'return', 'selectedOrderId' => $id]))->name('orders.return');
+    Route::post('/orders/{id}/return', fn (string $id) => redirect()->route('buyer.orders.show', ['id' => $id])->with('buyer_notice', 'Return or refund request submitted for seller review.'))->name('orders.return.store');
+    Route::post('/orders/{id}/review', fn (string $id) => redirect()->route('buyer.orders.show', ['id' => $id])->with('buyer_notice', 'Review submitted.'))->name('orders.review.store');
 
     Route::get('/orders/success', fn () => view('Buyer.orders', ['mode' => 'success']))->name('orders.success');
     Route::get('/orders', fn () => view('Buyer.orders', ['mode' => 'index']))->name('orders');

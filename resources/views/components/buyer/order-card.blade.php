@@ -34,7 +34,7 @@
         </div>
     @endif
     @if($status === 'returns')
-        <div class="border-t border-stone-100 bg-orange-50/60 px-4 py-3 text-[11px] text-orange-900 sm:px-5"><strong>Admin validation:</strong> {{ data_get($order, 'case_status', 'Submitted for review') }} · {{ data_get($order, 'case_note', 'Evidence and seller response will be checked before a decision.') }}</div>
+        <div class="border-t border-stone-100 bg-orange-50/60 px-4 py-3 text-[11px] text-orange-900 sm:px-5"><strong>Seller review:</strong> {{ data_get($order, 'case_status', 'Submitted for review') }} · {{ data_get($order, 'case_note', 'The seller will review the evidence and respond to the request.') }}</div>
     @endif
 
     <footer class="flex flex-col gap-3 border-t border-stone-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">

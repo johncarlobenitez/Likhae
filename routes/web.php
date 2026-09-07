@@ -95,6 +95,12 @@ Route::post('/login', function (Request $request) {
 
     $user = $accounts[$request->email] ?? null;
 
+    if ($user && in_array($user['role'], ['logistics', 'rider'], true)) {
+        return back()->withErrors([
+            'email' => 'This account belongs to the Logistics Portal. Use the Logistics Portal sign in page.',
+        ])->withInput($request->only('email'));
+    }
+
     if (!$user || $user['password'] !== $request->password) {
         return back()
             ->withErrors([
@@ -139,6 +145,12 @@ Route::get('/register', function (Request $request) {
         'preselectedRole' => $request->query('role', 'buyer'),
     ]);
 })->name('register');
+
+Route::get('/register/{role}', function (string $role) {
+    abort_unless(in_array($role, ['buyer', 'seller', 'logistics', 'rider'], true), 404);
+
+    return redirect()->route('register', ['role' => $role === 'rider' ? 'courier' : $role]);
+})->name('register.role');
 
 Route::post('/register', [RegistrationController::class, 'store'])
     ->name('register.store');

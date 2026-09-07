@@ -491,6 +491,13 @@
 
 
             <a
+                href="{{ route('logistics.waybills.show', ['tracking' => $parcel['tracking']]) }}"
+                class="inline-flex h-10 items-center justify-center rounded-lg border border-line bg-surface px-4 text-[9px] font-semibold text-ink transition hover:bg-surface-hover"
+            >
+                Waybill
+            </a>
+
+            <a
                 href="{{ $nextAction['route'] }}"
                 class="
                     inline-flex
