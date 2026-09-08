@@ -73,6 +73,11 @@ img { max-width: 100%; }
 .sl-sidebar-toggle { color: var(--sl-muted); background: var(--sl-bg); border-color: var(--sl-border); }
 .sl-sidebar-toggle:hover { color: #fff; background: rgba(37,99,235,.2); border-color: rgba(96,165,250,.4); }
 .sl-brand { min-width: 0; display: flex; align-items: center; gap: 10px; overflow: hidden; }
+.likhae-logo { min-width: 0; display: inline-flex; align-items: center; }
+.likhae-logo img, .likhae-logo__image { display: block; width: auto; max-width: 100%; height: 42px; object-fit: contain; }
+.likhae-logo .likhae-logo__image--dark { display: none; }
+.likhae-logo .likhae-logo__image--light { display: block; }
+.likhae-logo--sidebar img { height: 38px; max-width: 154px; }
 .sl-brand-mark { width: 38px; height: 38px; flex: 0 0 38px; display: grid; place-items: center; color: #fff; background: var(--sl-blue); border-radius: 11px; font-size: 19px; font-weight: 700; box-shadow: 0 6px 16px rgba(37,99,235,.28); }
 .sl-brand-copy { min-width: 0; display: grid; line-height: 1.15; white-space: nowrap; }
 .sl-brand-copy strong { color: var(--sl-navy); font-size: 16px; letter-spacing: .05em; }
@@ -108,6 +113,7 @@ img { max-width: 100%; }
 
 body.sl-sidebar-collapsed .sl-sidebar { width: var(--sl-sidebar-mini); }
 body.sl-sidebar-collapsed .sl-shell { margin-left: var(--sl-sidebar-mini); }
+body.sl-sidebar-collapsed .likhae-logo,
 body.sl-sidebar-collapsed .sl-brand-copy,
 body.sl-sidebar-collapsed .sl-seller-copy,
 body.sl-sidebar-collapsed .sl-verified,
@@ -666,6 +672,7 @@ a.sl-stat-card:hover {
 @media (max-width: 1023px) {
     .sl-sidebar { width: min(84vw, 270px); transform: translateX(-102%); }.sl-sidebar.is-open { transform: translateX(0); }
     .sl-shell, body.sl-sidebar-collapsed .sl-shell { margin-left: 0; } body.sl-sidebar-collapsed .sl-sidebar { width: min(84vw, 270px); }
+    body.sl-sidebar-collapsed .likhae-logo { display: inline-flex !important; }
     body.sl-sidebar-collapsed .sl-brand-copy, body.sl-sidebar-collapsed .sl-seller-copy, body.sl-sidebar-collapsed .sl-verified, body.sl-sidebar-collapsed .sl-nav-text, body.sl-sidebar-collapsed .sl-nav-arrow, body.sl-sidebar-collapsed .sl-nav-badge, body.sl-sidebar-collapsed .sl-nav-label { display: initial !important; }
     body.sl-sidebar-collapsed .sl-nav-submenu.is-open { display: block !important; } body.sl-sidebar-collapsed .sl-sidebar-head { padding-inline: 14px; } body.sl-sidebar-collapsed .sl-sidebar-toggle { position: static; opacity: 1; } body.sl-sidebar-collapsed .sl-sidebar-head:hover .sl-brand { opacity: 1; } body.sl-sidebar-collapsed .sl-seller-card, body.sl-sidebar-collapsed .sl-nav-link { justify-content: initial; padding-inline: 10px; }
     .sl-mobile-menu { display: inline-grid; }.sl-sidebar-toggle { display: none; }.sl-header { grid-template-columns: minmax(0, 1fr) auto; }.sl-header-search { display: none; }.sl-main { padding: 20px; }
@@ -1174,6 +1181,9 @@ html.dark body.sl-body { color: var(--sl-text); background: var(--sl-bg); }
 /* Sidebar */
 html.dark .sl-sidebar { background: #0d1117; border-right-color: var(--sl-border); }
 html.dark .sl-sidebar-head { border-bottom-color: var(--sl-border); }
+html.dark .likhae-logo { padding: 0; background: transparent; border-radius: 0; }
+html.dark .likhae-logo .likhae-logo__image--light { display: none; }
+html.dark .likhae-logo .likhae-logo__image--dark { display: block; }
 html.dark .sl-seller-card { background: #161b22; border-color: var(--sl-border); }
 html.dark .sl-sidebar-foot { border-top-color: var(--sl-border); }
 html.dark .sl-nav-label { color: #6e7681; }

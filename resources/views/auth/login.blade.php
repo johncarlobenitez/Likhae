@@ -26,17 +26,6 @@
 
             <div class="auth-hero__inner">
 
-                <a href="{{ url('/') }}" class="auth-brand">
-                    <span class="auth-brand__mark">
-                        L
-                    </span>
-
-                    <span class="auth-brand__name">
-                        LIKHAE
-                    </span>
-                </a>
-
-
                 <div class="auth-hero__content">
 
                     <div class="auth-hero__copy">
@@ -155,17 +144,10 @@
 
             <div class="auth-panel__inner">
 
-                <div class="auth-mobile-brand">
+                <div class="auth-panel-brand">
 
-                    <a href="{{ url('/') }}" class="auth-brand">
-
-                        <span class="auth-brand__mark">
-                            L
-                        </span>
-
-                        <span class="auth-brand__name">
-                            LIKHAE
-                        </span>
+                    <a href="{{ url('/') }}" class="auth-brand auth-brand--panel">
+                        <x-likhae-logo context="Marketplace" class="likhae-logo--auth likhae-logo--auth-panel" />
 
                     </a>
 

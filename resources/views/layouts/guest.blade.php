@@ -15,7 +15,7 @@
     <div class="lk-guest-shell">
         <header class="lk-header is-guest">
             <a href="{{ route('home') }}" class="lk-guest-brand" aria-label="LIKHAE Marketplace home">
-                <span class="lk-brand-mark">L</span><span class="lk-brand-text"><strong>LIKHAE</strong><small>Marketplace</small></span>
+                <x-likhae-logo context="Marketplace" class="likhae-logo--guest" />
             </a>
             <form action="{{ route('products') }}" method="GET" class="lk-search" role="search">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>

@@ -184,6 +184,71 @@ button {
     gap: 10px;
 }
 
+.likhae-logo {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.92);
+    padding: 6px 8px;
+}
+
+.likhae-logo img {
+    display: block;
+    width: auto;
+    height: 42px;
+    max-width: min(210px, 54vw);
+    object-fit: contain;
+}
+
+.likhae-logo .likhae-logo__image--dark {
+    display: none;
+}
+
+.likhae-logo .likhae-logo__image--light {
+    display: block;
+}
+
+html.dark .likhae-logo .likhae-logo__image--light { display: none; }
+html.dark .likhae-logo .likhae-logo__image--dark { display: block; }
+
+html.dark .likhae-logo {
+    background: transparent;
+    padding: 0;
+}
+
+.auth-hero .likhae-logo--auth {
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 16px 34px rgba(43, 9, 11, 0.18);
+}
+
+.auth-hero .likhae-logo--auth img {
+    height: 58px;
+    max-width: min(300px, 68vw);
+}
+
+.auth-panel-brand {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 28px;
+}
+
+.auth-brand--panel {
+    width: 100%;
+    justify-content: center;
+}
+
+.likhae-logo--auth-panel {
+    background: transparent;
+    padding: 0;
+}
+
+.likhae-logo--auth-panel img {
+    height: 64px;
+    max-width: min(320px, 78vw);
+}
+
 
 .auth-brand__mark {
     width: 38px;
@@ -221,6 +286,8 @@ button {
     position: relative;
 
     z-index: 4;
+
+    margin: auto 0;
 }
 
 

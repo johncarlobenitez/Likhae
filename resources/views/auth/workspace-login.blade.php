@@ -21,8 +21,7 @@
     <section class="auth-hero">
         <div class="auth-hero__inner">
             <a href="{{ $homeRoute }}" class="auth-brand">
-                <span class="auth-brand__mark">L</span>
-                <span class="auth-brand__name">LIKHAE</span>
+                <x-likhae-logo :context="$accountLabel" class="likhae-logo--auth" />
             </a>
 
             <div class="auth-hero__content">
@@ -62,8 +61,7 @@
         <div class="auth-panel__inner">
             <div class="auth-mobile-brand">
                 <a href="{{ $homeRoute }}" class="auth-brand">
-                    <span class="auth-brand__mark">L</span>
-                    <span class="auth-brand__name">LIKHAE</span>
+                    <x-likhae-logo :context="$accountLabel" class="likhae-logo--auth" />
                 </a>
             </div>
 

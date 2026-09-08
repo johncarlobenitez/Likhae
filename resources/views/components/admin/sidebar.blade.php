@@ -74,8 +74,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
         <a href="{{ route('admin.dashboard') }}" class="ad-brand" data-title="LIKHAE Admin Center">
-            <span class="ad-brand-mark">L</span>
-            <span class="ad-brand-copy"><strong>LIKHAE</strong><small>Admin Center</small></span>
+            <x-likhae-logo context="Admin Center" class="likhae-logo--sidebar" />
         </a>
     </div>
 

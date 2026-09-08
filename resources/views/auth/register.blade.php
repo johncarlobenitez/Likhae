@@ -41,13 +41,7 @@
                 href="{{ url('/') }}"
                 class="register-brand"
             >
-                <span class="register-brand__mark">
-                    L
-                </span>
-
-                <span class="register-brand__name">
-                    LIKHAE
-                </span>
+                <x-likhae-logo context="Marketplace" class="likhae-logo--auth" />
             </a>
 
 

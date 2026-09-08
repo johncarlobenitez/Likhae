@@ -20,8 +20,7 @@
     <aside class="register-side">
         <div class="register-side__inner">
             <a href="{{ $homeRoute }}" class="register-brand">
-                <span class="register-brand__mark">L</span>
-                <span class="register-brand__name">LIKHAE</span>
+                <x-likhae-logo :context="$accountLabel" class="likhae-logo--auth" />
             </a>
 
             <div class="register-side__content">

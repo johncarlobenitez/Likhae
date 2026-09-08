@@ -35,8 +35,7 @@
         </button>
 
         <a href="{{ route('seller.dashboard') }}" class="sl-brand" aria-label="LIKHAE Seller Center">
-            <span class="sl-brand-mark">L</span>
-            <span class="sl-brand-copy"><strong>LIKHAE</strong><small>Seller Center</small></span>
+            <x-likhae-logo context="Seller Center" class="likhae-logo--sidebar" />
         </a>
     </div>
 
@@ -184,4 +183,3 @@
         </form>
     </div>
 </aside>
-

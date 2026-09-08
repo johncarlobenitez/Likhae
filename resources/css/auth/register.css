@@ -168,6 +168,34 @@ a {
     gap: 10px;
 }
 
+.likhae-logo {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.92);
+    padding: 6px 8px;
+}
+
+.likhae-logo img {
+    display: block;
+    width: auto;
+    height: 42px;
+    max-width: min(210px, 54vw);
+    object-fit: contain;
+}
+
+.likhae-logo .likhae-logo__image--dark {
+    display: none;
+}
+
+.likhae-logo .likhae-logo__image--light {
+    display: block;
+}
+
+html.dark .likhae-logo .likhae-logo__image--light { display: none; }
+html.dark .likhae-logo .likhae-logo__image--dark { display: block; }
+
 
 .register-brand__mark {
     width: 40px;

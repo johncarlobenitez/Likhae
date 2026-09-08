@@ -173,6 +173,39 @@ img {
     gap: 10px;
 }
 
+.likhae-logo {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+}
+
+.likhae-logo img,
+.likhae-logo__image {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: 42px;
+    object-fit: contain;
+}
+
+.likhae-logo .likhae-logo__image--dark {
+    display: none;
+}
+
+.likhae-logo .likhae-logo__image--light {
+    display: block;
+}
+
+.likhae-logo--sidebar img {
+    height: 38px;
+    max-width: 154px;
+}
+
+.likhae-logo--guest img {
+    height: 42px;
+    max-width: 176px;
+}
+
 .lk-brand-mark {
     display: grid;
     width: 38px;
@@ -3185,6 +3218,7 @@ body.lk-sidebar-is-collapsed .lk-nav-toggle {
     .lk-guest-actions .lk-btn-light { display: none; }
     .lk-guest-actions .lk-btn { min-height: 35px; padding-inline: 10px; font-size: 9px; }
     .lk-brand-text strong { font-size: 14px; }
+    .likhae-logo--guest img { height: 36px; max-width: 148px; }
     .lk-footer { align-items: flex-start; flex-direction: column; padding-inline: 14px; }
 }
 
@@ -3212,6 +3246,13 @@ html.dark .lk-sidebar { background: #161210; border-right: 1px solid var(--lk-bo
 html.dark .lk-sidebar-head { border-bottom-color: var(--lk-border); }
 html.dark .lk-brand-text strong { color: var(--lk-ink); }
 html.dark .lk-brand-text small { color: var(--lk-muted); }
+html.dark .likhae-logo {
+    padding: 0;
+    background: transparent;
+    border-radius: 0;
+}
+html.dark .likhae-logo .likhae-logo__image--light { display: none; }
+html.dark .likhae-logo .likhae-logo__image--dark { display: block; }
 html.dark .lk-side-toggle,
 html.dark .lk-mobile-menu { background: #1e1a17; border-color: var(--lk-border); color: var(--lk-muted); }
 html.dark .lk-side-toggle:hover,

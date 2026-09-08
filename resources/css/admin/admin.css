@@ -58,6 +58,11 @@ svg { display: block; }
 .ad-side-toggle:hover { color: var(--ad-blue); border-color: var(--ad-blue-border); background: var(--ad-blue-soft); }
 .ad-side-toggle svg { width: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .ad-brand { display: flex; min-width: 0; align-items: center; gap: 10px; }
+.likhae-logo { display: inline-flex; min-width: 0; align-items: center; }
+.likhae-logo img, .likhae-logo__image { display: block; width: auto; max-width: 100%; height: 42px; object-fit: contain; }
+.likhae-logo .likhae-logo__image--dark { display: none; }
+.likhae-logo .likhae-logo__image--light { display: block; }
+.likhae-logo--sidebar img { height: 38px; max-width: 154px; }
 .ad-brand-mark { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border-radius: 11px; color: #fff; background: var(--ad-blue); font-size: 17px; font-weight: 700; }
 .ad-brand-copy, .ad-profile-copy { display: grid; min-width: 0; line-height: 1.15; white-space: nowrap; }
 .ad-brand-copy strong { font-size: 16px; letter-spacing: -.02em; }
@@ -120,7 +125,7 @@ svg { display: block; }
 .ad-app.is-collapsed .ad-sidebar { width: var(--ad-sidebar-small); }
 .ad-app.is-collapsed .ad-shell { margin-left: var(--ad-sidebar-small); }
 .ad-app.is-collapsed .ad-sidebar-head { justify-content: center; padding-inline: 8px; }
-.ad-app.is-collapsed .ad-brand, .ad-app.is-collapsed .ad-sidebar-profile, .ad-app.is-collapsed .ad-nav-heading, .ad-app.is-collapsed .ad-nav-text, .ad-app.is-collapsed .ad-nav-chevron, .ad-app.is-collapsed .ad-nav-submenu { display: none !important; }
+.ad-app.is-collapsed .ad-brand, .ad-app.is-collapsed .likhae-logo, .ad-app.is-collapsed .ad-sidebar-profile, .ad-app.is-collapsed .ad-nav-heading, .ad-app.is-collapsed .ad-nav-text, .ad-app.is-collapsed .ad-nav-chevron, .ad-app.is-collapsed .ad-nav-submenu { display: none !important; }
 .ad-app.is-collapsed .ad-sidebar-scroll { padding-inline: 9px; }
 .ad-app.is-collapsed .ad-nav-group { margin-top: 5px; }
 .ad-app.is-collapsed .ad-nav-link, .ad-app.is-collapsed .ad-nav-toggle { justify-content: center; padding-inline: 8px; }
@@ -362,7 +367,7 @@ a.ad-stat:hover { border-color: var(--ad-blue-border); transform: translateY(-1p
     .ad-sidebar { transform: translateX(-100%); }
     .ad-shell, .ad-app.is-collapsed .ad-shell { margin-left: 0; }
     .ad-app.is-mobile-open .ad-sidebar { width: var(--ad-sidebar); transform: translateX(0); box-shadow: 20px 0 50px rgba(15,23,42,.16); }
-    .ad-app.is-mobile-open .ad-sidebar .ad-brand, .ad-app.is-mobile-open .ad-sidebar .ad-sidebar-profile, .ad-app.is-mobile-open .ad-sidebar .ad-nav-heading, .ad-app.is-mobile-open .ad-sidebar .ad-nav-text, .ad-app.is-mobile-open .ad-sidebar .ad-nav-chevron { display: flex !important; }
+    .ad-app.is-mobile-open .ad-sidebar .ad-brand, .ad-app.is-mobile-open .ad-sidebar .likhae-logo, .ad-app.is-mobile-open .ad-sidebar .ad-sidebar-profile, .ad-app.is-mobile-open .ad-sidebar .ad-nav-heading, .ad-app.is-mobile-open .ad-sidebar .ad-nav-text, .ad-app.is-mobile-open .ad-sidebar .ad-nav-chevron { display: flex !important; }
     .ad-app.is-mobile-open .ad-sidebar .ad-brand-copy, .ad-app.is-mobile-open .ad-sidebar .ad-profile-copy { display: grid !important; }
     .ad-app.is-mobile-open .ad-sidebar .ad-nav-submenu:not([hidden]) { display: grid !important; }
     .ad-app.is-mobile-open .ad-sidebar-head { justify-content: flex-start; padding-inline: 13px; }
@@ -442,6 +447,9 @@ html.dark body { color: var(--ad-text); background: var(--ad-bg); }
 /* Sidebar */
 html.dark .ad-sidebar { background: #0d1117; border-right-color: var(--ad-border); }
 html.dark .ad-sidebar-head { border-bottom-color: var(--ad-border); }
+html.dark .likhae-logo { padding: 0; background: transparent; border-radius: 0; }
+html.dark .likhae-logo .likhae-logo__image--light { display: none; }
+html.dark .likhae-logo .likhae-logo__image--dark { display: block; }
 html.dark .ad-sidebar-profile { background: #161b22; border-color: var(--ad-border); }
 html.dark .ad-sidebar-scroll { scrollbar-color: var(--ad-border) transparent; }
 html.dark .ad-sidebar-foot { border-top-color: var(--ad-border); }

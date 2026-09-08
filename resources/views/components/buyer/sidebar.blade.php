@@ -40,7 +40,7 @@
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
         <a href="{{ route('buyer.home') }}" class="lk-brand" aria-label="LIKHAE Buyer Home">
-            <span class="lk-brand-mark">L</span><span class="lk-brand-text"><strong>LIKHAE</strong><small>Buyer Center</small></span>
+            <x-likhae-logo context="Buyer Center" class="likhae-logo--sidebar" />
         </a>
     </div>
 
@@ -116,4 +116,3 @@
         @endif
     </div>
 </aside>
-
