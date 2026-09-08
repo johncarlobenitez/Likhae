@@ -16,7 +16,7 @@
 <div class="sl-page">
     @if ($isLogistics && $currentMode === 'couriers')
         <div class="sl-page-toolbar">
-            <div><span class="sl-eyebrow">Logistics</span><h2>Assign Courier</h2><p>Choose the best available provider after the package is prepared.</p></div>
+            <div><span class="sl-eyebrow">Logistics</span><h2>Request Pickup</h2><p>Choose a logistics provider after the package is prepared. Logistics assigns riders.</p></div>
             <a href="{{ route('seller.orders', ['status' => 'ready-pickup']) }}" class="sl-btn sl-btn-ghost">Ready Pickup Orders</a>
         </div>
 
@@ -105,7 +105,7 @@
             <div class="sl-order-detail-main">
                 <section class="sl-card">
                     <header class="sl-card-head"><div><h2>Ordered Product</h2><p>Items included in this purchase.</p></div><span class="sl-status is-warning">{{ $order['status'] }}</span></header>
-                    <div class="sl-package-summary"><div class="sl-order-thumb">{{ mb_strtoupper(mb_substr($order['product'], 0, 1)) }}</div><div><strong>{{ $order['product'] }}</strong><span>Model: 27 inch Black · SKU MON-27-BLK</span><small>₱{{ number_format($order['total'] / $order['quantity'], 2) }} × {{ $order['quantity'] }}</small></div><strong>₱{{ number_format($order['total'], 2) }}</strong></div>
+                    <div class="sl-package-summary"><div class="sl-order-thumb">{{ mb_strtoupper(mb_substr($order['product'], 0, 1)) }}</div><div><strong>{{ $order['product'] }}</strong><span>Variation: {{ data_get($order, 'variant', 'Standard') }}</span><small>₱{{ number_format($order['total'] / $order['quantity'], 2) }} × {{ $order['quantity'] }}</small></div><strong>₱{{ number_format($order['total'], 2) }}</strong></div>
                 </section>
                 <section class="sl-card">
                     <header class="sl-card-head"><div><h2>Fulfillment Progress</h2><p>Complete each action in sequence.</p></div></header>

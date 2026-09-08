@@ -18,6 +18,7 @@
     $stock = (int) data_get($product, 'stock', 0);
     $specs = collect(data_get($product, 'specs', []));
     $variations = collect(data_get($product, 'variations', []));
+    $variantStock = data_get($product, 'variant_stock', []);
     $storeUrl = $guest ? route('home') : route('buyer.shop', ['seller' => $sellerSlug]);
     $related = collect($products)->where('category', $category)->where('slug', '!=', $slug)->take(4);
     if ($related->count() < 4) $related = collect($products)->where('slug', '!=', $slug)->take(4);
@@ -45,7 +46,7 @@
             @endif
         </div>
 
-        <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
+        <div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6" @if($variantStock) data-variant-stock-product data-variant-stocks='@json($variantStock)' @endif>
             <div class="flex flex-wrap items-center gap-2">
                 <span class="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-red-800">{{ $category }}</span>
                 @if($discount > 0)<span class="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800">Save {{ $discount }}%</span>@endif
@@ -63,10 +64,10 @@
 
             <div class="mt-5 space-y-4">
                 @foreach($variations as $variationName => $options)
-                    <div><span class="mb-2 block text-xs font-semibold text-stone-700">{{ $variationName }}</span><div class="flex flex-wrap gap-2" data-variation-group>@foreach((array) $options as $option)<button type="button" class="rounded-lg border px-3 py-2 text-xs font-medium transition hover:border-red-800 hover:text-red-800 {{ $loop->first ? 'border-red-800 bg-red-50 text-red-900' : 'border-stone-300 text-stone-700' }}" data-variation-option aria-pressed="{{ $loop->first ? 'true' : 'false' }}">{{ $option }}</button>@endforeach</div></div>
+                    <div><span class="mb-2 block text-xs font-semibold text-stone-700">{{ $variationName }}</span><div class="flex flex-wrap gap-2" data-variation-group data-variation-name="{{ $variationName }}">@foreach((array) $options as $option)<button type="button" class="rounded-lg border px-3 py-2 text-xs font-medium transition hover:border-red-800 hover:text-red-800 {{ $loop->first ? 'border-red-800 bg-red-50 text-red-900' : 'border-stone-300 text-stone-700' }}" data-variation-option data-variation-value="{{ $option }}" aria-pressed="{{ $loop->first ? 'true' : 'false' }}">{{ $option }}</button>@endforeach</div></div>
                 @endforeach
                 <div class="flex flex-wrap items-center justify-between gap-3 border-t border-stone-100 pt-4">
-                    <div><span class="block text-xs font-semibold text-stone-700">Quantity</span><span class="text-[11px] text-stone-500">{{ $stock }} available</span></div>
+                    <div><span class="block text-xs font-semibold text-stone-700">Quantity</span><span class="text-[11px] text-stone-500" data-variant-availability>{{ $stock }} available</span></div>
                     <div class="flex items-center overflow-hidden rounded-lg border border-stone-300" data-quantity-control><button type="button" class="h-9 w-9 text-stone-600 hover:bg-stone-50" data-quantity-minus>−</button><input id="detailQuantity" class="h-9 w-12 border-x border-stone-300 text-center text-sm outline-none" type="number" value="1" min="1" max="{{ max(1, $stock) }}" data-quantity-input><button type="button" class="h-9 w-9 text-stone-600 hover:bg-stone-50" data-quantity-plus>+</button></div>
                 </div>
             </div>
@@ -77,8 +78,8 @@
                     <button type="button" class="lk-btn lk-btn-red lk-btn-full" data-auth-required data-auth-message="Create a Buyer account or sign in to purchase this product.">Buy Now</button>
                     <button type="button" class="lk-btn lk-btn-light lk-btn-full sm:col-span-2" data-auth-required data-auth-message="Sign in to save products to your wishlist.">♡ Save to Wishlist</button>
                 @else
-                    <button type="button" class="lk-btn lk-btn-light lk-btn-full" data-add-cart data-product-id="{{ $slug }}" data-quantity-source="#detailQuantity">Add to Cart</button>
-                    <a class="lk-btn lk-btn-red lk-btn-full" href="{{ route('buyer.cart', ['buy_now' => $slug]) }}">Buy Now</a>
+                    <button type="button" class="lk-btn lk-btn-light lk-btn-full" data-test-add-cart data-product-slug="{{ $slug }}" data-product-purchase>Add to Cart</button>
+                    <button type="button" class="lk-btn lk-btn-red lk-btn-full" data-test-buy-now data-product-slug="{{ $slug }}" data-product-purchase>Buy Now</button>
                     <button type="button" class="lk-btn lk-btn-light lk-btn-full sm:col-span-2" data-wishlist data-product-id="{{ $slug }}">♡ Save to Wishlist</button>
                 @endif
             </div>

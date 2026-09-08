@@ -18,7 +18,7 @@
 
     $featuredProducts = $products->take(4);
     $recommendedProducts = $products->skip(4)->take(4);
-    $heroProduct = $products->first();
+    $heroProduct = $products->firstWhere('slug', 'wireless-headphones') ?? $products->first();
 
     $heroImage = data_get($heroProduct, 'image_url')
         ?? data_get($heroProduct, 'image');
@@ -107,6 +107,14 @@
 
 <div class="lk-page">
     {{-- Hero --}}
+    <x-buyer.marketplace-hero
+        :products="$products"
+        :hero-product="$heroProduct"
+        :browse-url="route('buyer.products')"
+        :categories-url="route('buyer.products')"
+        :orders-url="route('buyer.orders')"
+    />
+    {{--
     <section class="lk-hero">
         <div class="lk-hero-copy">
             <span class="lk-kicker">
@@ -204,6 +212,7 @@
             @endif
         </div>
     </section>
+    --}}
 
     {{-- Quick actions --}}
     <section class="lk-section" aria-labelledby="quick-actions-heading">

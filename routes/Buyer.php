@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\View;
 
 $buyerProducts = [
+    ['id'=>'likhae-test-handcrafted-shirt','slug'=>'likhae-test-handcrafted-shirt','name'=>'LIKHAE Test Handcrafted Shirt','category'=>"Women's Apparel",'subcategory'=>'Tops & Blouses','seller'=>'LIKHAE Studio','seller_slug'=>'likhae-studio','location'=>'Santa Cruz, Laguna','price'=>1080,'old_price'=>1200,'discount'=>10,'rating'=>4.8,'reviews'=>0,'sold'=>0,'stock'=>28,'is_demo'=>true,'image'=>'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=900&q=80','gallery'=>['https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=900&q=80','https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=900&q=80'],'description'=>'Locally crafted test apparel used to validate the LIKHAE marketplace order and delivery workflow.','specs'=>['Material'=>'Cotton Blend','Origin'=>'Local','Care'=>'Hand wash / gentle wash'],'variations'=>['Color'=>['Black','White'],'Size'=>['Small','Medium','Large']],'variant_stock'=>['Black / Small'=>10,'Black / Medium'=>5,'Black / Large'=>0,'White / Small'=>8,'White / Medium'=>3,'White / Large'=>2]],
     ['id'=>'wireless-headphones','slug'=>'wireless-headphones','name'=>'Premium Wireless Headphones','category'=>'Electronics','seller'=>'Metro Finds PH','location'=>'Makati City','price'=>2499,'old_price'=>2999,'discount'=>17,'rating'=>4.8,'reviews'=>128,'sold'=>250,'stock'=>18,'image'=>'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80'],
     ['id'=>'classic-backpack','slug'=>'classic-backpack','name'=>'Classic Everyday Backpack','category'=>'Bags','seller'=>'Urban Carry Co.','location'=>'Quezon City','price'=>999,'old_price'=>1299,'discount'=>23,'rating'=>4.7,'reviews'=>92,'sold'=>410,'stock'=>26,'image'=>'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&q=80'],
     ['id'=>'running-shoes','slug'=>'running-shoes','name'=>'Lightweight Running Shoes','category'=>'Sports & Outdoors','seller'=>'Stride PH','location'=>'Pasig City','price'=>1799,'old_price'=>2199,'discount'=>18,'rating'=>4.9,'reviews'=>205,'sold'=>540,'stock'=>14,'image'=>'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80'],
@@ -20,20 +21,21 @@ $buyerProducts = [
 View::share('buyerProducts', collect($buyerProducts));
 
 $buyerSampleOrder = [
-    'id' => 'LK-2076',
+    'id' => 'ORD-TEST-0001',
+    'tracking' => 'LH-TEST-0001',
     'placed_at' => 'September 7, 2026, 9:14 AM',
     'payment' => 'Cash on Delivery',
     'status' => 'to-receive',
     'status_label' => 'Delivered - Confirm Receipt',
     'delivered_at' => 'September 7, 2026, 2:35 PM',
     'auto_receive_at' => 'September 10, 2026',
-    'total' => 2579,
+    'total' => 2280,
     'products' => [[
-        'name' => 'Premium Wireless Headphones',
-        'image' => 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&q=80',
-        'variant' => 'Black',
-        'quantity' => 1,
-        'price' => 2499,
+        'name' => 'LIKHAE Test Handcrafted Shirt',
+        'image' => 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=900&q=80',
+        'variant' => 'Black / Medium',
+        'quantity' => 2,
+        'price' => 1080,
     ]],
     'timeline' => [
         ['label' => 'Order Placed', 'time' => 'September 7, 2026, 9:14 AM', 'done' => true],
@@ -89,14 +91,21 @@ Route::prefix('buyer')->name('buyer.')->group(function () {
         if ($addSlug) {
             $product = collect(view()->shared('buyerProducts', []))->firstWhere('slug', $addSlug);
             if ($product) {
+                $color = (string) request('color', '');
+                $size = (string) request('size', '');
+                $variant = trim(implode(' / ', array_filter([$color, $size])));
+                $variantStock = (int) data_get($product, 'variant_stock.'.$variant, data_get($product, 'stock', 0));
+                $quantity = max(1, min((int) request('quantity', 1), $variantStock));
+                if ($variantStock < 1) return redirect()->route('buyer.product-details', ['slug' => $addSlug])->with('buyer_notice', 'That variation is out of stock.');
                 $cart = session('cart', []);
-                $existing = collect($cart)->search(fn($i) => ($i['slug'] ?? null) === $addSlug);
+                $existing = collect($cart)->search(fn($i) => ($i['slug'] ?? null) === $addSlug && ($i['variant'] ?? '') === $variant);
                 if ($existing !== false) {
-                    $cart[$existing]['quantity'] = ($cart[$existing]['quantity'] ?? 1) + 1;
+                    $cart[$existing]['quantity'] = min(($cart[$existing]['quantity'] ?? 1) + $quantity, $variantStock);
                 } else {
-                    $cart[] = array_merge($product, ['quantity' => 1]);
+                    $cart[] = array_merge($product, ['quantity' => $quantity, 'variant' => $variant ?: 'Standard', 'stock' => $variantStock]);
                 }
                 session(['cart' => $cart]);
+                if (request()->boolean('checkout')) return redirect()->route('buyer.checkout');
             }
         }
         return view('Buyer.cart');
@@ -106,7 +115,7 @@ Route::prefix('buyer')->name('buyer.')->group(function () {
     Route::post('/order', fn () => redirect()->route('buyer.orders.success'))->name('order.store');
     Route::post('/orders/cancel', fn () => redirect()->route('buyer.orders')->with('status', 'Order cancelled.'))->name('orders.cancel');
     Route::post('/orders/{id}/received', function (string $id) {
-        abort_unless($id === 'LK-2076', 404);
+        abort_unless($id === 'ORD-TEST-0001', 404);
         session(['buyer_sample_order_received' => true]);
 
         return redirect()->route('buyer.orders.show', ['id' => $id])

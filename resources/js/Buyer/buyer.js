@@ -139,6 +139,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }));
 
+    all('[data-variant-stock-product]').forEach((product) => {
+        let stocks = {};
+        try { stocks = JSON.parse(product.dataset.variantStocks || '{}'); } catch (_) { return; }
+        const selected = () => Object.fromEntries(all('[data-variation-group]', product).map((group) => [group.dataset.variationName, one('[data-variation-option][aria-pressed="true"]', group)?.dataset.variationValue]));
+        const sync = () => {
+            const choice = selected();
+            const stock = Number(stocks[`${choice.Color} / ${choice.Size}`] ?? 0);
+            const availability = one('[data-variant-availability]', product);
+            const quantity = one('[data-quantity-input]', product);
+            if (availability) availability.textContent = stock ? `${stock} available` : 'Out of stock';
+            if (quantity) { quantity.max = Math.max(1, stock); quantity.value = Math.min(Number(quantity.value || 1), Math.max(1, stock)); }
+            all('[data-product-purchase]', product).forEach((control) => { control.disabled = stock < 1; control.setAttribute('aria-disabled', String(stock < 1)); });
+        };
+        all('[data-variation-option]', product).forEach((button) => button.addEventListener('click', sync));
+        const cartUrl = (slug, buyNow) => {
+            const choice = selected();
+            const quantity = one('[data-quantity-input]', product)?.value || 1;
+            const query = new URLSearchParams({ add: slug, color: choice.Color || '', size: choice.Size || '', quantity });
+            if (buyNow) query.set('checkout', '1');
+            return `/buyer/cart?${query}`;
+        };
+        one('[data-test-add-cart]', product)?.addEventListener('click', (event) => { window.location.href = cartUrl(event.currentTarget.dataset.productSlug, false); });
+        one('[data-test-buy-now]', product)?.addEventListener('click', (event) => { window.location.href = cartUrl(event.currentTarget.dataset.productSlug, true); });
+        sync();
+    });
+
     all('[data-add-cart]').forEach((button) => button.addEventListener('click', () => {
         const source = button.dataset.quantitySource ? one(button.dataset.quantitySource) : null;
         const quantity = source?.value || 1;

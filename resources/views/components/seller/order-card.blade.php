@@ -25,7 +25,7 @@
     <div class="sl-order-card-body">
         <div class="sl-order-product">
             <span class="sl-order-thumb">{{ mb_strtoupper(mb_substr(data_get($order, 'product', 'P'), 0, 1)) }}</span>
-            <div><strong>{{ data_get($order, 'product', 'Product') }}</strong><small>Qty: {{ data_get($order, 'quantity', 1) }}</small></div>
+            <div><strong>{{ data_get($order, 'product', 'Product') }}</strong><small>{{ data_get($order, 'variant', 'Standard') }} · Qty: {{ data_get($order, 'quantity', 1) }}</small></div>
         </div>
         <dl class="sl-order-details">
             <div><dt>Buyer</dt><dd>{{ data_get($order, 'buyer', 'Buyer') }}</dd></div>
