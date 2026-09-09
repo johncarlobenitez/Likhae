@@ -36,7 +36,7 @@ View::share([
     'sellerOrders' => $sellerOrders,
 ]);
 
-Route::prefix('seller')->name('seller.')->group(function () {
+Route::prefix('seller')->name('seller.')->middleware(['auth', \App\Http\Middleware\EnsureWorkspaceRole::class.':seller'])->group(function () {
     Route::get('/', fn () => redirect()->route('seller.dashboard'));
     Route::get('/dashboard', fn () => view('Seller.dashboard'))->name('dashboard');
 

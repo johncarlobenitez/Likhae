@@ -12,7 +12,7 @@ return new class extends Migration
             $table->string('role')->default('buyer')->after('id');
             $table->string('first_name')->nullable()->after('name');
             $table->string('last_name')->nullable()->after('first_name');
-            $table->string('middle_initial', 2)->nullable()->after('last_name');
+            $table->string('middle_initial', 80)->nullable()->after('last_name');
             $table->string('sex')->nullable()->after('middle_initial');
             $table->date('birthday')->nullable()->after('sex');
             $table->string('contact_number')->nullable()->after('birthday');

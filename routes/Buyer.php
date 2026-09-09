@@ -63,7 +63,7 @@ View::composer('Buyer.orders', function ($view) use ($buyerSampleOrder) {
     $view->with('buyerOrders', collect([$order]));
 });
 
-Route::prefix('buyer')->name('buyer.')->group(function () {
+Route::prefix('buyer')->name('buyer.')->middleware(['auth', \App\Http\Middleware\EnsureWorkspaceRole::class.':buyer'])->group(function () {
     Route::get('/pending', fn () => redirect()->route('buyer.home'))->name('pending');
 
     Route::get('/home', fn () => view('Buyer.home'))->name('home');

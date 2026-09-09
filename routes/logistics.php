@@ -34,21 +34,25 @@ Route::prefix('logistics')
 
         Route::post('/login', function (\Illuminate\Http\Request $request) {
             $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
-            $accounts = [
-                'logistics@likhae.com' => ['password' => 'logistics', 'role' => 'logistics'],
-                'rider@likhae.com' => ['password' => 'rider', 'role' => 'rider'],
-            ];
-            $marketplaceAccounts = ['admin@likhae.com', 'buyer@likhae.com', 'seller@likhae.com'];
-            if (in_array($request->email, $marketplaceAccounts, true)) {
+
+            $user = \App\Models\User::where('email', $request->email)->first();
+
+            if (! $user || ! \Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+                return back()->withErrors(['email' => 'Invalid email or password.'])->withInput();
+            }
+
+            if (! in_array($user->role, ['logistics', 'rider', 'courier'], true)) {
                 return back()->withErrors(['email' => 'This account belongs to the LIKHAE Marketplace. Use the Marketplace Login page.'])->withInput();
             }
-            $user = $accounts[$request->email] ?? null;
-            if (!$user || $user['password'] !== $request->password) {
-                return back()->withErrors(['email' => 'Use a Logistics or Rider account for this portal.'])->withInput();
+
+            if ($user->status !== 'active') {
+                return back()->withErrors(['email' => 'Your account is not yet active.'])->withInput();
             }
+
+            \Illuminate\Support\Facades\Auth::login($user, $request->boolean('remember'));
             $request->session()->regenerate();
-            $request->session()->put('demo_user', ['email' => $request->email, 'role' => $user['role']]);
-            return redirect()->route($user['role'] === 'rider' ? 'rider.dashboard' : 'logistics.dashboard');
+
+            return redirect()->route($user->role === 'rider' || $user->role === 'courier' ? 'rider.dashboard' : 'logistics.dashboard');
         })->name('login.store');
 
 
@@ -61,12 +65,8 @@ Route::prefix('logistics')
         */
 
         Route::get('/dashboard', function () {
-
-            return view(
-                'logistics.dashboard.index'
-            );
-
-        })->name('dashboard');
+            return view('logistics.dashboard.index');
+        })->name('dashboard')->middleware(['auth', \App\Http\Middleware\EnsureWorkspaceRole::class.':logistics']);
 
 
 
