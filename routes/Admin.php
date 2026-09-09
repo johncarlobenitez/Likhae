@@ -1,11 +1,14 @@
 <?php
 
+use App\Http\Controllers\AdminRegistrationController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('admin')->name('admin.')->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['auth', \App\Http\Middleware\EnsureWorkspaceRole::class.':admin'])->group(function () {
     Route::view('/', 'Admin.dashboard')->name('dashboard');
 
-    Route::view('/registrations', 'Admin.registrations')->name('registrations');
+    Route::get('/registrations', [AdminRegistrationController::class, 'index'])->name('registrations');
+    Route::post('/registrations/{user}/approve', [AdminRegistrationController::class, 'approve'])->name('registrations.approve');
+    Route::post('/registrations/{user}/reject', [AdminRegistrationController::class, 'reject'])->name('registrations.reject');
     Route::view('/users', 'Admin.users')->name('users');
     Route::view('/products', 'Admin.products')->name('products');
     Route::view('/compliance', 'Admin.compliance')->name('compliance');

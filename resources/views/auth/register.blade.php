@@ -1150,6 +1150,39 @@
                         </div>
 
 
+                        {{-- PASSWORD --}}
+                        <div class="register-grid" style="margin-top:1.5rem;">
+
+                            <div class="register-field">
+                                <label for="password">
+                                    Password <span>*</span>
+                                </label>
+                                <input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    placeholder="Min. 8 chars, uppercase, number"
+                                    autocomplete="new-password"
+                                    required
+                                >
+                            </div>
+
+                            <div class="register-field">
+                                <label for="password_confirmation">
+                                    Confirm Password <span>*</span>
+                                </label>
+                                <input
+                                    id="password_confirmation"
+                                    name="password_confirmation"
+                                    type="password"
+                                    placeholder="Re-enter your password"
+                                    autocomplete="new-password"
+                                    required
+                                >
+                            </div>
+
+                        </div>
+
                         {{-- APPROVAL --}}
                         <div class="approval-notice">
 
@@ -1157,24 +1190,19 @@
                                 i
                             </span>
 
-
                             <div>
-
                                 <strong>
                                     Administrator approval required
                                 </strong>
-
                                 <p>
                                     After submitting your registration,
                                     please wait for the administrator's
                                     approval. The decision will be sent
                                     to your registered email.
                                 </p>
-
                             </div>
 
                         </div>
-
 
                         {{-- TERMS --}}
                         <label class="register-terms">

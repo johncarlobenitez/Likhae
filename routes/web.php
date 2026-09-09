@@ -70,66 +70,39 @@ Route::post('/login', function (Request $request) {
         'password' => ['required', 'string'],
     ]);
 
-    $accounts = [
-        'admin@likhae.com' => [
-            'password' => 'admin',
-            'role' => 'admin',
-        ],
-        'admintest@likhae.com' => [
-            'password' => 'admin',
-            'role' => 'admin',
-        ],
-        'buyer@likhae.com' => [
-            'password' => 'buyer',
-            'role' => 'buyer',
-        ],
-        'seller@likhae.com' => [
-            'password' => 'seller',
-            'role' => 'seller',
-        ],
-        'logistics@likhae.com' => [
-            'password' => 'logistics',
-            'role' => 'logistics',
-        ],
-        'rider@likhae.com' => [
-            'password' => 'rider',
-            'role' => 'rider',
-        ],
-    ];
+    $user = \App\Models\User::where('email', $request->email)->first();
 
-    $user = $accounts[$request->email] ?? null;
-
-    if ($user && in_array($user['role'], ['logistics', 'rider'], true)) {
-        return back()->withErrors([
-            'email' => 'This account belongs to the Logistics Portal. Use the Logistics Portal sign in page.',
-        ])->withInput($request->only('email'));
+    if (! $user || ! \Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+        return back()->withErrors(['email' => 'Invalid email or password.'])->withInput($request->only('email'));
     }
 
-    if (!$user || $user['password'] !== $request->password) {
-        return back()
-            ->withErrors([
-                'email' => 'Invalid email or password.',
-            ])
-            ->withInput($request->only('email'));
+    if ($user->status === 'pending') {
+        return back()->withErrors(['email' => 'Your account is pending approval.'])->withInput($request->only('email'));
     }
 
+    if ($user->status === 'rejected') {
+        return back()->withErrors(['email' => 'Your account has been rejected.'])->withInput($request->only('email'));
+    }
+
+    if ($user->status === 'suspended') {
+        return back()->withErrors(['email' => 'Your account has been suspended.'])->withInput($request->only('email'));
+    }
+
+    if (in_array($user->role, ['logistics', 'rider', 'courier'], true)) {
+        return back()->withErrors(['email' => 'This account belongs to the Logistics Portal. Use the Logistics Portal sign in page.'])->withInput($request->only('email'));
+    }
+
+    \Illuminate\Support\Facades\Auth::login($user, $request->boolean('remember'));
     $request->session()->regenerate();
 
-    $request->session()->put('demo_user', [
-        'email' => $request->email,
-        'role' => $user['role'],
-    ]);
-
     $redirects = [
-        'admin'      => route('admin.dashboard'),
-        'buyer'      => route('buyer.home'),
-        'seller'     => route('seller.dashboard'),
-        'logistics'  => route('logistics.dashboard'),
-        'rider'      => route('rider.dashboard'),
+        'admin'   => route('admin.dashboard'),
+        'buyer'   => route('buyer.home'),
+        'seller'  => route('seller.dashboard'),
     ];
 
-    return redirect($redirects[$user['role']])
-        ->with('status', 'Signed in as ' . ucfirst($user['role']) . '.');
+    return redirect($redirects[$user->role] ?? route('home'))
+        ->with('status', 'Signed in as ' . ucfirst($user->role) . '.');
 })->name('login.post');
 
 /*
@@ -149,6 +122,10 @@ Route::get('/register', function (Request $request) {
         'preselectedRole' => $request->query('role', 'buyer'),
     ]);
 })->name('register');
+
+Route::get('/registration/pending', function (\Illuminate\Http\Request $request) {
+    return view('auth.pending', ['accountType' => $request->query('type', 'LIKHAE')]);
+})->name('registration.pending');
 
 Route::get('/register/{role}', function (string $role) {
     abort_unless(in_array($role, ['buyer', 'seller', 'logistics', 'rider'], true), 404);
@@ -188,13 +165,11 @@ Route::prefix('address/philippines')
 */
 
 Route::post('/logout', function (Request $request) {
-    $request->session()->forget('demo_user');
+    \Illuminate\Support\Facades\Auth::logout();
     $request->session()->invalidate();
     $request->session()->regenerateToken();
 
-    return redirect()
-        ->route('login')
-        ->with('status', 'You have been signed out.');
+    return redirect()->route('login')->with('status', 'You have been signed out.');
 })->name('logout');
 
 /*
