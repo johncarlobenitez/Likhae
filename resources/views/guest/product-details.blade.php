@@ -19,7 +19,7 @@
 
 <div class="lk-page">
     <div class="mb-4 flex flex-wrap items-center gap-2 text-xs text-stone-500">
-        <a class="hover:text-red-800" href="{{ route('products') }}">Products</a>
+        <a class="hover:text-red-800" href="{{ \Illuminate\Support\Facades\Route::has('guest.home') ? route('guest.home') : route('products') }}">Products</a>
         <span>/</span><span>{{ $category }}</span><span>/</span><strong class="text-stone-700">{{ $name }}</strong>
     </div>
 
@@ -80,20 +80,6 @@
             <dl class="mt-3 divide-y divide-stone-100 text-xs">@forelse($specs as $label => $value)<div class="grid grid-cols-[110px_1fr] gap-3 py-2.5"><dt class="text-stone-500">{{ $label }}</dt><dd class="font-medium text-stone-800">{{ $value }}</dd></div>@empty<div class="py-3 text-stone-500">Seller has not added specifications yet.</div>@endforelse</dl>
         </section>
     </div>
-
-    {{-- Ratings and reviews are available after a buyer signs in. --}}
-    {{--
-    <section id="reviews" class="mt-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
-        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-stone-100 pb-5"><div><span class="text-[10px] font-bold uppercase tracking-widest text-red-800">Customer feedback</span><h2 class="text-lg font-bold text-stone-900">Ratings & Reviews</h2></div><div class="text-right"><strong class="text-3xl text-red-900">{{ number_format($rating, 1) }}</strong><span class="text-sm text-stone-400"> / 5</span><div class="text-xs text-amber-500">&#9733;&#9733;&#9733;&#9733;&#9733;</div><small class="text-stone-500">{{ number_format($reviewCount) }} verified ratings</small></div></div>
-        <div class="divide-y divide-stone-100">
-            @forelse($reviews as $review)
-                <article class="py-5"><div class="flex items-start gap-3"><img class="h-10 w-10 rounded-full object-cover" src="{{ data_get($review, 'avatar', 'https://ui-avatars.com/api/?name='.urlencode(data_get($review,'name','Buyer')).'&background=e7e5e4&color=44403c') }}" alt=""><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center justify-between gap-2"><div><strong class="text-sm text-stone-900">{{ data_get($review, 'name', 'Verified Buyer') }}</strong><div class="text-xs text-amber-500">{!! str_repeat('&#9733;', (int) data_get($review, 'rating', 5)) !!}<span class="text-stone-300">{!! str_repeat('&#9733;', 5 - (int) data_get($review, 'rating', 5)) !!}</span></div></div><time class="text-[11px] text-stone-400">{{ data_get($review, 'date', 'Recently') }}</time></div><p class="mt-2 text-sm leading-6 text-stone-600">{{ data_get($review, 'comment') }}</p>@if(data_get($review, 'variant'))<span class="mt-2 inline-block text-[11px] text-stone-400">Variation: {{ data_get($review, 'variant') }}</span>@endif</div></div></article>
-            @empty
-                <div class="py-10 text-center text-sm text-stone-500">No written reviews yet.</div>
-            @endforelse
-        </div>
-    </section>
-    --}}
 
     @if($related->isNotEmpty())
         <section class="lk-section"><div class="lk-section-head"><div><span class="lk-kicker">Keep exploring</span><h2>Related Products</h2><p>More finds you may like.</p></div></div><div class="lk-product-grid">@foreach($related as $relatedProduct) @include('guest.partials.product-card', ['product' => $relatedProduct]) @endforeach</div></section>

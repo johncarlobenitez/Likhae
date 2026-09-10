@@ -3,8 +3,8 @@
 @php
     $user = auth()->user();
     $demoUser = session('demo_user');
-    $buyerName = data_get($user, 'name') 
-        ?? data_get($demoUser, 'name') 
+    $buyerName = data_get($user, 'name')
+        ?? data_get($demoUser, 'name')
         ?? (data_get($demoUser, 'role') === 'buyer' || !$guest ? 'Buyer Account' : 'Guest Shopper');
     $initials = collect(explode(' ', trim($buyerName)))->filter()->take(2)->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode('') ?: 'BA';
     $searchRoute = $guest ? route('home') : route('buyer.products');
@@ -23,7 +23,7 @@
             <x-likhae-logo context="Marketplace" class="likhae-logo--guest" />
         </a>
     @else
-        <div class="lk-header-title"><strong>{{ preg_replace('/\s+—\s+LIKHAE$/', '', $title) }}</strong><span>Shop smart with LIKHAE</span></div>
+        <div class="lk-header-title"><strong>{{ preg_replace('/\s+-\s+LIKHAE$/', '', $title) }}</strong><span>Shop smart with LIKHAE</span></div>
     @endif
     <form action="{{ $searchRoute }}" method="GET" class="lk-search" role="search">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -33,7 +33,7 @@
     @if($guest)
         <nav class="lk-guest-actions" aria-label="Guest actions">
             <a class="lk-btn lk-btn-light" href="{{ Route::has('login') ? route('login') : url('/login') }}">Sign In</a>
-            <a class="lk-btn lk-btn-red" href="{{ Route::has('register') ? route('register') : url('/register') }}">Create Account</a>
+            <a class="lk-btn lk-btn-red" href="{{ Route::has('register') ? route('register') : url('/register') }}">Register</a>
         </nav>
     @else
         <div class="lk-header-actions">

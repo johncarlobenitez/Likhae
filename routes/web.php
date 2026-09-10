@@ -31,6 +31,10 @@ Route::get('/', function () {
     return view('guest.home');
 })->name('home');
 
+Route::get('/guest-account', function () {
+    return view('guest.products');
+})->name('guest.home');
+
 Route::get('/products', function () {
     return view('guest.products');
 })->name('products');
@@ -212,13 +216,13 @@ Route::get('/auth/google', function () {
 |--------------------------------------------------------------------------
 */
 
-Route::get('/guest/continue', function (Request $request) {
+Route::get('/continue-as-guest', function (Request $request) {
     $request->session()->put('demo_user', [
         'email' => 'guest',
         'role' => 'guest',
     ]);
 
-    return redirect()->route('home');
+    return redirect()->route('guest.home');
 })->name('guest.continue');
 
 /*
