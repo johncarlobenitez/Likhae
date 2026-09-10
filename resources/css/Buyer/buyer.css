@@ -5616,7 +5616,7 @@ html.dark .lk-guest-footer-bottom strong { color: #fff; }
     content: "";
     position: absolute;
     inset: 0;
-    background: url('/images/hero-bg.png') 95% center / cover no-repeat;
+    background: var(--lk-ed-hero-bg) 95% center / cover no-repeat;
     z-index: 0;
 }
 
@@ -6309,15 +6309,24 @@ html.dark .lk-guest-footer-bottom strong { color: #fff; }
 /* ── Product grid (editorial overrides) ───────────────── */
 
 .lk-ed-product-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 18px !important;
+    display: flex !important;
+    flex-wrap: nowrap;
+    grid-template-columns: none !important;
+    gap: 16px !important;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scroll-snap-type: x proximity;
 }
 
 /* Override product card for editorial style */
 .lk-ed-product-grid .lk-product-card {
+    flex: 0 0 220px;
+    max-width: 220px;
+    min-width: 220px;
     background: var(--ed-card);
     border-color: var(--ed-border);
     border-radius: var(--ed-radius-lg);
+    scroll-snap-align: start;
 }
 
 .lk-ed-product-grid .lk-product-card:hover {
@@ -6327,6 +6336,11 @@ html.dark .lk-guest-footer-bottom strong { color: #fff; }
 
 .lk-ed-product-grid .lk-product-media {
     background: var(--ed-beige);
+    aspect-ratio: 1 / 0.82;
+}
+
+.lk-ed-product-grid .lk-product-body {
+    padding: 10px 11px 11px;
 }
 
 .lk-ed-product-grid .lk-product-category {
@@ -6339,11 +6353,25 @@ html.dark .lk-guest-footer-bottom strong { color: #fff; }
     color: var(--ed-ink);
     font-family: var(--ed-sans);
     font-size: 12px;
+    min-height: 34px;
+}
+
+.lk-ed-product-grid .lk-product-seller {
+    font-size: 8px;
+}
+
+.lk-ed-product-grid .lk-product-meta {
+    margin-top: 6px;
+}
+
+.lk-ed-product-grid .lk-product-price-row {
+    min-height: 22px;
+    margin-top: 6px;
 }
 
 .lk-ed-product-grid .lk-product-price-row strong {
     color: var(--ed-burgundy);
-    font-size: 15px;
+    font-size: 14px;
 }
 
 .lk-ed-product-grid .lk-btn-view {
@@ -6352,6 +6380,7 @@ html.dark .lk-guest-footer-bottom strong { color: #fff; }
     border-color: var(--ed-burgundy);
     border-radius: 8px;
     font-size: 10px;
+    min-height: 32px;
 }
 
 .lk-ed-product-grid .lk-btn-view:hover {
@@ -6408,14 +6437,14 @@ html.dark .lk-guest-footer-bottom strong { color: #fff; }
     min-height: 320px;
     overflow: hidden;
     position: relative;
-    background: url('/images/hero-marketplace.png') 90% center / cover no-repeat;
+    background: #1a0a08 var(--lk-ed-promo-bg) center / cover no-repeat;
 }
 
 .lk-ed-promo::before {
     content: "";
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,.38);
+    background: linear-gradient(to right, rgba(0,0,0,.65) 0%, rgba(0,0,0,.35) 55%, rgba(0,0,0,.1) 100%);
     z-index: 0;
 }
 
@@ -7178,7 +7207,7 @@ html.dark .lk-ed-empty h3 { color: var(--lk-ink); }
 html.dark .lk-ed-empty p { color: var(--lk-muted); }
 
 html.dark .lk-ed-promo-copy { background: transparent; }
-html.dark .lk-ed-promo::before { background: rgba(0,0,0,.52); }
+html.dark .lk-ed-promo::before { background: linear-gradient(to right, rgba(0,0,0,.75) 0%, rgba(0,0,0,.45) 55%, rgba(0,0,0,.2) 100%); }
 
 html.dark .lk-ed-journey-num { color: #e87677; }
 html.dark .lk-ed-journey-icon { background: #2e2720; border-color: var(--lk-border); color: #e87677; }

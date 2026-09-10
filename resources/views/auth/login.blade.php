@@ -9,6 +9,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+    <style>
+        :root {
+            --lk-auth-bg-image: url("{{ asset('images/login-page-bg.jpg') }}");
+        }
+    </style>
+
     <title>Sign In — LIKHAE</title>
 
     @vite([
@@ -22,116 +28,64 @@
     <div class="auth-shell">
 
         {{-- LEFT PANEL --}}
-        <section class="auth-hero">
+        <section class="auth-hero" aria-labelledby="auth-hero-title">
 
             <div class="auth-hero__inner">
 
                 <div class="auth-hero__content">
 
                     <div class="auth-hero__copy">
-
                         <span class="auth-eyebrow">
-                            Marketplace Philippines
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M12 21s7-6 7-12a7 7 0 1 0-14 0c0 6 7 12 7 12Z" />
+                                <circle cx="12" cy="9" r="2.5" />
+                            </svg>
+                            Your Philippine marketplace
                         </span>
 
-                        <h1>
+                        <h1 id="auth-hero-title">
                             Your local marketplace,
-                            <br>
-                            reimagined.
+                            <em>reimagined.</em>
                         </h1>
 
                         <p>
-                            Discover everyday products, local finds, flash deals,
-                            and trusted sellers across the Philippines.
+                            Everyday essentials. Unexpected finds.
+                            Discover a little more to love from local sellers.
                         </p>
-
                     </div>
-
-
-                    <div class="auth-product-showcase">
-
-                        <div class="auth-product-card auth-product-card--large">
-                            <div class="auth-product-visual">
-                                🎧
-                            </div>
-
-                            <span>
-                                Electronics
-                            </span>
-                        </div>
-
-
-                        <div class="auth-product-column">
-
-                            <div class="auth-product-card">
-                                <div class="auth-product-visual">
-                                    👟
-                                </div>
-
-                                <span>
-                                    Fashion
-                                </span>
-                            </div>
-
-
-                            <div class="auth-product-card">
-                                <div class="auth-product-visual">
-                                    👜
-                                </div>
-
-                                <span>
-                                    Local Finds
-                                </span>
-                            </div>
-
-                        </div>
-
-                    </div>
-
-
-                    <ul class="auth-hero__pills">
-
-                        <li>
-                            <span class="auth-pill-icon">
-                                ✓
-                            </span>
-
-                            Thousands of products
-                        </li>
-
-                        <li>
-                            <span class="auth-pill-icon">
-                                ✓
-                            </span>
-
-                            Nationwide delivery
-                        </li>
-
-                        <li>
-                            <span class="auth-pill-icon">
-                                ✓
-                            </span>
-
-                            Secure checkout
-                        </li>
-
-                    </ul>
 
                 </div>
 
 
                 <div class="auth-hero__footer">
-                    Shop smarter with LIKHAE.
-                </div>
-
-
-                <div
-                    class="auth-hero__deco"
-                    aria-hidden="true"
-                >
-                    <div class="deco-ring deco-ring--1"></div>
-
-                    <div class="deco-ring deco-ring--2"></div>
+                    <ul class="auth-hero__benefits" aria-label="Why shop with LIKHAE">
+                        <li>
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="m3 7 2-4h14l2 4v3a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0V7Z" />
+                                <path d="M5 13v8h14v-8M9 21v-6h6v6M3 7h18" />
+                            </svg>
+                            <strong>Local finds</strong>
+                            <span>Everyday favorites</span>
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M14 17H9M3 17H2V5h12v12h1M14 9h4l4 4v4h-2M14 13h8" />
+                                <circle cx="6.5" cy="17.5" r="2.5" />
+                                <circle cx="17.5" cy="17.5" r="2.5" />
+                            </svg>
+                            <strong>Nationwide delivery</strong>
+                            <span>Closer to your doorstep</span>
+                        </li>
+                        <li>
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z" />
+                                <path d="m8.5 12 2.5 2.5 4.5-5" />
+                            </svg>
+                            <strong>Secure checkout</strong>
+                            <span>Shop with confidence</span>
+                        </li>
+                    </ul>
+                    <p class="auth-hero__tagline">Crafted for everyday needs.</p>
                 </div>
 
             </div>

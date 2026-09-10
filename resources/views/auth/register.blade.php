@@ -18,6 +18,12 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+    <style>
+        :root {
+            --lk-register-bg-image: url("{{ asset('images/login-page-bg.jpg') }}");
+        }
+    </style>
+
     <title>Create Account — LIKHAE</title>
 
     @vite([
@@ -33,111 +39,103 @@
     {{-- =========================================================
         LEFT PANEL
     ========================================================== --}}
-    <aside class="register-side">
+    <aside class="register-sidebar" aria-label="Getting started with LIKHAE">
+        <section class="register-side" aria-labelledby="register-hero-title">
 
-        <div class="register-side__inner">
+            <div class="register-side__inner">
 
-            <a
-                href="{{ url('/') }}"
-                class="register-brand"
-            >
-                <x-likhae-logo context="Marketplace" class="likhae-logo--auth" />
-            </a>
+                <div class="register-side__content">
 
+                    <span class="register-eyebrow">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
+                        </svg>
+                        Join the LIKHAE community
+                    </span>
 
-            <div class="register-side__content">
+                    <h1 id="register-hero-title">
+                        Good finds.
+                        <em>Great beginnings.</em>
+                    </h1>
 
-                <span class="register-eyebrow">
-                    Join the LIKHAE marketplace
-                </span>
+                    <p>
+                        Find something you love, or build a store others will.
+                        Your LIKHAE journey starts here.
+                    </p>
 
+                </div>
 
-                <h1>
-                    One marketplace.
-                    <br>
-                    Two ways to join.
-                </h1>
-
-
-                <p>
-                    Create a buyer account to discover products across
-                    every category, or register as a seller and start
-                    building your store on LIKHAE.
-                </p>
-
-
-                <div class="register-side__features">
-
-                    <div class="register-feature">
-
-                        <span class="register-feature__icon">
-                            ✓
-                        </span>
-
-                        <div>
-                            <strong>
-                                Verified accounts
-                            </strong>
-
-                            <span>
-                                Buyer and seller registrations are
-                                reviewed before approval.
-                            </span>
-                        </div>
-
-                    </div>
-
-
-                    <div class="register-feature">
-
-                        <span class="register-feature__icon">
-                            ✓
-                        </span>
-
-                        <div>
-                            <strong>
-                                Philippine address support
-                            </strong>
-
-                            <span>
-                                Province, Municipality / City,
-                                and Barangay selection.
-                            </span>
-                        </div>
-
-                    </div>
-
-
-                    <div class="register-feature">
-
-                        <span class="register-feature__icon">
-                            ✓
-                        </span>
-
-                        <div>
-                            <strong>
-                                Secure verification
-                            </strong>
-
-                            <span>
-                                Submit the required identification
-                                and business documents.
-                            </span>
-                        </div>
-
-                    </div>
-
+                <div class="register-side__footer">
+                    <ul class="register-side__features" aria-label="Two ways to join LIKHAE">
+                        <li class="register-feature">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M5 7h14l1 14H4L5 7Z" />
+                                <path d="M9 9V6a3 3 0 0 1 6 0v3" />
+                            </svg>
+                            <span class="register-feature__label">For buyers</span>
+                            <strong>Discover &amp; shop</strong>
+                            <span>Find your everyday favorites.</span>
+                        </li>
+                        <li class="register-feature">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="m3 7 2-4h14l2 4v3a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0V7Z" />
+                                <path d="M5 13v8h14v-8M9 21v-6h6v6M3 7h18" />
+                            </svg>
+                            <span class="register-feature__label">For sellers</span>
+                            <strong>Create &amp; sell</strong>
+                            <span>Make your store feel at home.</span>
+                        </li>
+                    </ul>
+                    <p class="register-side__tagline">A place for buyers. A home for sellers.</p>
                 </div>
 
             </div>
 
+        </section>
 
-            <p class="register-side__footer">
-                LIKHAE · General Multi-Category Marketplace
-            </p>
+        <section class="register-prep" aria-labelledby="register-prep-title">
+            <header class="register-prep__head">
+                <span class="register-prep__eyebrow">A smooth start</span>
+                <h2 id="register-prep-title">Before you begin</h2>
+                <p>Keep these handy as you create your account.</p>
+            </header>
 
-        </div>
+            <ul class="register-prep__list">
+                <li>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <rect x="3" y="5" width="18" height="14" rx="2" />
+                        <path d="m3 7 9 6 9-6" />
+                    </svg>
+                    <div>
+                        <strong>Your contact details</strong>
+                        <span>Email, mobile number, and home address.</span>
+                    </div>
+                </li>
+                <li>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <rect x="2" y="4" width="20" height="16" rx="2" />
+                        <circle cx="8" cy="10" r="2" />
+                        <path d="M5 16a3 3 0 0 1 6 0M15 9h4M15 13h4" />
+                    </svg>
+                    <div>
+                        <strong>A valid ID</strong>
+                        <span>A clear JPG, PNG, or PDF copy for verification.</span>
+                    </div>
+                </li>
+                <li>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="m3 7 2-4h14l2 4v3a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0V7Z" />
+                        <path d="M5 13v8h14v-8M9 21v-6h6v6M3 7h18" />
+                    </svg>
+                    <div>
+                        <strong>Planning to sell?</strong>
+                        <span>Have your business details and permit ready.</span>
+                    </div>
+                </li>
+            </ul>
 
+            <p class="register-prep__note">Applications are reviewed before approval.</p>
+        </section>
     </aside>
 
 
@@ -147,6 +145,10 @@
     <main class="register-main">
 
         <div class="register-container">
+
+            <a href="{{ url('/') }}" class="register-brand register-brand--main">
+                <x-likhae-logo context="Marketplace" class="likhae-logo--auth" />
+            </a>
 
             {{-- =================================================
                 HEADER
@@ -524,7 +526,7 @@
                     type="hidden"
                     name="account_type"
                     id="accountType"
-                    value="{{ old('account_type', 'buyer') }}"
+                    value="{{ old('account_type', ($preselectedRole ?? 'buyer') === 'courier' ? 'rider' : ($preselectedRole ?? 'buyer')) }}"
                 >
 
 

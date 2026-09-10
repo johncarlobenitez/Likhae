@@ -1891,9 +1891,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
+    const initialAccountType = accountTypeInput?.value;
+
     setAccountType(
-        accountTypeInput?.value === 'seller'
-            ? 'seller'
+        ['buyer', 'seller', 'logistics', 'rider'].includes(initialAccountType)
+            ? initialAccountType
             : 'buyer'
     );
 

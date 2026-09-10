@@ -13,6 +13,7 @@ export default defineConfig({
                 'resources/css/auth/login.css',
                 'resources/css/auth/register.css',
                 'resources/css/logistic/app.css',
+                'resources/css/logistic/landing.css',
                 'resources/js/app.js',
                 'resources/js/Buyer/buyer.js',
                 'resources/js/admin/admin.js',

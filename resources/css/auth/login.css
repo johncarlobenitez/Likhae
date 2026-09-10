@@ -125,52 +125,48 @@ button {
 
 .auth-hero {
     position: relative;
-
+    isolation: isolate;
     overflow: hidden;
-
-    min-height: 100vh;
-
+    display: flex;
+    min-width: 0;
+    min-height: calc(100vh - 40px);
+    margin: 20px 0 20px 20px;
+    border: 1px solid #e6dccd;
+    border-radius: 24px;
+    background-color: #e9dfcf;
     background:
-        radial-gradient(
-            circle at 85% 20%,
-            rgba(255, 255, 255, 0.11),
-            transparent 30%
-        ),
         linear-gradient(
-            145deg,
-            #991d20 0%,
-            #7d1417 45%,
-            #5d0c0f 100%
-        );
+            180deg,
+            rgba(249, 244, 235, 0.94) 0%,
+            rgba(249, 244, 235, 0.78) 24%,
+            rgba(249, 244, 235, 0.12) 46%,
+            transparent 62%,
+            rgba(55, 35, 25, 0.12) 100%
+        ),
+        var(--lk-auth-bg-image) center bottom / cover no-repeat,
+        #e9dfcf;
+}
+
+.auth-hero::before {
+    content: "";
+    position: absolute;
+    inset: 8px;
+    z-index: 0;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 17px;
+    pointer-events: none;
 }
 
 
 .auth-hero__inner {
     position: relative;
-
-    z-index: 2;
-
-    width: min(
-        620px,
-        calc(100% - 72px)
-    );
-
-    height: 100%;
-
-    min-height: 100vh;
-
-    margin: 0 auto;
-
+    z-index: 1;
     display: flex;
-
     flex-direction: column;
-
     justify-content: space-between;
-
-    padding:
-        38px
-        0
-        42px;
+    gap: clamp(140px, 20vh, 240px);
+    width: 100%;
+    padding: clamp(28px, 3.2vw, 52px);
 }
 
 
@@ -283,306 +279,142 @@ html.dark .likhae-logo {
 
 
 .auth-hero__content {
-    position: relative;
-
-    z-index: 4;
-
-    margin: auto 0;
+    margin: 0;
 }
 
 
 .auth-eyebrow {
-    width: max-content;
-
     display: inline-flex;
-
     align-items: center;
-
-    margin-bottom: 16px;
-
-    padding:
-        7px
-        10px;
-
-    border:
-        1px solid
-        rgba(255, 255, 255, 0.18);
-
+    gap: 7px;
+    max-width: 100%;
+    margin-bottom: 24px;
+    padding: 8px 12px;
+    border: 1px solid rgba(143, 23, 25, 0.16);
     border-radius: 999px;
-
-    background:
-        rgba(255, 255, 255, 0.08);
-
-    color:
-        rgba(255, 255, 255, 0.86);
-
-    font-size: 11px;
-
-    font-weight: 800;
-
-    letter-spacing: 0.06em;
-
+    background: rgba(255, 251, 244, 0.6);
+    color: var(--likhae-red);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.5;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
+}
+
+.auth-eyebrow svg,
+.auth-hero__benefits svg {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.auth-eyebrow svg {
+    width: 14px;
+    height: 14px;
 }
 
 
 .auth-hero__copy h1 {
-    max-width: 610px;
+    max-width: 510px;
+    margin: 0 0 20px;
+    color: #392820;
+    font-size: clamp(38px, 3.85vw, 62px);
+    font-weight: 600;
+    line-height: 1.12;
+    letter-spacing: -0.055em;
+    text-wrap: balance;
+}
 
-    margin:
-        0
-        0
-        16px;
-
-    color: #ffffff;
-
-    font-size:
-        clamp(
-            44px,
-            5vw,
-            70px
-        );
-
-    line-height: 0.98;
-
-    letter-spacing: -0.065em;
+.auth-hero__copy h1 em {
+    display: block;
+    margin-top: 3px;
+    color: var(--likhae-red);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.14em;
+    font-weight: 400;
+    letter-spacing: -0.045em;
 }
 
 
 .auth-hero__copy p {
-    max-width: 540px;
-
+    max-width: 340px;
     margin: 0;
-
-    color:
-        rgba(255, 255, 255, 0.74);
-
-    font-size: 15px;
-
-    line-height: 1.7;
+    color: #675347;
+    font-size: 13px;
+    line-height: 1.8;
+    text-wrap: pretty;
 }
 
 
 /* =========================================================
-   PRODUCT DECORATION
+   HERO BENEFITS
 ========================================================= */
 
-.auth-product-showcase {
-    max-width: 570px;
-
+.auth-hero__benefits {
     display: grid;
-
-    grid-template-columns:
-        1.05fr
-        0.95fr;
-
-    gap: 12px;
-
-    margin-top: 32px;
-}
-
-
-.auth-product-column {
-    display: grid;
-
-    gap: 12px;
-}
-
-
-.auth-product-card {
-    position: relative;
-
-    overflow: hidden;
-
-    min-height: 126px;
-
-    display: flex;
-
-    flex-direction: column;
-
-    justify-content: space-between;
-
-    padding: 15px;
-
-    border:
-        1px solid
-        rgba(255, 255, 255, 0.16);
-
-    border-radius: 17px;
-
-    background:
-        rgba(255, 255, 255, 0.11);
-
-    backdrop-filter:
-        blur(12px);
-}
-
-
-.auth-product-card--large {
-    min-height: 264px;
-}
-
-
-.auth-product-visual {
-    flex: 1;
-
-    display: grid;
-
-    place-items: center;
-
-    font-size: 58px;
-
-    filter:
-        drop-shadow(
-            0 15px 20px
-            rgba(0, 0, 0, 0.15)
-        );
-}
-
-
-.auth-product-card--large
-.auth-product-visual {
-    font-size: 94px;
-}
-
-
-.auth-product-card span {
-    color:
-        rgba(255, 255, 255, 0.86);
-
-    font-size: 12px;
-
-    font-weight: 700;
-}
-
-
-/* =========================================================
-   BENEFIT PILLS
-========================================================= */
-
-.auth-hero__pills {
-    display: flex;
-
-    flex-wrap: wrap;
-
-    gap: 8px;
-
-    padding: 0;
-
-    margin:
-        28px
-        0
-        0;
-
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    margin: 0;
+    padding: 18px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 16px;
+    background: rgba(255, 250, 241, 0.94);
+    box-shadow: 0 8px 32px rgba(57, 40, 32, 0.07);
     list-style: none;
 }
 
-
-.auth-hero__pills li {
+.auth-hero__benefits li {
     display: flex;
-
+    flex-direction: column;
     align-items: center;
-
-    gap: 7px;
-
-    padding:
-        9px
-        11px;
-
-    color:
-        rgba(255, 255, 255, 0.82);
-
-    background:
-        rgba(255, 255, 255, 0.09);
-
-    border:
-        1px solid
-        rgba(255, 255, 255, 0.12);
-
-    border-radius: 999px;
-
-    font-size: 11px;
-
-    font-weight: 650;
-}
-
-
-.auth-pill-icon {
-    width: 19px;
-
-    height: 19px;
-
-    display: grid;
-
-    place-items: center;
-
+    gap: 5px;
+    min-width: 0;
+    padding: 0 8px;
     color: var(--likhae-red);
-
-    background: #ffffff;
-
-    border-radius: 50%;
-
-    font-size: 10px;
-
-    font-weight: 900;
+    text-align: center;
 }
 
+.auth-hero__benefits li + li {
+    border-left: 1px solid rgba(103, 83, 71, 0.16);
+}
+
+.auth-hero__benefits strong {
+    margin-top: 3px;
+    color: #49372d;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.auth-hero__benefits span {
+    color: #756053;
+    font-size: 9px;
+    line-height: 1.5;
+}
 
 .auth-hero__footer {
-    position: relative;
-
-    z-index: 3;
-
-    color:
-        rgba(255, 255, 255, 0.46);
-
-    font-size: 11px;
+    margin-top: auto;
 }
 
-
-/* =========================================================
-   BACKGROUND DECORATION
-========================================================= */
-
-.auth-hero__deco {
-    position: absolute;
-
-    inset: 0;
-
-    pointer-events: none;
+.auth-hero__tagline {
+    margin: 16px 0 0;
+    color: #49372d;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-align: center;
 }
 
-
-.deco-ring {
-    position: absolute;
-
-    border:
-        1px solid
-        rgba(255, 255, 255, 0.08);
-
-    border-radius: 50%;
-}
-
-
-.deco-ring--1 {
-    width: 430px;
-
-    height: 430px;
-
-    right: -230px;
-
-    top: -80px;
-}
-
-
-.deco-ring--2 {
-    width: 640px;
-
-    height: 640px;
-
-    left: -420px;
-
-    bottom: -280px;
+@supports (backdrop-filter: blur(16px)) {
+    .auth-hero__benefits {
+        background: rgba(255, 250, 241, 0.84);
+        backdrop-filter: blur(16px);
+    }
 }
 
 
@@ -1197,6 +1029,21 @@ html.dark .likhae-logo {
    RESPONSIVE
 ========================================================= */
 
+@media (min-width: 1051px) and (max-height: 800px) {
+    .auth-hero__inner {
+        padding: 32px;
+    }
+
+    .auth-eyebrow {
+        margin-bottom: 18px;
+    }
+
+    .auth-hero__copy h1 {
+        margin-bottom: 16px;
+        font-size: 40px;
+    }
+}
+
 @media (
     max-width: 1050px
 ) {
@@ -1209,21 +1056,29 @@ html.dark .likhae-logo {
 
 
     .auth-hero__inner {
-        width:
-            min(
-                560px,
-                calc(100% - 48px)
-            );
+        padding: 28px 22px;
     }
 
 
     .auth-hero__copy h1 {
-        font-size:
-            clamp(
-                40px,
-                5vw,
-                58px
-            );
+        font-size: 38px;
+    }
+
+    .auth-eyebrow {
+        font-size: 9px;
+        letter-spacing: 0.06em;
+    }
+
+    .auth-hero__benefits {
+        padding: 16px 4px;
+    }
+
+    .auth-hero__benefits li {
+        padding: 0 6px;
+    }
+
+    .auth-hero__benefits span {
+        display: none;
     }
 
 
