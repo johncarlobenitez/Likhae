@@ -161,8 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ];
 
 
-        if (seller) {
-
+        if (seller || logistics) {
             steps.push({
                 name:
                     'business',
@@ -174,17 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
 
-        if (logistics) {
 
-            steps.push({
-                name:
-                    'logistics-business',
-
-                title:
-                    'Business Information',
-            });
-
-        }
 
 
         if (rider) {
@@ -273,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sellerStep) {
 
             sellerStep.hidden =
-                !seller;
+                !(seller || logistics);
 
         }
 
@@ -281,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sellerProgressStep) {
 
             sellerProgressStep.hidden =
-                !seller;
+                !(seller || logistics);
 
         }
 
@@ -289,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (businessPermitUpload) {
 
             businessPermitUpload.hidden =
-                !seller;
+                !(seller || logistics);
 
         }
 
@@ -297,8 +286,8 @@ document.addEventListener('DOMContentLoaded', () => {
         sellerRequiredFields.forEach(
             (field) => {
 
-                field.required =
-                    seller;
+                field.required = seller || (logistics && field.name !== 'line_of_business');
+                field.disabled = !field.required;
 
             }
         );
@@ -415,8 +404,8 @@ document.addEventListener('DOMContentLoaded', () => {
         riderRequiredFields.forEach(
             (field) => {
 
-                field.required =
-                    rider;
+                field.required = rider;
+                field.disabled = !rider;
 
             }
         );
@@ -486,6 +475,12 @@ document.addEventListener('DOMContentLoaded', () => {
         |--------------------------------------------------------------
         */
 
+        const businessLine = document.getElementById('line_of_business');
+        if (businessLine) businessLine.closest('.register-field').hidden = !seller;
+        if (sellerProgressStep) {
+            sellerProgressStep.hidden = !(seller || logistics || rider);
+            sellerProgressStep.lastElementChild.textContent = rider ? 'Vehicle' : 'Business';
+        }
         currentStep = 0;
 
 
@@ -1160,13 +1155,22 @@ document.addEventListener('DOMContentLoaded', () => {
         'submit',
         (event) => {
 
-            if (
-                !validateCurrentStep()
-            ) {
-
+            const steps = getSteps();
+            if (currentStep < steps.length - 1) {
                 event.preventDefault();
-
+                nextButton?.click();
+                return;
             }
+            const password = document.getElementById('password');
+            const confirmation = document.getElementById('password_confirmation');
+            confirmation.setCustomValidity(password.value === confirmation.value ? '' : 'Passwords must match.');
+            if (!validateCurrentStep()) {
+                event.preventDefault();
+                confirmation.reportValidity();
+                return;
+            }
+            submitButton.disabled = true;
+            submitLabel.textContent = 'Submitting application...';
 
         }
     );
@@ -1487,7 +1491,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const response =
                 await fetch(
-                    '/address/philippines/regions',
+                    form.dataset.addressBase + '/regions',
                     {
                         headers: {
                             Accept:
@@ -1587,7 +1591,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const response =
                     await fetch(
-                        `/address/philippines/regions/${encodeURIComponent(
+                        `${form.dataset.addressBase}/regions/${encodeURIComponent(
                             region.value
                         )}/provinces`,
                         {
@@ -1682,10 +1686,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     municipality.appendChild(cityOption);
                     municipality.disabled = false;
 
-                    if (oldMunicipality) {
-                        municipality.value = oldMunicipality;
-                    }
-
+                    municipality.value = oldMunicipality || selectedProvince.value;
+                    municipality.dispatchEvent(new Event('change'));
                     return;
                 }
 
@@ -1695,7 +1697,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const response =
                     await fetch(
-                        `/address/philippines/provinces/${encodeURIComponent(
+                        `${form.dataset.addressBase}/provinces/${encodeURIComponent(
                             province.value
                         )}/municipalities?prv=${encodeURIComponent(
                             province.selectedOptions[0]?.dataset.prv
@@ -1799,7 +1801,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const response =
                     await fetch(
-                        `/address/philippines/municipalities/${encodeURIComponent(
+                        `${form.dataset.addressBase}/municipalities/${encodeURIComponent(
                             municipality.value
                         )}/barangays?mun=${encodeURIComponent(
                             municipality.selectedOptions[0]?.dataset.mun
@@ -1891,6 +1893,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
 
+    window.addEventListener('pageshow', () => {
+        submitButton.disabled = false;
+    });
     const initialAccountType = accountTypeInput?.value;
 
     setAccountType(
@@ -1900,504 +1905,3 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
 });
-
-
-/* The address flow below is retained only for reference from the old form. */
-if (false) {
-const provinceSelect =
-    document.querySelector(
-        '[data-address-province]'
-    );
-
-
-const municipalitySelect =
-    document.querySelector(
-        '[data-address-municipality]'
-    );
-
-
-const barangaySelect =
-    document.querySelector(
-        '[data-address-barangay]'
-    );
-
-
-/*
-|--------------------------------------------------------------------------
-| Original Values
-|--------------------------------------------------------------------------
-|
-| Useful if Laravel sends validation errors and reloads the form.
-|
-*/
-
-const oldProvince =
-    provinceSelect?.dataset.oldValue
-    ?? '';
-
-
-const oldMunicipality =
-    municipalitySelect?.dataset.oldValue
-    ?? '';
-
-
-const oldBarangay =
-    barangaySelect?.dataset.oldValue
-    ?? '';
-
-
-/*
-|--------------------------------------------------------------------------
-| Reset Select
-|--------------------------------------------------------------------------
-*/
-
-function resetAddressSelect(
-    select,
-    placeholder
-) {
-
-    if (!select) {
-        return;
-    }
-
-
-    select.innerHTML =
-        `<option value="">${placeholder}</option>`;
-
-
-    select.disabled =
-        true;
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| Loading State
-|--------------------------------------------------------------------------
-*/
-
-function setAddressLoading(
-    select,
-    message
-) {
-
-    if (!select) {
-        return;
-    }
-
-
-    select.disabled =
-        true;
-
-
-    select.innerHTML =
-        `<option value="">${message}</option>`;
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| Error State
-|--------------------------------------------------------------------------
-*/
-
-function setAddressError(
-    select
-) {
-
-    if (!select) {
-        return;
-    }
-
-
-    select.disabled =
-        false;
-
-
-    select.innerHTML = `
-        <option value="">
-            Address service unavailable — refresh to retry
-        </option>
-    `;
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| Populate Options
-|--------------------------------------------------------------------------
-*/
-
-function populateAddressOptions(
-    select,
-    records,
-    placeholder,
-    selectedValue = ''
-) {
-
-    if (!select) {
-        return;
-    }
-
-
-    select.innerHTML =
-        `<option value="">${placeholder}</option>`;
-
-
-    records.forEach(
-        (record) => {
-
-            const option =
-                document.createElement(
-                    'option'
-                );
-
-
-            option.value =
-                record.code;
-
-
-            option.textContent =
-                record.name;
-
-
-            if (
-                String(record.code)
-                ===
-                String(selectedValue)
-            ) {
-
-                option.selected =
-                    true;
-
-            }
-
-
-            select.appendChild(
-                option
-            );
-
-        }
-    );
-
-
-    select.disabled =
-        false;
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| Get JSON
-|--------------------------------------------------------------------------
-*/
-
-async function fetchAddressData(
-    url
-) {
-
-    const response =
-        await fetch(
-            url,
-            {
-                headers: {
-                    Accept:
-                        'application/json',
-
-                    'X-Requested-With':
-                        'XMLHttpRequest',
-                },
-            }
-        );
-
-
-    if (!response.ok) {
-
-        throw new Error(
-            `Address API request failed: ${response.status}`
-        );
-
-    }
-
-
-    const result =
-        await response.json();
-
-
-    return Array.isArray(result)
-        ? result
-        : (
-            result.data
-            ??
-            []
-        );
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| Load Provinces
-|--------------------------------------------------------------------------
-*/
-
-async function loadProvinces(
-    selectedProvince = ''
-) {
-
-    if (!provinceSelect) {
-        return;
-    }
-
-
-    try {
-
-        setAddressLoading(
-            provinceSelect,
-            'Loading provinces...'
-        );
-
-
-        const provinces =
-            await fetchAddressData(
-                '/address/philippines/provinces'
-            );
-
-
-        populateAddressOptions(
-            provinceSelect,
-            provinces,
-            'Select province',
-            selectedProvince
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            'Province loading error:',
-            error
-        );
-
-
-        setAddressError(
-            provinceSelect
-        );
-
-    }
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| Load Cities / Municipalities
-|--------------------------------------------------------------------------
-*/
-
-async function loadMunicipalities(
-    provinceCode,
-    selectedMunicipality = ''
-) {
-
-    resetAddressSelect(
-        municipalitySelect,
-        'Select municipality / city'
-    );
-
-
-    resetAddressSelect(
-        barangaySelect,
-        'Select barangay'
-    );
-
-
-    if (!provinceCode) {
-        return;
-    }
-
-
-    try {
-
-        setAddressLoading(
-            municipalitySelect,
-            'Loading cities / municipalities...'
-        );
-
-
-        const municipalities =
-            await fetchAddressData(
-                `/address/philippines/provinces/${encodeURIComponent(
-                    provinceCode
-                )}/municipalities`
-            );
-
-
-        populateAddressOptions(
-            municipalitySelect,
-            municipalities,
-            'Select municipality / city',
-            selectedMunicipality
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            'Municipality loading error:',
-            error
-        );
-
-
-        setAddressError(
-            municipalitySelect
-        );
-
-    }
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| Load Barangays
-|--------------------------------------------------------------------------
-*/
-
-async function loadBarangays(
-    municipalityCode,
-    selectedBarangay = ''
-) {
-
-    resetAddressSelect(
-        barangaySelect,
-        'Select barangay'
-    );
-
-
-    if (!municipalityCode) {
-        return;
-    }
-
-
-    try {
-
-        setAddressLoading(
-            barangaySelect,
-            'Loading barangays...'
-        );
-
-
-        const barangays =
-            await fetchAddressData(
-                `/address/philippines/municipalities/${encodeURIComponent(
-                    municipalityCode
-                )}/barangays`
-            );
-
-
-        populateAddressOptions(
-            barangaySelect,
-            barangays,
-            'Select barangay',
-            selectedBarangay
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            'Barangay loading error:',
-            error
-        );
-
-
-        setAddressError(
-            barangaySelect
-        );
-
-    }
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| Province Change
-|--------------------------------------------------------------------------
-*/
-
-provinceSelect?.addEventListener(
-    'change',
-    async () => {
-
-        await loadMunicipalities(
-            provinceSelect.value
-        );
-
-    }
-);
-
-
-/*
-|--------------------------------------------------------------------------
-| Municipality Change
-|--------------------------------------------------------------------------
-*/
-
-municipalitySelect?.addEventListener(
-    'change',
-    async () => {
-
-        await loadBarangays(
-            municipalitySelect.value
-        );
-
-    }
-);
-
-
-/*
-|--------------------------------------------------------------------------
-| Initialize Address
-|--------------------------------------------------------------------------
-*/
-
-async function initializeAddressSelection() {
-
-    await loadProvinces(
-        oldProvince
-    );
-
-
-    if (oldProvince) {
-
-        await loadMunicipalities(
-            oldProvince,
-            oldMunicipality
-        );
-
-    }
-
-
-    if (
-        oldMunicipality
-    ) {
-
-        await loadBarangays(
-            oldMunicipality,
-            oldBarangay
-        );
-
-    }
-
-}
-
-
-initializeAddressSelection();
-}

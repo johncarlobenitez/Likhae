@@ -17,22 +17,20 @@ class EnsureWorkspaceRole
 
         $user = Auth::user();
 
-        if ($user->role !== $role) {
-            return $this->redirectToWorkspace($user->role);
+        if ($user->status !== 'active') {
+            $message = $user->inactiveMessage();
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route(in_array($role, ['logistics', 'rider', 'courier'], true) ? 'logistics.login' : 'login')
+                ->withErrors(['email' => $message]);
         }
 
-        return $next($request);
-    }
+        $actualRole = $user->role === 'courier' ? 'rider' : $user->role;
+        $expectedRole = $role === 'courier' ? 'rider' : $role;
+        abort_unless($actualRole === $expectedRole, 403);
 
-    private function redirectToWorkspace(?string $role): Response
-    {
-        return match ($role) {
-            'admin'     => redirect()->route('admin.dashboard'),
-            'buyer'     => redirect()->route('buyer.home'),
-            'seller'    => redirect()->route('seller.dashboard'),
-            'logistics' => redirect()->route('logistics.dashboard'),
-            'rider', 'courier' => redirect()->route('rider.dashboard'),
-            default     => redirect()->route('login'),
-        };
+        return $next($request);
     }
 }

@@ -1,14 +1,12 @@
 <?php
 
+use App\Http\Controllers\AuthenticationController;
+use App\Http\Middleware\EnsureWorkspaceRole;
 use Illuminate\Support\Facades\Route;
-
-
 
 Route::prefix('logistics')
     ->name('logistics.')
     ->group(function () {
-
-
 
         /*
         |--------------------------------------------------------------------------
@@ -27,429 +25,290 @@ Route::prefix('logistics')
                 'homeRoute' => route('logistics.home'),
                 'loginRoute' => route('logistics.login.store'),
                 'registerRoute' => route('register', ['role' => 'logistics']),
-                'demoEmail' => 'logistics@likhae.com or rider@likhae.com',
-                'demoPassword' => 'Use the assigned demo password',
             ]);
-        })->name('login');
+        })->middleware('guest')->name('login');
 
-        Route::post('/login', function (\Illuminate\Http\Request $request) {
-            $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
+        Route::post('/login', [AuthenticationController::class, 'store'])->middleware(['guest', 'throttle:30,1'])->name('login.store');
 
-            $user = \App\Models\User::where('email', $request->email)->first();
+        Route::middleware(['auth', 'workspace.role:logistics'])->group(function () {
 
-            if (! $user || ! \Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
-                return back()->withErrors(['email' => 'Invalid email or password.'])->withInput();
-            }
+            /*
+            |--------------------------------------------------------------------------
+            | DASHBOARD
+            |--------------------------------------------------------------------------
+            */
 
-            if (! in_array($user->role, ['logistics', 'rider', 'courier'], true)) {
-                return back()->withErrors(['email' => 'This account belongs to the LIKHAE Marketplace. Use the Marketplace Login page.'])->withInput();
-            }
+            Route::get('/dashboard', function () {
+                return view('logistics.dashboard.index');
+            })->name('dashboard')->middleware(['auth', EnsureWorkspaceRole::class.':logistics']);
 
-            if ($user->status !== 'active') {
-                return back()->withErrors(['email' => 'Your account is not yet active.'])->withInput();
-            }
+            /*
+            |--------------------------------------------------------------------------
+            | PARCELS
+            |--------------------------------------------------------------------------
+            */
 
-            \Illuminate\Support\Facades\Auth::login($user, $request->boolean('remember'));
-            $request->session()->regenerate();
+            Route::get('/parcels', function () {
 
-            return redirect()->route($user->role === 'rider' || $user->role === 'courier' ? 'rider.dashboard' : 'logistics.dashboard');
-        })->name('login.store');
+                return view(
+                    'logistics.parcels.index'
+                );
 
+            })->name('parcels');
 
+            Route::get('/parcels/receive', function () {
 
+                return view(
+                    'logistics.parcels.receive'
+                );
 
-        /*
-        |--------------------------------------------------------------------------
-        | DASHBOARD
-        |--------------------------------------------------------------------------
-        */
+            })->name('parcels.receive');
 
-        Route::get('/dashboard', function () {
-            return view('logistics.dashboard.index');
-        })->name('dashboard')->middleware(['auth', \App\Http\Middleware\EnsureWorkspaceRole::class.':logistics']);
+            Route::get('/parcels/tracking', function () {
 
+                return view(
+                    'logistics.tracking.index'
+                );
 
+            })->name('parcels.tracking');
 
+            Route::get('/scanner', fn () => view('logistics.scanner'))->name('scanner');
 
+            Route::get('/waybills/{tracking}', function (string $tracking) {
+                return view('logistics.waybill', ['tracking' => $tracking]);
+            })->name('waybills.show');
 
+            Route::get('/parcels/{id}', function ($id) {
 
+                return view(
+                    'logistics.parcels.show',
+                    [
+                        'id' => $id,
+                    ]
+                );
 
-        /*
-        |--------------------------------------------------------------------------
-        | PARCELS
-        |--------------------------------------------------------------------------
-        */
+            })->name('parcels.show');
 
+            /*
+            |--------------------------------------------------------------------------
+            | SORTING CENTER
+            |--------------------------------------------------------------------------
+            */
 
-        Route::get('/parcels', function () {
+            Route::get('/sorting', function () {
 
-            return view(
-                'logistics.parcels.index'
-            );
+                return view(
+                    'logistics.sorting.index'
+                );
 
-        })->name('parcels');
+            })->name('sorting');
 
+            /*
+            |--------------------------------------------------------------------------
+            | RIDER ASSIGNMENTS
+            |--------------------------------------------------------------------------
+            */
 
+            Route::get('/assignments', function () {
 
-        Route::get('/parcels/receive', function () {
+                return view(
+                    'logistics.assignments.index'
+                );
 
-            return view(
-                'logistics.parcels.receive'
-            );
+            })->name('assignments');
 
-        })->name('parcels.receive');
+            Route::get('/assignments/{id}/assign', function ($id) {
 
+                return view(
+                    'logistics.assignments.assign',
+                    [
+                        'id' => $id,
+                    ]
+                );
 
+            })->name('assignments.assign');
 
+            /*
+            |--------------------------------------------------------------------------
+            | RIDERS
+            |--------------------------------------------------------------------------
+            */
 
-        Route::get('/parcels/tracking', function () {
+            Route::get('/riders', function () {
 
-            return view(
-                'logistics.tracking.index'
-            );
+                return view(
+                    'logistics.riders.index'
+                );
 
-        })->name('parcels.tracking');
+            })->name('riders');
 
-        Route::get('/scanner', fn () => view('logistics.scanner'))->name('scanner');
+            /*
+            |--------------------------------------------------------------------------
+            | RIDER APPLICATIONS
+            |--------------------------------------------------------------------------
+            */
 
-        Route::get('/waybills/{tracking}', function (string $tracking) {
-            return view('logistics.waybill', ['tracking' => $tracking]);
-        })->name('waybills.show');
+            Route::get('/riders/applications', function () {
 
+                return view('logistics.riders.application.index');
 
+            })->name('riders.applications');
 
+            Route::get('/riders/applications/{id}', function ($id) {
 
-        Route::get('/parcels/{id}', function ($id) {
+                $rider = [
+                    'id' => $id,
+                    'name' => 'Juan Dela Cruz',
+                    'status' => session('rider_status', 'Pending Approval'),
+                    'email' => 'juan@email.com',
+                    'contact' => '09175551234',
+                    'vehicle' => 'Motorcycle',
+                    'plate' => 'ABC-1234',
+                ];
 
-            return view(
-                'logistics.parcels.show',
-                [
-                    'id'=>$id
-                ]
-            );
+                return view('logistics.riders.application.show', compact('rider'));
 
-        })->name('parcels.show');
+            })->name('riders.applications.show');
 
+            /*
+            |--------------------------------------------------------------------------
+            | VIEW RIDER PROFILE
+            |--------------------------------------------------------------------------
+            */
 
+            Route::get('/riders/{id}', function ($id) {
 
+                return view(
+                    'logistics.riders.show',
+                    [
 
+                        'rider' => [
 
+                            'id' => $id,
 
+                            'name' => 'Juan Dela Cruz',
 
-        /*
-        |--------------------------------------------------------------------------
-        | SORTING CENTER
-        |--------------------------------------------------------------------------
-        */
+                            'status' => session(
+                                'rider_status',
+                                'Pending Approval'
+                            ),
 
+                            'email' => 'juan@email.com',
 
-        Route::get('/sorting', function () {
+                            'contact' => '09175551234',
 
-            return view(
-                'logistics.sorting.index'
-            );
+                            'vehicle' => 'Motorcycle',
 
-        })->name('sorting');
+                            'plate' => 'ABC-1234',
 
-
-
-
-
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | RIDER ASSIGNMENTS
-        |--------------------------------------------------------------------------
-        */
-
-
-        Route::get('/assignments', function () {
-
-            return view(
-                'logistics.assignments.index'
-            );
-
-        })->name('assignments');
-
-
-
-        Route::get('/assignments/{id}/assign', function ($id) {
-
-
-            return view(
-                'logistics.assignments.assign',
-                [
-                    'id'=>$id
-                ]
-            );
-
-
-        })->name('assignments.assign');
-
-
-
-
-
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | RIDERS
-        |--------------------------------------------------------------------------
-        */
-
-
-        Route::get('/riders', function () {
-
-            return view(
-                'logistics.riders.index'
-            );
-
-        })->name('riders');
-
-
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | RIDER APPLICATIONS
-        |--------------------------------------------------------------------------
-        */
-
-
-        Route::get('/riders/applications', function () {
-
-            return view('logistics.riders.application.index');
-
-        })->name('riders.applications');
-
-
-
-        Route::get('/riders/applications/{id}', function ($id) {
-
-            $rider = [
-                'id'      => $id,
-                'name'    => 'Juan Dela Cruz',
-                'status'  => session('rider_status', 'Pending Approval'),
-                'email'   => 'juan@email.com',
-                'contact' => '09175551234',
-                'vehicle' => 'Motorcycle',
-                'plate'   => 'ABC-1234',
-            ];
-
-            return view('logistics.riders.application.show', compact('rider'));
-
-        })->name('riders.applications.show');
-
-
-
-
-
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | VIEW RIDER PROFILE
-        |--------------------------------------------------------------------------
-        */
-
-
-        Route::get('/riders/{id}', function ($id) {
-
-
-
-            return view(
-                'logistics.riders.show',
-                [
-
-                    'rider'=>[
-
-                        'id'=>$id,
-
-                        'name'=>'Juan Dela Cruz',
-
-                        'status'=>session(
-                            'rider_status',
-                            'Pending Approval'
-                        ),
-
-
-                        'email'=>'juan@email.com',
-
-                        'contact'=>'09175551234',
-
-                        'vehicle'=>'Motorcycle',
-
-                        'plate'=>'ABC-1234'
+                        ],
 
                     ]
+                );
 
+            })->name('riders.show');
 
-                ]
-            );
+            /*
+            |--------------------------------------------------------------------------
+            | APPROVE RIDER
+            |--------------------------------------------------------------------------
+            */
 
+            Route::post('/riders/{id}/approve', function ($id) {
 
+                session(['rider_status' => 'Approved']);
 
-        })->name('riders.show');
+                return redirect()
+                    ->route('logistics.riders.applications.show', $id)
+                    ->with('success', 'Rider application approved successfully.');
 
+            })->name('riders.approve');
 
+            /*
+            |--------------------------------------------------------------------------
+            | REJECT RIDER
+            |--------------------------------------------------------------------------
+            */
 
+            Route::post('/riders/{id}/reject', function ($id) {
 
+                session(['rider_status' => 'Rejected']);
 
+                return redirect()
+                    ->route('logistics.riders.applications.show', $id)
+                    ->with('success', 'Rider application rejected.');
 
+            })->name('riders.reject');
 
-        /*
-        |--------------------------------------------------------------------------
-        | APPROVE RIDER
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | DELIVERY AREAS
+            |--------------------------------------------------------------------------
+            */
 
+            Route::get('/delivery-areas', function () {
 
-        Route::post('/riders/{id}/approve', function ($id) {
+                return view(
+                    'logistics.delivery-areas.index'
+                );
 
-            session(['rider_status' => 'Approved']);
+            })->name('delivery-areas');
 
-            return redirect()
-                ->route('logistics.riders.applications.show', $id)
-                ->with('success', 'Rider application approved successfully.');
+            /*
+            |--------------------------------------------------------------------------
+            | MESSAGES
+            |--------------------------------------------------------------------------
+            */
 
-        })->name('riders.approve');
+            Route::get('/messages', function () {
 
+                return view(
+                    'logistics.messages.index'
+                );
 
+            })->name('messages');
 
+            /*
+            |--------------------------------------------------------------------------
+            | REPORTS
+            |--------------------------------------------------------------------------
+            */
 
+            Route::get('/reports', function () {
 
+                return view(
+                    'logistics.reports.index'
+                );
 
+            })->name('reports');
 
-        /*
-        |--------------------------------------------------------------------------
-        | REJECT RIDER
-        |--------------------------------------------------------------------------
-        */
+            /*
+            |--------------------------------------------------------------------------
+            | PROFILE
+            |--------------------------------------------------------------------------
+            */
 
+            Route::get('/profile', function () {
 
-        Route::post('/riders/{id}/reject', function ($id) {
+                return view(
+                    'logistics.profile.index'
+                );
 
-            session(['rider_status' => 'Rejected']);
+            })->name('profile');
 
-            return redirect()
-                ->route('logistics.riders.applications.show', $id)
-                ->with('success', 'Rider application rejected.');
+            /*
+            |--------------------------------------------------------------------------
+            | ACCOUNT (alias for profile)
+            |--------------------------------------------------------------------------
+            */
 
-        })->name('riders.reject');
+            Route::get('/account', function () {
 
+                return view(
+                    'logistics.profile.index'
+                );
 
+            })->name('account');
 
-
-
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | DELIVERY AREAS
-        |--------------------------------------------------------------------------
-        */
-
-
-        Route::get('/delivery-areas', function () {
-
-
-            return view(
-                'logistics.delivery-areas.index'
-            );
-
-
-        })->name('delivery-areas');
-
-
-
-
-
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | MESSAGES
-        |--------------------------------------------------------------------------
-        */
-
-
-        Route::get('/messages', function () {
-
-
-            return view(
-                'logistics.messages.index'
-            );
-
-
-        })->name('messages');
-
-
-
-
-
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | REPORTS
-        |--------------------------------------------------------------------------
-        */
-
-
-        Route::get('/reports', function () {
-
-
-            return view(
-                'logistics.reports.index'
-            );
-
-
-        })->name('reports');
-
-
-
-
-
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | PROFILE
-        |--------------------------------------------------------------------------
-        */
-
-
-        Route::get('/profile', function () {
-
-
-            return view(
-                'logistics.profile.index'
-            );
-
-
-        })->name('profile');
-
-
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | ACCOUNT (alias for profile)
-        |--------------------------------------------------------------------------
-        */
-
-
-        Route::get('/account', function () {
-
-
-            return view(
-                'logistics.profile.index'
-            );
-
-
-        })->name('account');
-
-
-});
+        });
+    });

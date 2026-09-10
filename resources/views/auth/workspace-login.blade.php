@@ -97,7 +97,7 @@
                             name="email"
                             type="email"
                             value="{{ old('email') }}"
-                            placeholder="{{ $demoEmail }}"
+                            placeholder="you@example.com"
                             autocomplete="email"
                             required
                             autofocus
@@ -150,13 +150,6 @@
                     </svg>
                 </button>
             </form>
-
-            <div class="auth-divider">Demo access</div>
-
-            <div class="auth-alert auth-alert--success">
-                <span><strong>Email:</strong> {{ $demoEmail }}</span>
-                <span><strong>Password:</strong> {{ $demoPassword }}</span>
-            </div>
 
             <p class="auth-switch">
                 Need a {{ strtolower($accountLabel) }} account?
