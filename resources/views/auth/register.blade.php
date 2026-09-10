@@ -517,6 +517,7 @@
                 class="register-form"
                 id="registrationForm"
                 novalidate
+                data-address-base="{{ url('/address/philippines') }}"
             >
 
                 @csrf
@@ -1029,6 +1030,30 @@
                 </section>
 
 
+                <section class="register-step" data-form-step data-step="rider-vehicle" data-rider-step hidden>
+                    <div class="register-section">
+                        <div class="register-section__head">
+                            <span class="register-section__number">04</span>
+                            <div><h3>Vehicle Information</h3><p>Enter the vehicle you will use for deliveries.</p></div>
+                        </div>
+                        <div class="register-grid">
+                            <div class="register-field">
+                                <label for="vehicle_type">Vehicle Type <span>*</span></label>
+                                <select id="vehicle_type" name="vehicle_type" data-rider-required>
+                                    <option value="">Select vehicle type</option>
+                                    @foreach(['motorcycle' => 'Motorcycle', 'car' => 'Car', 'van' => 'Van', 'truck' => 'Truck'] as $value => $label)
+                                        <option value="{{ $value }}" @selected(old('vehicle_type') === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="register-field">
+                                <label for="plate_number">Plate Number <span>*</span></label>
+                                <input id="plate_number" name="plate_number" value="{{ old('plate_number') }}" maxlength="30" data-rider-required>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 {{-- =================================================
                     FINAL STEP — VERIFICATION
                 ================================================== --}}
@@ -1152,6 +1177,19 @@
                         </div>
 
 
+                        <div class="register-grid" id="riderVehicleSection" hidden>
+                            @foreach(['or_cr' => 'Vehicle OR / CR', 'drivers_license' => "Driver's License"] as $field => $label)
+                                <div class="upload-box">
+                                    <input id="{{ $field }}" name="{{ $field }}" type="file" accept=".jpg,.jpeg,.png,.pdf" data-file-input data-rider-required>
+                                    <label for="{{ $field }}" class="upload-box__label">
+                                        <strong>Upload {{ $label }}</strong>
+                                        <span>JPG, JPEG, PNG or PDF, up to 5 MB</span>
+                                        <small data-file-name>No file selected</small>
+                                    </label>
+                                </div>
+                            @endforeach
+                        </div>
+
                         {{-- PASSWORD --}}
                         <div class="register-grid" style="margin-top:1.5rem;">
 
@@ -1163,6 +1201,10 @@
                                     id="password"
                                     name="password"
                                     type="password"
+                                    minlength="8"
+                                    maxlength="72"
+                                    pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,72}"
+                                    title="Use 8–72 characters with uppercase and lowercase letters and a number."
                                     placeholder="Min. 8 chars, uppercase, number"
                                     autocomplete="new-password"
                                     required
@@ -1199,8 +1241,7 @@
                                 <p>
                                     After submitting your registration,
                                     please wait for the administrator's
-                                    approval. The decision will be sent
-                                    to your registered email.
+                                    approval. Sign in after approval to access your account.
                                 </p>
                             </div>
 

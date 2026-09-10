@@ -15,8 +15,8 @@
     <main class="panel">
         <span class="mark">L</span>
         <h1>Application submitted</h1>
-        <p>Your {{ $accountType ?? 'LIKHAE' }} application is waiting for approval. We will send the administrator's decision to your email.</p>
-        <a href="{{ route('login') }}">Return to login</a>
+        <p>Your {{ $accountType ?? 'LIKHAE' }} application has been saved and is waiting for administrator approval. You can sign in once your account is approved.</p>
+        <a href="{{ route(in_array($accountType, ['Logistics', 'Rider']) ? 'logistics.login' : 'login') }}">Return to login</a>
     </main>
 </body>
 </html>

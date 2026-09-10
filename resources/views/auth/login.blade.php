@@ -290,6 +290,8 @@
                             <input
                                 type="checkbox"
                                 name="remember"
+                                value="1"
+                                @checked(old('remember'))
                             >
 
                             <span>

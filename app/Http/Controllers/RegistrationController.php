@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
@@ -13,8 +15,11 @@ class RegistrationController extends Controller
 {
     public function store(Request $request): RedirectResponse
     {
+        if (is_string($request->input('email'))) {
+            $request->merge(['email' => mb_strtolower(trim($request->input('email')))]);
+        }
         // The form sends 'account_type'; normalise to 'role'
-        if (! $request->has('role') && $request->has('account_type')) {
+        if ($request->has('account_type')) {
             $request->merge(['role' => $request->input('account_type')]);
         }
 
@@ -31,85 +36,70 @@ class RegistrationController extends Controller
         }
 
         $validated = $request->validate([
-            'role'               => ['required', Rule::in(['buyer', 'seller', 'courier', 'logistics'])],
-            'first_name'         => ['required', 'string', 'max:80'],
-            'last_name'          => ['required', 'string', 'max:80'],
-            'middle_initial'     => ['nullable', 'string', 'max:80'],
-            'sex'                => ['required', Rule::in(['male', 'female', 'Male', 'Female', 'prefer_not_to_say'])],
-            'email'              => ['required', 'email', 'max:255', 'unique:users,email'],
-            'contact_number'     => ['required', 'string', 'max:30'],
-            'birthday'           => ['required', 'date', 'before:today'],
-            'province'           => ['required', 'string', 'max:120'],
-            'municipality'       => ['required', 'string', 'max:120'],
-            'barangay'           => ['required', 'string', 'max:120'],
-            'house_number'       => ['nullable', 'string', 'max:120'],
-            'street'             => ['required', 'string', 'max:255'],
-            'valid_id'           => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'password'           => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()],
-            'terms'              => ['accepted'],
-            'business_name'      => [Rule::requiredIf(in_array($role, ['seller', 'logistics'], true)), 'nullable', 'string', 'max:255'],
-            'store_name'         => ['nullable', 'string', 'max:255'],
-            'line_of_business'   => [Rule::requiredIf($role === 'seller'), 'nullable', 'string', 'max:255'],
-            'business_type'      => ['nullable', 'string', 'max:100'],
-            'dti_sec_number'     => ['nullable', 'string', 'max:100'],
-            'tin'                => ['nullable', 'string', 'max:100'],
-            'business_permit'    => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'vehicle_type'       => [Rule::requiredIf($role === 'courier'), 'nullable', Rule::in(['motorcycle', 'car', 'van', 'truck'])],
-            'plate_number'       => [Rule::requiredIf($role === 'courier'), 'nullable', 'string', 'max:30'],
-            'or_cr'              => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'drivers_license'    => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'role' => ['required', Rule::in(['buyer', 'seller', 'courier', 'logistics'])],
+            'first_name' => ['required', 'string', 'max:80'],
+            'last_name' => ['required', 'string', 'max:80'],
+            'middle_initial' => ['nullable', 'string', 'max:80'],
+            'sex' => ['required', Rule::in(['male', 'female', 'Male', 'Female', 'prefer_not_to_say'])],
+            'email' => ['required', 'email', 'max:255', function ($attribute, $value, $fail) {
+                if (User::whereRaw('LOWER(email) = ?', [$value])->exists()) {
+                    $fail('The email has already been taken.');
+                }
+            }],
+            'contact_number' => ['required', 'string', 'max:30'],
+            'birthday' => ['required', 'date', 'before:today'],
+            'region' => ['required', 'string', 'max:120'],
+            'postal_code' => ['nullable', 'string', 'max:20'],
+            'landmark' => ['nullable', 'string', 'max:255'],
+            'province' => ['required', 'string', 'max:120'],
+            'municipality' => ['required', 'string', 'max:120'],
+            'barangay' => ['required', 'string', 'max:120'],
+            'house_number' => ['nullable', 'string', 'max:120'],
+            'street' => ['required', 'string', 'max:255'],
+            'valid_id' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'password' => ['required', 'confirmed', 'max:72', Password::min(8)->mixedCase()->numbers()],
+            'terms' => ['accepted'],
+            'business_name' => [Rule::excludeIf(! in_array($role, ['seller', 'logistics'], true)), 'required', 'string', 'max:255'],
+            'store_name' => [Rule::excludeIf($role !== 'seller'), 'nullable', 'string', 'max:255'],
+            'line_of_business' => [Rule::excludeIf($role !== 'seller'), 'required', 'string', 'max:255'],
+            'business_type' => [Rule::excludeIf(! in_array($role, ['seller', 'logistics'], true)), 'nullable', 'string', 'max:100'],
+            'dti_sec_number' => [Rule::excludeIf(! in_array($role, ['seller', 'logistics'], true)), 'nullable', 'string', 'max:100'],
+            'tin' => [Rule::excludeIf(! in_array($role, ['seller', 'logistics'], true)), 'nullable', 'string', 'max:100'],
+            'business_permit' => [Rule::excludeIf(! in_array($role, ['seller', 'logistics'], true)), 'required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'vehicle_type' => [Rule::excludeIf($role !== 'courier'), 'required', Rule::in(['motorcycle', 'car', 'van', 'truck'])],
+            'plate_number' => [Rule::excludeIf($role !== 'courier'), 'required', 'string', 'max:30'],
+            'or_cr' => [Rule::excludeIf($role !== 'courier'), 'required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'drivers_license' => [Rule::excludeIf($role !== 'courier'), 'required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
-        $validIdPath = $request->hasFile('valid_id')
-            ? $request->file('valid_id')->store('registration/valid-ids', 'public')
-            : null;
-        $businessPermitPath = $request->hasFile('business_permit')
-            ? $request->file('business_permit')->store('registration/business-permits', 'public')
-            : null;
-        $orCrPath = $request->hasFile('or_cr')
-            ? $request->file('or_cr')->store('registration/or-cr', 'public')
-            : null;
-        $driversLicensePath = $request->hasFile('drivers_license')
-            ? $request->file('drivers_license')->store('registration/drivers-licenses', 'public')
-            : null;
+        $uploads = ['valid_id', 'business_permit', 'or_cr', 'drivers_license'];
+        $attributes = Arr::except($validated, [...$uploads, 'terms']);
+        $paths = [];
 
-        User::create([
-            'name'                => trim($validated['first_name'] . ' ' . $validated['last_name']),
-            'email'               => $validated['email'],
-            'password'            => Hash::make($validated['password']),
-            'role'                => $validated['role'],
-            'status'              => 'pending',
-            'first_name'          => $validated['first_name'],
-            'last_name'           => $validated['last_name'],
-            'middle_initial'      => $validated['middle_initial'] ?? null,
-            'sex'                 => $validated['sex'],
-            'birthday'            => $validated['birthday'],
-            'contact_number'      => $validated['contact_number'],
-            'province'            => $validated['province'],
-            'municipality'        => $validated['municipality'],
-            'barangay'            => $validated['barangay'],
-            'house_number'        => $validated['house_number'] ?? null,
-            'street'              => $validated['street'],
-            'valid_id_path'       => $validIdPath,
-            'business_name'       => $validated['business_name'] ?? null,
-            'store_name'          => $validated['store_name'] ?? null,
-            'line_of_business'    => $validated['line_of_business'] ?? null,
-            'business_type'       => $validated['business_type'] ?? null,
-            'dti_sec_number'      => $validated['dti_sec_number'] ?? null,
-            'tin'                 => $validated['tin'] ?? null,
-            'business_permit_path'=> $businessPermitPath,
-            'vehicle_type'        => $validated['vehicle_type'] ?? null,
-            'plate_number'        => $validated['plate_number'] ?? null,
-            'or_cr_path'          => $orCrPath,
-            'drivers_license_path'=> $driversLicensePath,
-        ]);
+        try {
+            foreach ($uploads as $field) {
+                if (isset($validated[$field])) {
+                    $paths[$field.'_path'] = $validated[$field]->store('registration/'.$field, 'registrations');
+                }
+            }
+
+            DB::transaction(function () use ($attributes, $paths) {
+                $user = new User([...$attributes, ...$paths]);
+                $user->name = trim($attributes['first_name'].' '.$attributes['last_name']);
+                $user->status = 'pending';
+                $user->save();
+            });
+        } catch (\Throwable $exception) {
+            Storage::disk('registrations')->delete(array_values($paths));
+            throw $exception;
+        }
 
         $accountTypeLabel = match ($validated['role']) {
-            'buyer'     => 'Buyer',
-            'seller'    => 'Seller',
-            'courier'   => 'Rider',
+            'buyer' => 'Buyer',
+            'seller' => 'Seller',
+            'courier' => 'Rider',
             'logistics' => 'Logistics',
-            default     => 'LIKHAE',
+            default => 'LIKHAE',
         };
 
         return redirect()->route('registration.pending', ['type' => $accountTypeLabel])

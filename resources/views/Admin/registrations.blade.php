@@ -1,4 +1,3 @@
-@php use Illuminate\Support\Facades\Storage; @endphp
 @extends('layouts.admin')
 
 @section('title', 'Registration Management')
@@ -18,6 +17,12 @@
     @if(session('success'))
         <div class="ad-alert ad-alert--success" style="margin-bottom:1rem;padding:.75rem 1rem;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:6px;">
             {{ session('success') }}
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div role="alert" class="ad-alert" style="margin-bottom:1rem;color:#991b1b;">
+            @foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach
         </div>
     @endif
 
@@ -66,24 +71,27 @@
                         <div><dt>Contact</dt><dd>{{ $user->contact_number ?? '—' }}</dd></div>
                         <div><dt>Birthday</dt><dd>{{ $user->birthday ? \Carbon\Carbon::parse($user->birthday)->format('M d, Y') : '—' }}</dd></div>
                         <div><dt>Valid ID</dt><dd>{{ $user->valid_id_path ? 'Uploaded' : 'None' }}</dd></div>
-                        @if($user->role === 'seller')
+                        @if(in_array($user->role, ['seller', 'logistics']))
                             <div><dt>Business</dt><dd>{{ $user->business_name ?? '—' }}</dd></div>
                             <div><dt>Line</dt><dd>{{ $user->line_of_business ?? '—' }}</dd></div>
                             <div><dt>Permit</dt><dd>{{ $user->business_permit_path ? 'Uploaded' : 'None' }}</dd></div>
                         @endif
-                        @if($user->role === 'courier')
+                        @if(in_array($user->role, ['courier', 'rider']))
                             <div><dt>Vehicle</dt><dd>{{ $user->vehicle_type ?? '—' }}</dd></div>
                             <div><dt>Plate</dt><dd>{{ $user->plate_number ?? '—' }}</dd></div>
                         @endif
                     </dl>
 
-                    @if($user->valid_id_path)
-                        <div style="margin:.5rem 0;">
-                            <a href="{{ Storage::url($user->valid_id_path) }}" target="_blank" class="ad-btn ad-btn-secondary ad-btn-sm">View ID</a>
-                            @if($user->business_permit_path)
-                                <a href="{{ Storage::url($user->business_permit_path) }}" target="_blank" class="ad-btn ad-btn-secondary ad-btn-sm">View Permit</a>
+                    <div style="margin:.5rem 0;">
+                        @foreach(['valid_id' => 'ID', 'business_permit' => 'Permit', 'or_cr' => 'OR / CR', 'drivers_license' => "Driver's License"] as $document => $label)
+                            @if($user->getAttribute($document.'_path'))
+                                <a href="{{ route('admin.registrations.document', [$user, $document]) }}" class="ad-btn ad-btn-secondary ad-btn-sm">Download {{ $label }}</a>
                             @endif
-                        </div>
+                        @endforeach
+                    </div>
+                    @if($user->reviewed_at)
+                        <p>Reviewed by {{ $user->reviewer?->name ?? 'Administrator' }} on {{ $user->reviewed_at->format('M d, Y H:i') }}.</p>
+                        @if($user->rejection_reason)<p>Reason: {{ $user->rejection_reason }}</p>@endif
                     @endif
 
                     @if($user->status === 'pending')
@@ -94,8 +102,11 @@
                             </form>
                             <form method="POST" action="{{ route('admin.registrations.reject', $user) }}" style="display:inline;">
                                 @csrf
-                                <button class="ad-btn ad-btn-danger-soft ad-btn-sm" type="submit"
-                                    onclick="return confirm('Reject {{ addslashes($user->name) }}\'s application?')">
+                                <label class="ad-field" for="reason-{{ $user->id }}">
+                                    <span>Reason for rejection</span>
+                                    <textarea id="reason-{{ $user->id }}" name="rejection_reason" required maxlength="2000" rows="2"></textarea>
+                                </label>
+                                <button class="ad-btn ad-btn-danger-soft ad-btn-sm" type="submit" onclick="return confirm('Reject this application?')">
                                     Reject
                                 </button>
                             </form>
@@ -109,5 +120,6 @@
             @endforelse
         </div>
     </section>
+    {{ $applications->links() }}
 </div>
 @endsection

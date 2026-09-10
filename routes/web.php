@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuthenticationController;
 use App\Http\Controllers\PhilippineAddressController;
 use App\Http\Controllers\RegistrationController;
 use Illuminate\Http\Request;
@@ -15,11 +16,11 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-require __DIR__ . '/Admin.php';
-require __DIR__ . '/Seller.php';
-require __DIR__ . '/Buyer.php';
-require __DIR__ . '/logistics.php';
-require __DIR__ . '/rider.php';
+require __DIR__.'/Admin.php';
+require __DIR__.'/Seller.php';
+require __DIR__.'/Buyer.php';
+require __DIR__.'/logistics.php';
+require __DIR__.'/rider.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -43,7 +44,7 @@ Route::get('/products/{slug}', function (string $slug) {
     $product = collect(view()->shared('buyerProducts', []))
         ->firstWhere('slug', $slug);
 
-    abort_if(!$product, 404);
+    abort_if(! $product, 404);
 
     return view('guest.product-details', [
         'product' => $product,
@@ -52,58 +53,20 @@ Route::get('/products/{slug}', function (string $slug) {
 
 /*
 |--------------------------------------------------------------------------
-| Shared Login — All Roles
+| Marketplace Login
 |--------------------------------------------------------------------------
 |
-| ONE login page handles Admin, Buyer, Seller, Logistics, and Rider.
-| The demo account map determines the role automatically from the email.
+| Marketplace login handles Admin, Buyer, and Seller accounts.
+| Logistics and Rider accounts use the separate Logistics Portal.
+| Database credentials and administrator approval determine access.
 |
 */
 
 Route::get('/login', function () {
     return view('auth.login');
-})->name('login');
+})->middleware('guest')->name('login');
 
-Route::post('/login', function (Request $request) {
-    $request->validate([
-        'email' => ['required', 'email'],
-        'password' => ['required', 'string'],
-    ]);
-
-    $user = \App\Models\User::where('email', $request->email)->first();
-
-    if (! $user || ! \Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
-        return back()->withErrors(['email' => 'Invalid email or password.'])->withInput($request->only('email'));
-    }
-
-    if ($user->status === 'pending') {
-        return back()->withErrors(['email' => 'Your account is pending approval.'])->withInput($request->only('email'));
-    }
-
-    if ($user->status === 'rejected') {
-        return back()->withErrors(['email' => 'Your account has been rejected.'])->withInput($request->only('email'));
-    }
-
-    if ($user->status === 'suspended') {
-        return back()->withErrors(['email' => 'Your account has been suspended.'])->withInput($request->only('email'));
-    }
-
-    if (in_array($user->role, ['logistics', 'rider', 'courier'], true)) {
-        return back()->withErrors(['email' => 'This account belongs to the Logistics Portal. Use the Logistics Portal sign in page.'])->withInput($request->only('email'));
-    }
-
-    \Illuminate\Support\Facades\Auth::login($user, $request->boolean('remember'));
-    $request->session()->regenerate();
-
-    $redirects = [
-        'admin'   => route('admin.dashboard'),
-        'buyer'   => route('buyer.home'),
-        'seller'  => route('seller.dashboard'),
-    ];
-
-    return redirect($redirects[$user->role] ?? route('home'))
-        ->with('status', 'Signed in as ' . ucfirst($user->role) . '.');
-})->name('login.post');
+Route::post('/login', [AuthenticationController::class, 'store'])->middleware(['guest', 'throttle:30,1'])->name('login.post');
 
 /*
 |--------------------------------------------------------------------------
@@ -121,9 +84,9 @@ Route::get('/register', function (Request $request) {
     return view('auth.register', [
         'preselectedRole' => $request->query('role', 'buyer'),
     ]);
-})->name('register');
+})->middleware('guest')->name('register');
 
-Route::get('/registration/pending', function (\Illuminate\Http\Request $request) {
+Route::get('/registration/pending', function (Request $request) {
     return view('auth.pending', ['accountType' => $request->query('type', 'LIKHAE')]);
 })->name('registration.pending');
 
@@ -134,7 +97,7 @@ Route::get('/register/{role}', function (string $role) {
 })->name('register.role');
 
 Route::post('/register', [RegistrationController::class, 'store'])
-    ->name('register.store');
+    ->middleware(['guest', 'throttle:10,1'])->name('register.store');
 
 /*
 |--------------------------------------------------------------------------
@@ -164,13 +127,7 @@ Route::prefix('address/philippines')
 |--------------------------------------------------------------------------
 */
 
-Route::post('/logout', function (Request $request) {
-    \Illuminate\Support\Facades\Auth::logout();
-    $request->session()->invalidate();
-    $request->session()->regenerateToken();
-
-    return redirect()->route('login')->with('status', 'You have been signed out.');
-})->name('logout');
+Route::post('/logout', [AuthenticationController::class, 'destroy'])->name('logout');
 
 /*
 |--------------------------------------------------------------------------
