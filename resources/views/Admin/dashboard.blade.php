@@ -29,8 +29,8 @@
     </div>
 
     <section class="ad-stat-grid" aria-label="Platform summary">
-        <x-admin.stat-card label="Pending applications" value="24" trend="+6" detail="since yesterday" icon="users" tone="warning" :href="route('admin.registrations')" />
-        <x-admin.stat-card label="Active users" value="12,480" trend="+4.2%" detail="this month" icon="users" :href="route('admin.users')" />
+        <x-admin.stat-card label="Pending applications" :value="number_format($accountStats['pending'])" detail="Awaiting administrator review" icon="users" tone="warning" :href="route('admin.registrations')" />
+        <x-admin.stat-card label="Active users" :value="number_format($accountStats['active'])" detail="Approved marketplace accounts" icon="users" :href="route('admin.users')" />
         <x-admin.stat-card label="Platform reports" value="14" trend="+2" detail="generated this week" icon="reports" :href="route('admin.reports')" />
         <x-admin.stat-card label="Flagged products" value="17" trend="5 high risk" detail="human review needed" icon="flag" tone="danger" :href="route('admin.products', ['view' => 'monitor'])" />
         <x-admin.stat-card label="Open disputes" value="11" trend="3 urgent" detail="awaiting decision" icon="case" tone="warning" :href="route('admin.complaints')" />
@@ -102,7 +102,7 @@
             </header>
             <div class="ad-queue">
                 <a href="{{ route('admin.products', ['view' => 'monitor']) }}" class="ad-queue-item is-danger"><span class="ad-queue-icon">5</span><span class="ad-queue-copy"><strong>High-risk product flags</strong><span>Possible weapons or controlled items</span></span><span>→</span></a>
-                <a href="{{ route('admin.registrations') }}" class="ad-queue-item is-warning"><span class="ad-queue-icon">24</span><span class="ad-queue-copy"><strong>Pending applications</strong><span>7 older than 24 hours</span></span><span>→</span></a>
+                <a href="{{ route('admin.registrations') }}" class="ad-queue-item is-warning"><span class="ad-queue-icon">{{ number_format($accountStats['pending']) }}</span><span class="ad-queue-copy"><strong>Pending applications</strong><span>{{ number_format($accountStats['pending_older_than_day']) }} older than 24 hours</span></span><span>→</span></a>
                 <a href="{{ route('admin.complaints') }}" class="ad-queue-item is-warning"><span class="ad-queue-icon">3</span><span class="ad-queue-copy"><strong>Urgent disputes</strong><span>Evidence review due today</span></span><span>→</span></a>
             </div>
         </article>
