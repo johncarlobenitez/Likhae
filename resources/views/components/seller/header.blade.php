@@ -1,0 +1,45 @@
+@props([
+    'title' => 'Seller Center',
+    'subtitle' => 'Manage your store operations and performance.',
+])
+
+@php
+    $seller = auth()->user();
+    $sellerName = $seller?->name ?? 'Mariel Santos';
+    $shopName = data_get($seller, 'shop_name', 'LIKHAE Studio');
+    $initial = mb_strtoupper(mb_substr($sellerName, 0, 1));
+@endphp
+
+<header class="sl-header">
+    <div class="sl-header-left">
+        <button class="sl-icon-btn sl-mobile-menu" type="button" data-sl-mobile-menu aria-label="Open navigation" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="sl-header-title">
+            <h1>{{ $title }}</h1>
+            <p>{{ $subtitle }}</p>
+        </div>
+    </div>
+
+    <form class="sl-header-search" action="{{ route('seller.orders') }}" method="GET" role="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+        <input type="search" name="q" value="{{ request('q') }}" placeholder="Search orders, products, buyers..." aria-label="Search Seller Center">
+        <kbd>⌘ K</kbd>
+    </form>
+
+    <div class="sl-header-actions">
+        <a href="{{ route('seller.messages') }}" class="sl-icon-btn sl-header-action" aria-label="Messages">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v12H8l-4 4z"/><path d="M8 9h8M8 13h5"/></svg>
+            <span class="sl-action-badge">3</span>
+        </a>
+        <a href="{{ route('seller.notifications') }}" class="sl-icon-btn sl-header-action" aria-label="Notifications">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+            <span class="sl-action-badge">5</span>
+        </a>
+        <a href="{{ route('seller.account') }}" class="sl-header-profile">
+            <span class="sl-avatar">{{ $initial }}</span>
+            <span><strong>{{ $sellerName }}</strong><small>{{ $shopName }}</small></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+        </a>
+    </div>
+</header>

@@ -1,0 +1,1086 @@
+/* =========================================================
+   LIKHAE LOGISTICS
+   GLOBAL TAILWIND CSS
+   Tailwind CSS v4
+
+   Revised palette:
+   - Light mode: warm cream / almost white
+   - Accent: deep LIKHAE maroon
+   - Text/icons: warm brown
+   - Dark mode: near-black brown with muted maroon accents
+========================================================= */
+
+@import "tailwindcss";
+
+
+/* =========================================================
+   TAILWIND SOURCE SCANNING
+========================================================= */
+
+@source "../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php";
+@source "../../storage/framework/views/*.php";
+@source "../views/**/*.blade.php";
+@source "../js/**/*.js";
+
+
+/* =========================================================
+   MANUAL DARK MODE
+========================================================= */
+
+/*
+|--------------------------------------------------------------------------
+| Dark mode only activates when <html class="dark"> is present.
+| Default remains LIGHT.
+|--------------------------------------------------------------------------
+*/
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+
+/* =========================================================
+   GLOBAL SCALE
+========================================================= */
+
+html {
+    font-size: 14px;
+}
+
+body {
+    font-size: 0.875rem;
+}
+
+
+/* =========================================================
+   LIKHAE LIGHT THEME VARIABLES
+========================================================= */
+
+:root {
+    /* -----------------------------------------------------
+       Main page
+    ----------------------------------------------------- */
+    --lk-page: #FBF7F2;
+    --lk-page-secondary: #F6EFE7;
+
+    /* -----------------------------------------------------
+       Surfaces / cards
+    ----------------------------------------------------- */
+    --lk-surface: #FFFDF9;
+    --lk-surface-secondary: #F8F1EA;
+    --lk-surface-hover: #F3E4DE;
+
+    /* -----------------------------------------------------
+       Text
+    ----------------------------------------------------- */
+    --lk-text: #3B211B;
+    --lk-text-secondary: #6C4936;
+    --lk-muted: #987865;
+    --lk-muted-light: #A99386;
+
+    /* -----------------------------------------------------
+       Borders
+    ----------------------------------------------------- */
+    --lk-border: #EADCCC;
+    --lk-border-strong: #DBCEC1;
+
+    /* -----------------------------------------------------
+       Main LIKHAE maroon brand
+    ----------------------------------------------------- */
+    --lk-primary: #561C17;
+    --lk-primary-hover: #642920;
+    --lk-primary-active: #3E130F;
+    --lk-primary-soft: #F3E4DE;
+    --lk-primary-soft-strong: #E6C7BE;
+
+    /* -----------------------------------------------------
+       Sidebar — LIGHT by default
+    ----------------------------------------------------- */
+    --lk-sidebar: #FFFDF9;
+    --lk-sidebar-secondary: #F6EFE7;
+    --lk-sidebar-hover: #F6EFE7;
+    --lk-sidebar-border: #EADCCC;
+    --lk-sidebar-text: #765443;
+    --lk-sidebar-muted: #987865;
+
+    /* -----------------------------------------------------
+       Status colors
+    ----------------------------------------------------- */
+    --lk-success: #256F4A;
+    --lk-success-bg: #EAF7EF;
+
+    --lk-warning: #9A5B11;
+    --lk-warning-bg: #FFF6DE;
+
+    --lk-danger: #B42318;
+    --lk-danger-bg: #FCEBE9;
+
+    /*
+     * Info intentionally stays warm/maroon instead of blue
+     * to preserve LIKHAE's visual language.
+     */
+    --lk-info: #6C4936;
+    --lk-info-bg: #F3E4DE;
+
+    /* -----------------------------------------------------
+       Misc
+    ----------------------------------------------------- */
+    --lk-overlay: rgba(28, 22, 15, 0.45);
+
+    --lk-shadow:
+        0 10px 35px rgba(86, 28, 23, 0.055);
+
+    --lk-shadow-lg:
+        0 18px 50px rgba(86, 28, 23, 0.10);
+}
+
+
+/* =========================================================
+   DARK THEME VARIABLES
+========================================================= */
+
+.dark {
+    /* -----------------------------------------------------
+       Main page
+    ----------------------------------------------------- */
+    --lk-page: #130F0E;
+    --lk-page-secondary: #171210;
+
+    /* -----------------------------------------------------
+       Surfaces / cards
+    ----------------------------------------------------- */
+    --lk-surface: #1B1513;
+    --lk-surface-secondary: #211B17;
+    --lk-surface-hover: #241817;
+
+    /* -----------------------------------------------------
+       Text
+    ----------------------------------------------------- */
+    --lk-text: #F5EFE8;
+    --lk-text-secondary: #D0C4BD;
+    --lk-muted: #AFA19A;
+    --lk-muted-light: #887C76;
+
+    /* -----------------------------------------------------
+       Borders
+    ----------------------------------------------------- */
+    --lk-border: #30231F;
+    --lk-border-strong: #3B2E27;
+
+    /* -----------------------------------------------------
+       Main LIKHAE maroon brand
+    ----------------------------------------------------- */
+    --lk-primary: #A84538;
+    --lk-primary-hover: #B84B43;
+    --lk-primary-active: #8A3A2F;
+    --lk-primary-soft: #351817;
+    --lk-primary-soft-strong: #48201D;
+
+    /* -----------------------------------------------------
+       Sidebar
+    ----------------------------------------------------- */
+    --lk-sidebar: #130F0E;
+    --lk-sidebar-secondary: #1B1513;
+    --lk-sidebar-hover: #241817;
+    --lk-sidebar-border: #30231F;
+    --lk-sidebar-text: #D0C4BD;
+    --lk-sidebar-muted: #AFA19A;
+
+    /* -----------------------------------------------------
+       Status colors
+    ----------------------------------------------------- */
+    --lk-success: #6FC18F;
+    --lk-success-bg: #183024;
+
+    --lk-warning: #D5A15A;
+    --lk-warning-bg: #342719;
+
+    --lk-danger: #F07870;
+    --lk-danger-bg: #351817;
+
+    --lk-info: #E0B1A4;
+    --lk-info-bg: #2D1816;
+
+    /* -----------------------------------------------------
+       Misc
+    ----------------------------------------------------- */
+    --lk-overlay: rgba(0, 0, 0, 0.60);
+
+    --lk-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.18);
+
+    --lk-shadow-lg:
+        0 20px 60px rgba(0, 0, 0, 0.28);
+}
+
+
+/* =========================================================
+   TAILWIND THEME TOKENS
+========================================================= */
+
+@theme inline {
+    /* Backgrounds */
+    --color-page: var(--lk-page);
+    --color-page-secondary: var(--lk-page-secondary);
+    --color-surface: var(--lk-surface);
+    --color-surface-secondary: var(--lk-surface-secondary);
+    --color-surface-hover: var(--lk-surface-hover);
+
+    /* Typography */
+    --color-ink: var(--lk-text);
+    --color-ink-secondary: var(--lk-text-secondary);
+    --color-muted: var(--lk-muted);
+    --color-muted-light: var(--lk-muted-light);
+
+    /* Borders */
+    --color-line: var(--lk-border);
+    --color-line-strong: var(--lk-border-strong);
+
+    /* Brand */
+    --color-primary: var(--lk-primary);
+    --color-primary-hover: var(--lk-primary-hover);
+    --color-primary-active: var(--lk-primary-active);
+    --color-primary-soft: var(--lk-primary-soft);
+    --color-primary-soft-strong: var(--lk-primary-soft-strong);
+
+    /* Sidebar */
+    --color-sidebar: var(--lk-sidebar);
+    --color-sidebar-secondary: var(--lk-sidebar-secondary);
+    --color-sidebar-text: var(--lk-sidebar-text);
+    --color-sidebar-muted: var(--lk-sidebar-muted);
+
+    /* Success */
+    --color-success: var(--lk-success);
+    --color-success-soft: var(--lk-success-bg);
+
+    /* Warning */
+    --color-warning: var(--lk-warning);
+    --color-warning-soft: var(--lk-warning-bg);
+
+    /* Danger */
+    --color-danger: var(--lk-danger);
+    --color-danger-soft: var(--lk-danger-bg);
+
+    /* Information */
+    --color-info: var(--lk-info);
+    --color-info-soft: var(--lk-info-bg);
+
+    /* Fonts */
+    --font-sans:
+        "DM Sans",
+        Poppins,
+        "Segoe UI",
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    --font-display:
+        "Instrument Serif",
+        Georgia,
+        "Times New Roman",
+        serif;
+
+    /* Radius */
+    --radius-likhae-sm: 0.5rem;
+    --radius-likhae: 0.75rem;
+    --radius-likhae-lg: 1rem;
+    --radius-likhae-xl: 1.25rem;
+}
+
+
+/* =========================================================
+   RIDER CONTENT SCALE
+========================================================= */
+
+.rider-shell .rounded-3xl {
+    border-radius: 1rem;
+}
+
+.rider-shell .p-6 {
+    padding: 1.25rem;
+}
+
+.rider-shell .gap-8 {
+    gap: 1.5rem;
+}
+
+.rider-shell aside {
+    width: 245px;
+    border-color: var(--lk-sidebar-border);
+    box-shadow: 10px 0 35px rgba(86, 28, 23, 0.06);
+}
+
+.rider-shell aside > div:first-child {
+    min-height: 78px;
+    height: auto;
+    gap: 0.75rem;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+}
+
+.rider-shell aside > div:first-child > div:first-child {
+    height: 2.25rem;
+    width: 2.25rem;
+    border-radius: 10px;
+    font-size: 15px;
+}
+
+.rider-shell aside > div:first-child h1 {
+    font-size: 17px;
+}
+
+.rider-shell aside > div:first-child p {
+    font-size: 8px;
+}
+
+.rider-shell aside nav {
+    gap: 0;
+    padding-top: 1.25rem;
+    padding-bottom: 1.25rem;
+}
+
+.rider-shell aside nav a {
+    min-height: 40px;
+    gap: 0.75rem;
+    border-radius: 10px;
+    padding: 0 0.75rem;
+    font-size: 12px;
+}
+
+.rider-shell aside nav a svg {
+    height: 1rem;
+    width: 1rem;
+}
+
+.rider-shell main {
+    margin-left: 0;
+}
+
+@media (min-width: 1024px) {
+    .rider-shell main {
+        margin-left: 245px;
+    }
+}
+
+.rider-shell main > header {
+    height: 4rem;
+    padding-left: 2rem;
+    padding-right: 2rem;
+}
+
+.rider-shell main > header h2 {
+    font-size: 14px;
+}
+
+.rider-shell main > header p {
+    font-size: 9px;
+}
+
+.rider-shell aside h3 {
+    font-size: 12px;
+}
+
+.rider-shell aside h3 + p {
+    font-size: 10px;
+}
+
+.logistics-shell #logisticsSidebar nav a,
+.logistics-shell #logisticsSidebar > nav > div > button {
+    font-size: 11px;
+}
+
+.logistics-shell #logisticsSidebar nav p {
+    font-size: 7px;
+}
+
+.logistics-shell #logisticsSidebar strong {
+    font-size: 11px;
+}
+
+.logistics-shell #logisticsSidebar small {
+    font-size: 9px;
+}
+
+
+/* =========================================================
+   GLOBAL BASE STYLES
+========================================================= */
+
+@layer base {
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+
+    html {
+        min-height: 100%;
+        background: var(--lk-page);
+        color-scheme: light;
+        scroll-behavior: smooth;
+    }
+
+    html.dark {
+        color-scheme: dark;
+    }
+
+    body {
+        min-height: 100vh;
+        margin: 0;
+        overflow-x: hidden;
+
+        background: var(--lk-page);
+        color: var(--lk-text);
+
+        font-family:
+            "DM Sans",
+            Poppins,
+            "Segoe UI",
+            Arial,
+            Helvetica,
+            sans-serif;
+
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+
+        transition:
+            background-color 250ms ease,
+            color 250ms ease;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+        font: inherit;
+    }
+
+    button {
+        cursor: pointer;
+    }
+
+    button:disabled {
+        cursor: not-allowed;
+    }
+
+    a {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    img,
+    svg {
+        display: block;
+    }
+
+    img {
+        max-width: 100%;
+    }
+
+    ::selection {
+        background: var(--lk-primary);
+        color: #FFFFFF;
+    }
+}
+
+
+/* =========================================================
+   FORM COLOR SCHEME
+========================================================= */
+
+@layer base {
+    input,
+    textarea,
+    select {
+        color: var(--lk-text);
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+        color: var(--lk-muted-light);
+    }
+
+    input:-webkit-autofill,
+    input:-webkit-autofill:hover,
+    input:-webkit-autofill:focus {
+        -webkit-text-fill-color: var(--lk-text);
+        transition: background-color 9999s ease-in-out 0s;
+    }
+}
+
+
+/* =========================================================
+   SCROLLBAR
+========================================================= */
+
+@layer base {
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--lk-border-strong) transparent;
+    }
+
+    *::-webkit-scrollbar {
+        width: 7px;
+        height: 7px;
+    }
+
+    *::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    *::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: var(--lk-border-strong);
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+        background: var(--lk-muted);
+    }
+}
+
+
+/* =========================================================
+   OPTIONAL REUSABLE COMPONENTS
+========================================================= */
+
+@layer components {
+    .likhae-card {
+        @apply rounded-xl border border-line bg-surface;
+    }
+
+    .likhae-card-elevated {
+        border: 1px solid var(--lk-border);
+        border-radius: 0.75rem;
+        background: var(--lk-surface);
+        box-shadow: var(--lk-shadow);
+    }
+
+    .likhae-btn-primary {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white transition;
+    }
+
+    .likhae-btn-primary:hover {
+        background: var(--lk-primary-hover);
+    }
+
+    .likhae-btn-secondary {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink transition;
+    }
+
+    .likhae-btn-secondary:hover {
+        background: var(--lk-surface-hover);
+    }
+
+    .likhae-input {
+        @apply w-full rounded-lg border border-line bg-surface px-3 py-2.5 text-sm text-ink outline-none transition;
+    }
+
+    .likhae-input::placeholder {
+        color: var(--lk-muted-light);
+    }
+
+    .likhae-input:focus {
+        border-color: var(--lk-primary);
+        box-shadow:
+            0 0 0 3px
+            color-mix(
+                in srgb,
+                var(--lk-primary) 12%,
+                transparent
+            );
+    }
+
+    .likhae-badge-success {
+        @apply inline-flex items-center rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success;
+    }
+
+    .likhae-badge-warning {
+        @apply inline-flex items-center rounded-full bg-warning-soft px-2.5 py-1 text-xs font-semibold text-warning;
+    }
+
+    .likhae-badge-danger {
+        @apply inline-flex items-center rounded-full bg-danger-soft px-2.5 py-1 text-xs font-semibold text-danger;
+    }
+
+    .likhae-badge-info {
+        @apply inline-flex items-center rounded-full bg-info-soft px-2.5 py-1 text-xs font-semibold text-info;
+    }
+}
+
+
+/* =========================================================
+   UTILITY HELPERS
+========================================================= */
+
+@layer utilities {
+    .shadow-likhae {
+        box-shadow: var(--lk-shadow);
+    }
+
+    .shadow-likhae-lg {
+        box-shadow: var(--lk-shadow-lg);
+    }
+
+    .bg-sidebar-hover {
+        background: var(--lk-sidebar-hover);
+    }
+
+    .border-sidebar {
+        border-color: var(--lk-sidebar-border);
+    }
+
+    .bg-likhae-overlay {
+        background: var(--lk-overlay);
+    }
+}
+
+
+/* =========================================================
+   LOGISTICS SIDEBAR — FINAL PALETTE + VISIBILITY OVERRIDES
+   Keep this block at the END of the file.
+========================================================= */
+
+/* ---------------------------------------------------------
+   LIGHT MODE
+--------------------------------------------------------- */
+
+html:not(.dark) #logisticsSidebar {
+    background: #FFFDF9 !important;
+    border-right: 1px solid #EADCCC !important;
+    color: #3B211B !important;
+    box-shadow: none !important;
+}
+
+/* Header */
+html:not(.dark) #logisticsSidebar .lg-side-head,
+html:not(.dark) #logisticsSidebar .logi-sidebar-head,
+html:not(.dark) #logisticsSidebar .logi-brand {
+    background: #FFFDF9 !important;
+    border-color: #EADCCC !important;
+    color: #3B211B !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-menu,
+html:not(.dark) #logisticsSidebar .logi-menu-btn,
+html:not(.dark) #logisticsSidebar .logi-side-toggle,
+html:not(.dark) #logisticsSidebar .logi-mobile-close {
+    background: #FBF7F2 !important;
+    border-color: #EADCCC !important;
+    color: #561C17 !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-menu:hover,
+html:not(.dark) #logisticsSidebar .logi-menu-btn:hover,
+html:not(.dark) #logisticsSidebar .logi-side-toggle:hover,
+html:not(.dark) #logisticsSidebar .logi-mobile-close:hover {
+    background: #F3E4DE !important;
+    border-color: #C19771 !important;
+    color: #561C17 !important;
+}
+
+/* Real LIKHAE logo */
+html:not(.dark) #logisticsSidebar .likhae-logo__image--light {
+    display: block !important;
+}
+
+html:not(.dark) #logisticsSidebar .likhae-logo__image--dark {
+    display: none !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-brand,
+html:not(.dark) #logisticsSidebar .logi-brand-link,
+html:not(.dark) #logisticsSidebar .logi-brand {
+    color: #3B211B !important;
+}
+
+/* Profile */
+html:not(.dark) #logisticsSidebar .lg-side-profile,
+html:not(.dark) #logisticsSidebar .logi-user-card {
+    background:
+        radial-gradient(
+            circle at 92% 8%,
+            rgba(193, 151, 113, 0.14),
+            transparent 30%
+        ),
+        linear-gradient(
+            135deg,
+            #FFFDF9 0%,
+            #F6EFE7 100%
+        ) !important;
+
+    border-color: #EADCCC !important;
+    color: #3B211B !important;
+
+    box-shadow:
+        0 8px 22px rgba(86, 28, 23, 0.05) !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-avatar,
+html:not(.dark) #logisticsSidebar .logi-user-avatar {
+    background: #561C17 !important;
+    color: #FFFFFF !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-verified,
+html:not(.dark) #logisticsSidebar .logi-user-check {
+    background: #561C17 !important;
+    color: #FFFFFF !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-profile-copy,
+html:not(.dark) #logisticsSidebar .lg-side-profile-copy strong,
+html:not(.dark) #logisticsSidebar .logi-user-copy,
+html:not(.dark) #logisticsSidebar .logi-user-copy strong,
+html:not(.dark) #logisticsSidebar .logi-brand-text strong {
+    color: #3B211B !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-profile-copy small,
+html:not(.dark) #logisticsSidebar .logi-user-copy small,
+html:not(.dark) #logisticsSidebar .logi-user-copy span,
+html:not(.dark) #logisticsSidebar .logi-brand-text small {
+    color: #987865 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Navigation headings */
+html:not(.dark) #logisticsSidebar .lg-side-heading,
+html:not(.dark) #logisticsSidebar .logi-nav-title {
+    color: #A48372 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Navigation items */
+html:not(.dark) #logisticsSidebar .lg-side-link,
+html:not(.dark) #logisticsSidebar .logi-nav-link {
+    background: transparent !important;
+    color: #765443 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-label,
+html:not(.dark) #logisticsSidebar .logi-nav-label {
+    color: inherit !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-icon,
+html:not(.dark) #logisticsSidebar .logi-nav-icon,
+html:not(.dark) #logisticsSidebar .lg-side-theme .lg-side-icon,
+html:not(.dark) #logisticsSidebar .logi-theme-toggle .logi-theme-icon {
+    color: #8C6652 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-icon svg,
+html:not(.dark) #logisticsSidebar .logi-nav-icon svg,
+html:not(.dark) #logisticsSidebar .lg-side-theme svg,
+html:not(.dark) #logisticsSidebar .logi-theme-toggle svg {
+    fill: none !important;
+    stroke: currentColor !important;
+}
+
+/* Hover */
+html:not(.dark) #logisticsSidebar .lg-side-link:hover,
+html:not(.dark) #logisticsSidebar .logi-nav-link:hover,
+html:not(.dark) #logisticsSidebar .lg-side-theme:hover,
+html:not(.dark) #logisticsSidebar .logi-theme-toggle:hover {
+    background: #F6EFE7 !important;
+    color: #561C17 !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-link:hover .lg-side-icon,
+html:not(.dark) #logisticsSidebar .logi-nav-link:hover .logi-nav-icon {
+    color: #561C17 !important;
+}
+
+/* Active */
+html:not(.dark) #logisticsSidebar .lg-side-link.is-active,
+html:not(.dark) #logisticsSidebar .logi-nav-link.is-active {
+    background: #F3E4DE !important;
+    border-color: transparent !important;
+    color: #561C17 !important;
+    font-weight: 900 !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-link.is-active::before,
+html:not(.dark) #logisticsSidebar .logi-nav-link.is-active::before {
+    background: #561C17 !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-link.is-active .lg-side-icon,
+html:not(.dark) #logisticsSidebar .logi-nav-link.is-active .logi-nav-icon {
+    color: #561C17 !important;
+}
+
+/* Badges */
+html:not(.dark) #logisticsSidebar .lg-side-badge,
+html:not(.dark) #logisticsSidebar .logi-badge {
+    background: #69251F !important;
+    color: #FFFFFF !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Bottom area */
+html:not(.dark) #logisticsSidebar .lg-side-bottom,
+html:not(.dark) #logisticsSidebar .logi-sidebar-foot,
+html:not(.dark) #logisticsSidebar .logi-footer-group {
+    background: #FFFDF9 !important;
+    border-color: #EADCCC !important;
+}
+
+/* Appearance */
+html:not(.dark) #logisticsSidebar .lg-side-theme,
+html:not(.dark) #logisticsSidebar .logi-theme-toggle {
+    background: transparent !important;
+    border-color: transparent !important;
+    color: #765443 !important;
+    opacity: 1 !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-theme-copy,
+html:not(.dark) #logisticsSidebar .logi-theme-copy {
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-theme-copy strong,
+html:not(.dark) #logisticsSidebar .lg-side-theme-title,
+html:not(.dark) #logisticsSidebar .logi-theme-copy strong,
+html:not(.dark) #logisticsSidebar .logi-theme-title {
+    color: #765443 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-theme-copy small,
+html:not(.dark) #logisticsSidebar .lg-side-theme-subtitle,
+html:not(.dark) #logisticsSidebar .logi-theme-copy small,
+html:not(.dark) #logisticsSidebar .logi-theme-subtitle {
+    color: #A98775 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-theme-state,
+html:not(.dark) #logisticsSidebar .logi-theme-state {
+    background: #E7E4E1 !important;
+    color: #3B332E !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+/* Logout */
+html:not(.dark) #logisticsSidebar .lg-side-logout,
+html:not(.dark) #logisticsSidebar .logi-logout {
+    background: transparent !important;
+    color: #D92D2F !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-logout .lg-side-label,
+html:not(.dark) #logisticsSidebar .lg-side-logout .lg-side-icon,
+html:not(.dark) #logisticsSidebar .logi-logout .logi-nav-label,
+html:not(.dark) #logisticsSidebar .logi-logout .logi-nav-icon {
+    color: #D92D2F !important;
+}
+
+html:not(.dark) #logisticsSidebar .lg-side-logout:hover,
+html:not(.dark) #logisticsSidebar .logi-logout:hover {
+    background: #FCEBE9 !important;
+    color: #D92D2F !important;
+}
+
+/*
+ * Compatibility for any old Tailwind white-text classes still inside
+ * the Logistics sidebar.
+ */
+html:not(.dark) #logisticsSidebar .text-white,
+html:not(.dark) #logisticsSidebar .text-white\/90,
+html:not(.dark) #logisticsSidebar .text-white\/80,
+html:not(.dark) #logisticsSidebar .text-white\/75,
+html:not(.dark) #logisticsSidebar .text-white\/70,
+html:not(.dark) #logisticsSidebar .text-white\/65,
+html:not(.dark) #logisticsSidebar .text-white\/60,
+html:not(.dark) #logisticsSidebar .text-white\/55,
+html:not(.dark) #logisticsSidebar .text-white\/50,
+html:not(.dark) #logisticsSidebar .text-white\/45,
+html:not(.dark) #logisticsSidebar .text-white\/40,
+html:not(.dark) #logisticsSidebar .text-white\/30 {
+    color: #765443 !important;
+}
+
+/* Keep intentionally white pills/avatars white */
+html:not(.dark) #logisticsSidebar .lg-side-avatar,
+html:not(.dark) #logisticsSidebar .lg-side-verified,
+html:not(.dark) #logisticsSidebar .lg-side-badge,
+html:not(.dark) #logisticsSidebar .logi-user-avatar,
+html:not(.dark) #logisticsSidebar .logi-user-check,
+html:not(.dark) #logisticsSidebar .logi-badge {
+    color: #FFFFFF !important;
+}
+
+
+/* ---------------------------------------------------------
+   DARK MODE
+--------------------------------------------------------- */
+
+html.dark #logisticsSidebar {
+    background: #130F0E !important;
+    border-right-color: #30231F !important;
+    color: #F5EFE8 !important;
+    box-shadow: none !important;
+}
+
+html.dark #logisticsSidebar .lg-side-head,
+html.dark #logisticsSidebar .lg-side-bottom,
+html.dark #logisticsSidebar .logi-sidebar-head,
+html.dark #logisticsSidebar .logi-sidebar-foot,
+html.dark #logisticsSidebar .logi-footer-group {
+    background: #130F0E !important;
+    border-color: #30231F !important;
+}
+
+html.dark #logisticsSidebar .lg-side-menu,
+html.dark #logisticsSidebar .logi-menu-btn,
+html.dark #logisticsSidebar .logi-side-toggle,
+html.dark #logisticsSidebar .logi-mobile-close {
+    background: #1D1715 !important;
+    border-color: #3B2E27 !important;
+    color: #D9CCC4 !important;
+}
+
+html.dark #logisticsSidebar .lg-side-profile,
+html.dark #logisticsSidebar .logi-user-card {
+    background:
+        radial-gradient(
+            circle at 92% 8%,
+            rgba(193, 151, 113, 0.09),
+            transparent 28%
+        ),
+        linear-gradient(
+            180deg,
+            #211B17 0%,
+            #1A1412 100%
+        ) !important;
+
+    border-color: #3B2E27 !important;
+    color: #F5EFE8 !important;
+    box-shadow: none !important;
+}
+
+html.dark #logisticsSidebar .lg-side-avatar,
+html.dark #logisticsSidebar .lg-side-verified,
+html.dark #logisticsSidebar .logi-user-avatar,
+html.dark #logisticsSidebar .logi-user-check {
+    background: #A84538 !important;
+    color: #FFFFFF !important;
+}
+
+html.dark #logisticsSidebar .lg-side-profile-copy strong,
+html.dark #logisticsSidebar .logi-user-copy strong,
+html.dark #logisticsSidebar .logi-brand-text strong {
+    color: #F5EFE8 !important;
+}
+
+html.dark #logisticsSidebar .lg-side-profile-copy small,
+html.dark #logisticsSidebar .logi-user-copy small,
+html.dark #logisticsSidebar .logi-user-copy span,
+html.dark #logisticsSidebar .lg-side-heading,
+html.dark #logisticsSidebar .logi-nav-title,
+html.dark #logisticsSidebar .logi-brand-text small {
+    color: #AFA19A !important;
+}
+
+html.dark #logisticsSidebar .lg-side-link,
+html.dark #logisticsSidebar .logi-nav-link,
+html.dark #logisticsSidebar .lg-side-theme,
+html.dark #logisticsSidebar .logi-theme-toggle {
+    color: #D0C4BD !important;
+}
+
+html.dark #logisticsSidebar .lg-side-icon,
+html.dark #logisticsSidebar .logi-nav-icon,
+html.dark #logisticsSidebar .lg-side-theme .lg-side-icon,
+html.dark #logisticsSidebar .logi-theme-toggle .logi-theme-icon {
+    color: #C9BCB5 !important;
+}
+
+html.dark #logisticsSidebar .lg-side-link:hover,
+html.dark #logisticsSidebar .logi-nav-link:hover,
+html.dark #logisticsSidebar .lg-side-theme:hover,
+html.dark #logisticsSidebar .logi-theme-toggle:hover {
+    background: #241817 !important;
+    color: #F2D6CB !important;
+}
+
+html.dark #logisticsSidebar .lg-side-link.is-active,
+html.dark #logisticsSidebar .logi-nav-link.is-active {
+    background: #3A1111 !important;
+    color: #F3C6BA !important;
+}
+
+html.dark #logisticsSidebar .lg-side-link.is-active::before,
+html.dark #logisticsSidebar .logi-nav-link.is-active::before {
+    background: #B84B43 !important;
+}
+
+html.dark #logisticsSidebar .lg-side-link.is-active .lg-side-icon,
+html.dark #logisticsSidebar .logi-nav-link.is-active .logi-nav-icon {
+    color: #F3C6BA !important;
+}
+
+html.dark #logisticsSidebar .lg-side-badge,
+html.dark #logisticsSidebar .logi-badge {
+    background: #A98976 !important;
+    color: #FFFFFF !important;
+}
+
+html.dark #logisticsSidebar .lg-side-theme-copy strong,
+html.dark #logisticsSidebar .logi-theme-copy strong,
+html.dark #logisticsSidebar .lg-side-theme-title,
+html.dark #logisticsSidebar .logi-theme-title {
+    color: #D0C4BD !important;
+}
+
+html.dark #logisticsSidebar .lg-side-theme-copy small,
+html.dark #logisticsSidebar .logi-theme-copy small,
+html.dark #logisticsSidebar .lg-side-theme-subtitle,
+html.dark #logisticsSidebar .logi-theme-subtitle {
+    color: #A89C95 !important;
+}
+
+html.dark #logisticsSidebar .lg-side-theme-state,
+html.dark #logisticsSidebar .logi-theme-state {
+    background: #E53D3D !important;
+    color: #FFFFFF !important;
+}
+
+html.dark #logisticsSidebar .lg-side-logout,
+html.dark #logisticsSidebar .logi-logout,
+html.dark #logisticsSidebar .lg-side-logout .lg-side-label,
+html.dark #logisticsSidebar .lg-side-logout .lg-side-icon {
+    color: #F2A49A !important;
+}
+
+html.dark #logisticsSidebar .lg-side-logout:hover,
+html.dark #logisticsSidebar .logi-logout:hover {
+    background: #351010 !important;
+    color: #F2A49A !important;
+}
+
+/* Real LIKHAE logo switching */
+html.dark #logisticsSidebar .likhae-logo__image--light {
+    display: none !important;
+}
+
+html.dark #logisticsSidebar .likhae-logo__image--dark {
+    display: block !important;
+}
