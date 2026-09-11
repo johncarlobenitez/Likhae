@@ -2,20 +2,8 @@
 
 @section('title', 'Parcel Details — LIKHAE Logistics')
 
-@section('content')
-
 @php
-
-    /*
-    |--------------------------------------------------------------------------
-    | FRONTEND SAMPLE DATA
-    |--------------------------------------------------------------------------
-    | Temporary sample records.
-    | Replace with controller/database data later.
-    */
-
     $parcelRecords = [
-
         1001 => [
             'id' => 1001,
             'tracking' => 'LH-2026-1001',
@@ -166,443 +154,1008 @@
                 ],
             ],
         ],
-
     ];
 
+    $parcelId = isset($id) ? (int) $id : 1001;
+    $parcel = $parcelRecords[$parcelId] ?? $parcelRecords[1001];
 
-    $parcelId =
-        isset($id)
-            ? (int) $id
-            : 1001;
+    $statusTone = match($parcel['status_key']) {
+        'waiting_sorting' => 'warning',
+        'awaiting_rider' => 'maroon',
+        'assigned' => 'maroon',
+        'out_for_delivery' => 'maroon',
+        'delivered' => 'success',
+        default => 'neutral',
+    };
 
+    $nextAction = match($parcel['status_key']) {
+        'waiting_sorting' => [
+            'label' => 'Continue to Sorting',
+            'route' => route(
+                'logistics.sorting.index',
+                ['tracking' => $parcel['tracking']]
+            ),
+        ],
 
-    $parcel =
-        $parcelRecords[$parcelId]
-            ?? $parcelRecords[1001];
+        'awaiting_rider' => [
+            'label' => 'Assign Rider',
+            'route' => route(
+                'logistics.assignments.assign',
+                $parcel['id']
+            ),
+        ],
 
+        'assigned',
+        'out_for_delivery' => [
+            'label' => 'Track Parcel',
+            'route' => route(
+                'logistics.parcels.tracking',
+                ['tracking' => $parcel['tracking']]
+            ),
+        ],
 
-    $statusClass =
-        match($parcel['status_key']) {
-
-            'waiting_sorting' =>
-                'bg-warning-soft text-warning',
-
-            'awaiting_rider' =>
-                'bg-info-soft text-info',
-
-            'assigned' =>
-                'bg-primary-soft text-primary',
-
-            'out_for_delivery' =>
-                'bg-primary-soft text-primary',
-
-            'delivered' =>
-                'bg-success-soft text-success',
-
-            default =>
-                'bg-page-secondary text-muted',
-        };
-
-
-    $nextAction =
-        match($parcel['status_key']) {
-
-            'waiting_sorting' => [
-                'label' => 'Continue to Sorting',
-                'route' => route(
-                    'logistics.sorting.index',
-                    ['tracking' => $parcel['tracking']]
-                ),
-            ],
-
-            'awaiting_rider' => [
-                'label' => 'Assign Rider',
-                'route' => route(
-                    'logistics.assignments.assign',
-                    $parcel['id']
-                ),
-            ],
-
-            'assigned',
-            'out_for_delivery' => [
-                'label' => 'Track Parcel',
-                'route' => route(
-                    'logistics.parcels.tracking',
-                    ['tracking' => $parcel['tracking']]
-                ),
-            ],
-
-            default => [
-                'label' => 'View Tracking',
-                'route' => route(
-                    'logistics.parcels.tracking',
-                    ['tracking' => $parcel['tracking']]
-                ),
-            ],
-        };
-
+        default => [
+            'label' => 'View Tracking',
+            'route' => route(
+                'logistics.parcels.tracking',
+                ['tracking' => $parcel['tracking']]
+            ),
+        ],
+    };
 
     $timeline = [
-
         [
             'title' => 'Parcel Received',
             'description' => 'Parcel checked into the LIKHAE sorting center.',
             'time' => $parcel['received_at'],
             'done' => true,
         ],
-
         [
             'title' => 'Sorted by Destination',
-            'description' =>
-                $parcel['area'] === 'Unassigned'
-                    ? 'Waiting for destination-area sorting.'
-                    : 'Parcel assigned to ' . $parcel['area'] . '.',
-            'time' =>
-                $parcel['area'] === 'Unassigned'
-                    ? null
-                    : 'September 1, 2026 · 10:02 AM',
-            'done' =>
-                $parcel['status_key'] !== 'waiting_sorting',
+            'description' => $parcel['area'] === 'Unassigned'
+                ? 'Waiting for destination-area sorting.'
+                : 'Parcel assigned to ' . $parcel['area'] . '.',
+            'time' => $parcel['area'] === 'Unassigned'
+                ? null
+                : 'September 1, 2026 · 10:02 AM',
+            'done' => $parcel['status_key'] !== 'waiting_sorting',
         ],
-
         [
             'title' => 'Rider Assigned',
-            'description' =>
-                $parcel['rider'] === 'Not assigned'
-                    ? 'Waiting for an available rider.'
-                    : $parcel['rider'] . ' received the delivery assignment.',
-            'time' =>
-                $parcel['rider'] === 'Not assigned'
-                    ? null
-                    : 'September 1, 2026 · 10:14 AM',
-            'done' =>
-                in_array(
-                    $parcel['status_key'],
-                    [
-                        'assigned',
-                        'out_for_delivery',
-                        'delivered',
-                    ],
-                    true
-                ),
+            'description' => $parcel['rider'] === 'Not assigned'
+                ? 'Waiting for an available rider.'
+                : $parcel['rider'] . ' received the delivery assignment.',
+            'time' => $parcel['rider'] === 'Not assigned'
+                ? null
+                : 'September 1, 2026 · 10:14 AM',
+            'done' => in_array(
+                $parcel['status_key'],
+                ['assigned', 'out_for_delivery', 'delivered'],
+                true
+            ),
         ],
-
         [
             'title' => 'Out for Delivery',
-            'description' =>
-                'Parcel has left the sorting center for delivery.',
-            'time' =>
-                in_array(
-                    $parcel['status_key'],
-                    [
-                        'out_for_delivery',
-                        'delivered',
-                    ],
-                    true
-                )
-                    ? 'September 1, 2026 · 11:10 AM'
-                    : null,
-            'done' =>
-                in_array(
-                    $parcel['status_key'],
-                    [
-                        'out_for_delivery',
-                        'delivered',
-                    ],
-                    true
-                ),
+            'description' => 'Parcel has left the sorting center for delivery.',
+            'time' => in_array(
+                $parcel['status_key'],
+                ['out_for_delivery', 'delivered'],
+                true
+            )
+                ? 'September 1, 2026 · 11:10 AM'
+                : null,
+            'done' => in_array(
+                $parcel['status_key'],
+                ['out_for_delivery', 'delivered'],
+                true
+            ),
         ],
-
         [
             'title' => 'Delivered',
-            'description' =>
-                'Parcel successfully delivered to the recipient.',
-            'time' =>
-                $parcel['status_key'] === 'delivered'
-                    ? 'September 1, 2026 · 12:18 PM'
-                    : null,
-            'done' =>
-                $parcel['status_key'] === 'delivered',
+            'description' => 'Parcel successfully delivered to the recipient.',
+            'time' => $parcel['status_key'] === 'delivered'
+                ? 'September 1, 2026 · 12:18 PM'
+                : null,
+            'done' => $parcel['status_key'] === 'delivered',
         ],
-
     ];
 
+    $icons = [
+        'package' => '
+            <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/>
+            <path d="M4 7.5l8 4.5 8-4.5"/>
+            <path d="M12 12v9"/>
+        ',
+        'location' => '
+            <path d="M12 21s7-5 7-11a7 7 0 1 0-14 0c0 6 7 11 7 11Z"/>
+            <circle cx="12" cy="10" r="2"/>
+        ',
+        'rider' => '
+            <circle cx="8" cy="7" r="3"/>
+            <path d="M3 19c0-3 2-5 5-5"/>
+            <path d="M14 7h7"/>
+            <path d="M17.5 3.5v7"/>
+        ',
+        'check' => '
+            <path d="m5 12 4 4 10-10"/>
+        ',
+        'arrow' => '
+            <path d="M5 12h14"/>
+            <path d="m14 7 5 5-5 5"/>
+        ',
+        'copy' => '
+            <rect x="9" y="9" width="10" height="10" rx="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        ',
+    ];
 @endphp
 
+@section('content')
 
-<div class="flex w-full flex-col gap-6">
+<style>
+    :root {
+        --pd-bg: #FBF7F2;
+        --pd-bg-soft: #F6EFE7;
+        --pd-bg-warm: #F3E4DE;
+        --pd-card: #FFFDF9;
 
+        --pd-border: #EADCCC;
+        --pd-border-strong: #DBCEC1;
 
-    {{-- =====================================================
-        BREADCRUMB
-    ====================================================== --}}
+        --pd-maroon: #561C17;
+        --pd-maroon-2: #642920;
+        --pd-maroon-dark: #3E130F;
 
-    <nav
-        class="
-            flex
-            flex-wrap
-            items-center
-            gap-2
-            text-[10px]
-            text-muted
-        "
-    >
+        --pd-text: #3B211B;
+        --pd-text-dark: #1C160F;
+        --pd-brown: #6C4936;
+        --pd-muted: #987865;
+        --pd-muted-light: #A99386;
 
-        <a
-            href="{{ route('logistics.dashboard') }}"
-            class="transition hover:text-primary"
-        >
-            Dashboard
-        </a>
+        --pd-tan: #C19771;
 
+        --pd-success: #256F4A;
+        --pd-success-soft: #EAF7EF;
+
+        --pd-warning: #9A5B11;
+        --pd-warning-soft: #FFF6DE;
+
+        --pd-danger: #B42318;
+        --pd-danger-soft: #FCEBE9;
+
+        --pd-shadow: 0 8px 24px rgba(86, 28, 23, 0.055);
+        --pd-shadow-hover: 0 18px 44px rgba(86, 28, 23, 0.10);
+    }
+
+    .pd-page {
+        display: grid;
+        gap: 18px;
+        width: 100%;
+        color: var(--pd-text);
+        font-family: "DM Sans", Poppins, system-ui, sans-serif;
+    }
+
+    .pd-page * {
+        box-sizing: border-box;
+    }
+
+    .pd-breadcrumb {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: var(--pd-muted);
+        font-size: 10px;
+        font-weight: 750;
+    }
+
+    .pd-breadcrumb a {
+        color: var(--pd-muted);
+        text-decoration: none;
+        transition: 150ms ease;
+    }
+
+    .pd-breadcrumb a:hover {
+        color: var(--pd-maroon);
+    }
+
+    .pd-breadcrumb strong {
+        color: var(--pd-text);
+        font-weight: 900;
+    }
+
+    .pd-hero {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 24px;
+        padding: 30px 34px;
+        border: 1px solid var(--pd-border);
+        border-radius: 28px;
+        background:
+            radial-gradient(circle at 94% 10%, rgba(193,151,113,0.24), transparent 30%),
+            radial-gradient(circle at 8% 16%, rgba(86,28,23,0.055), transparent 30%),
+            linear-gradient(135deg, #FFFDF9 0%, #F6EFE7 58%, #EFE7DE 100%);
+        box-shadow: var(--pd-shadow);
+    }
+
+    .pd-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--pd-maroon);
+        font-size: 10px;
+        font-weight: 950;
+        letter-spacing: 0.20em;
+        text-transform: uppercase;
+    }
+
+    .pd-eyebrow::before {
+        width: 24px;
+        height: 1px;
+        background: currentColor;
+        content: "";
+    }
+
+    .pd-hero-title {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 10px;
+    }
+
+    .pd-hero h1 {
+        margin: 0;
+        color: var(--pd-text);
+        font-family: "Instrument Serif", Georgia, serif;
+        font-size: clamp(42px, 5vw, 64px);
+        font-weight: 400;
+        line-height: 0.94;
+        letter-spacing: -0.055em;
+    }
+
+    .pd-hero p {
+        margin: 12px 0 0;
+        color: var(--pd-muted);
+        font-size: 11px;
+        line-height: 1.6;
+    }
+
+    .pd-status {
+        display: inline-flex;
+        min-height: 26px;
+        align-items: center;
+        gap: 6px;
+        padding: 0 10px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        font-size: 8px;
+        font-weight: 900;
+        white-space: nowrap;
+    }
+
+    .pd-status::before {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: currentColor;
+        content: "";
+    }
+
+    .pd-status.is-warning {
+        border-color: #EAD39A;
+        background: var(--pd-warning-soft);
+        color: var(--pd-warning);
+    }
+
+    .pd-status.is-maroon,
+    .pd-status.is-neutral {
+        border-color: #E6C7BE;
+        background: var(--pd-bg-warm);
+        color: var(--pd-maroon);
+    }
+
+    .pd-status.is-success {
+        border-color: #CFE8DA;
+        background: var(--pd-success-soft);
+        color: var(--pd-success);
+    }
+
+    .pd-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .pd-btn {
+        display: inline-flex;
+        min-height: 40px;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 15px;
+        border: 1px solid transparent;
+        border-radius: 12px;
+        font-size: 10px;
+        font-weight: 900;
+        line-height: 1;
+        text-decoration: none;
+        cursor: pointer;
+        transition: 160ms ease;
+    }
+
+    .pd-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .pd-btn svg {
+        width: 15px;
+        height: 15px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .pd-btn-primary {
+        background: var(--pd-maroon);
+        border-color: var(--pd-maroon);
+        color: #FFFFFF;
+        box-shadow: 0 10px 22px rgba(86,28,23,0.16);
+    }
+
+    .pd-btn-primary:hover {
+        background: var(--pd-maroon-dark);
+        border-color: var(--pd-maroon-dark);
+    }
+
+    .pd-btn-soft {
+        background: var(--pd-card);
+        border-color: var(--pd-border);
+        color: var(--pd-maroon);
+    }
+
+    .pd-btn-soft:hover {
+        background: var(--pd-bg-warm);
+        border-color: var(--pd-tan);
+    }
+
+    .pd-main-grid {
+        display: grid;
+        grid-template-columns: minmax(0,1fr) 330px;
+        gap: 18px;
+        align-items: start;
+    }
+
+    .pd-stack {
+        display: grid;
+        gap: 18px;
+        min-width: 0;
+    }
+
+    .pd-card {
+        overflow: hidden;
+        border: 1px solid var(--pd-border);
+        border-radius: 22px;
+        background: var(--pd-card);
+        box-shadow: var(--pd-shadow);
+    }
+
+    .pd-card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--pd-border);
+        background:
+            radial-gradient(circle at 96% 6%, rgba(193,151,113,0.13), transparent 30%),
+            linear-gradient(135deg, #FFFDF9 0%, #F8F0E8 100%);
+    }
+
+    .pd-card-head h2 {
+        margin: 0;
+        color: var(--pd-text);
+        font-family: "Instrument Serif", Georgia, serif;
+        font-size: 28px;
+        font-weight: 400;
+        line-height: 1;
+        letter-spacing: -0.04em;
+    }
+
+    .pd-card-head p {
+        margin: 7px 0 0;
+        color: var(--pd-muted);
+        font-size: 9px;
+        line-height: 1.5;
+    }
+
+    .pd-overview-grid {
+        display: grid;
+        grid-template-columns: repeat(3,minmax(0,1fr));
+        gap: 1px;
+        background: var(--pd-border);
+    }
+
+    .pd-overview-item {
+        min-width: 0;
+        padding: 18px;
+        background: var(--pd-card);
+    }
+
+    .pd-label {
+        display: block;
+        color: var(--pd-muted);
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+    }
+
+    .pd-value {
+        display: block;
+        margin-top: 7px;
+        color: var(--pd-text);
+        font-size: 10px;
+        font-weight: 900;
+        line-height: 1.4;
+    }
+
+    .pd-body {
+        padding: 18px 20px;
+    }
+
+    .pd-delivery-grid {
+        display: grid;
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 12px;
+    }
+
+    .pd-info-box {
+        min-width: 0;
+        padding: 14px;
+        border: 1px solid var(--pd-border);
+        border-radius: 15px;
+        background: var(--pd-bg-soft);
+    }
+
+    .pd-info-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 11px;
+    }
+
+    .pd-info-icon,
+    .pd-item-icon {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        flex: 0 0 38px;
+        place-items: center;
+        border: 1px solid #E6C7BE;
+        border-radius: 12px;
+        background: var(--pd-bg-warm);
+        color: var(--pd-maroon);
+    }
+
+    .pd-info-icon svg,
+    .pd-item-icon svg {
+        width: 17px;
+        height: 17px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.7;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .pd-info-copy {
+        min-width: 0;
+    }
+
+    .pd-info-copy strong {
+        display: block;
+        margin-top: 4px;
+        color: var(--pd-text);
+        font-size: 10px;
+        font-weight: 900;
+    }
+
+    .pd-info-copy p {
+        margin: 5px 0 0;
+        color: var(--pd-muted);
+        font-size: 8px;
+        line-height: 1.5;
+    }
+
+    .pd-contact-grid {
+        display: grid;
+        grid-template-columns: repeat(2,minmax(0,1fr));
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .pd-contact-box {
+        padding: 12px;
+        border: 1px solid var(--pd-border);
+        border-radius: 13px;
+        background: var(--pd-card);
+    }
+
+    .pd-contact-box strong {
+        display: block;
+        margin-top: 5px;
+        color: var(--pd-text);
+        font-size: 9px;
+        font-weight: 900;
+    }
+
+    .pd-items {
+        display: grid;
+    }
+
+    .pd-item {
+        display: grid;
+        grid-template-columns: auto minmax(0,1fr) auto;
+        align-items: center;
+        gap: 12px;
+        padding: 15px 20px;
+        border-bottom: 1px solid var(--pd-border);
+    }
+
+    .pd-item:last-child {
+        border-bottom: 0;
+    }
+
+    .pd-item-main {
+        min-width: 0;
+    }
+
+    .pd-item-main strong {
+        display: block;
+        color: var(--pd-text);
+        font-size: 10px;
+        font-weight: 900;
+    }
+
+    .pd-item-main span,
+    .pd-item-price span {
+        display: block;
+        margin-top: 4px;
+        color: var(--pd-muted);
+        font-size: 8px;
+        font-weight: 700;
+    }
+
+    .pd-item-price {
+        text-align: right;
+    }
+
+    .pd-item-price strong {
+        color: var(--pd-text);
+        font-size: 10px;
+        font-weight: 900;
+    }
+
+    .pd-total {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 14px 20px;
+        border-top: 1px solid var(--pd-border);
+        background: var(--pd-bg-soft);
+    }
+
+    .pd-total span {
+        color: var(--pd-muted);
+        font-size: 10px;
+        font-weight: 800;
+    }
+
+    .pd-total strong {
+        color: var(--pd-maroon);
+        font-size: 14px;
+        font-weight: 950;
+    }
+
+    .pd-notes {
+        padding: 14px;
+        border: 1px solid var(--pd-border);
+        border-radius: 14px;
+        background: var(--pd-bg-soft);
+        color: var(--pd-muted);
+        font-size: 9px;
+        line-height: 1.6;
+    }
+
+    .pd-status-card {
+        overflow: hidden;
+        border-radius: 20px;
+        background:
+            radial-gradient(circle at 92% 12%, rgba(255,255,255,0.12), transparent 30%),
+            linear-gradient(135deg, var(--pd-maroon) 0%, var(--pd-maroon-2) 58%, var(--pd-maroon-dark) 100%);
+        color: #FFFFFF;
+        box-shadow: 0 18px 44px rgba(86,28,23,0.18);
+    }
+
+    .pd-status-card-body {
+        padding: 18px;
+    }
+
+    .pd-status-card small {
+        color: rgba(255,255,255,0.55);
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+    }
+
+    .pd-status-card h2 {
+        margin: 10px 0 0;
+        color: #FFFFFF;
+        font-family: "Instrument Serif", Georgia, serif;
+        font-size: 30px;
+        font-weight: 400;
+        line-height: 1;
+        letter-spacing: -0.04em;
+    }
+
+    .pd-status-card p {
+        margin: 9px 0 0;
+        color: rgba(255,255,255,0.62);
+        font-size: 9px;
+        line-height: 1.5;
+    }
+
+    .pd-area-box {
+        margin-top: 16px;
+        padding: 13px;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 13px;
+        background: rgba(255,255,255,0.07);
+    }
+
+    .pd-area-box span {
+        display: block;
+        color: rgba(255,255,255,0.45);
+        font-size: 8px;
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .pd-area-box strong {
+        display: block;
+        margin-top: 5px;
+        color: #FFFFFF;
+        font-size: 11px;
+        font-weight: 900;
+    }
+
+    .pd-timeline {
+        display: grid;
+        gap: 0;
+        margin-top: 16px;
+    }
+
+    .pd-step {
+        position: relative;
+        display: grid;
+        grid-template-columns: auto minmax(0,1fr);
+        gap: 10px;
+        padding-bottom: 18px;
+    }
+
+    .pd-step:last-child {
+        padding-bottom: 0;
+    }
+
+    .pd-step:not(:last-child)::after {
+        position: absolute;
+        top: 26px;
+        bottom: 0;
+        left: 12px;
+        width: 1px;
+        background: var(--pd-border);
+        content: "";
+    }
+
+    .pd-step.is-done:not(:last-child)::after {
+        background: var(--pd-maroon);
+    }
+
+    .pd-step-dot {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        width: 25px;
+        height: 25px;
+        place-items: center;
+        border: 1px solid var(--pd-border);
+        border-radius: 999px;
+        background: var(--pd-bg-soft);
+        color: var(--pd-muted);
+        font-size: 8px;
+        font-weight: 900;
+    }
+
+    .pd-step.is-done .pd-step-dot {
+        border-color: var(--pd-maroon);
+        background: var(--pd-maroon);
+        color: #FFFFFF;
+    }
+
+    .pd-step-dot svg {
+        width: 13px;
+        height: 13px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .pd-step-copy strong {
+        display: block;
+        padding-top: 2px;
+        color: var(--pd-muted);
+        font-size: 9px;
+        font-weight: 850;
+    }
+
+    .pd-step.is-done .pd-step-copy strong {
+        color: var(--pd-text);
+    }
+
+    .pd-step-copy p {
+        margin: 4px 0 0;
+        color: var(--pd-muted);
+        font-size: 8px;
+        line-height: 1.45;
+    }
+
+    .pd-step-copy time {
+        display: block;
+        margin-top: 4px;
+        color: var(--pd-muted-light);
+        font-size: 7px;
+        font-weight: 700;
+    }
+
+    .pd-quick-actions {
+        display: grid;
+        gap: 8px;
+    }
+
+    .pd-copy-success {
+        background: var(--pd-success-soft) !important;
+        border-color: #CFE8DA !important;
+        color: var(--pd-success) !important;
+    }
+
+    @media (max-width: 1180px) {
+        .pd-main-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 860px) {
+        .pd-hero {
+            align-items: flex-start;
+            flex-direction: column;
+            padding: 26px 22px;
+        }
+
+        .pd-overview-grid,
+        .pd-delivery-grid,
+        .pd-contact-grid {
+            grid-template-columns: repeat(2,minmax(0,1fr));
+        }
+
+        .pd-actions {
+            width: 100%;
+        }
+
+        .pd-actions .pd-btn {
+            flex: 1;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .pd-overview-grid,
+        .pd-delivery-grid,
+        .pd-contact-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .pd-item {
+            grid-template-columns: auto minmax(0,1fr);
+        }
+
+        .pd-item-price {
+            grid-column: 2;
+            text-align: left;
+        }
+    }
+
+    html.dark .pd-page {
+        color: #F5EFE8;
+    }
+
+    html.dark .pd-hero,
+    html.dark .pd-card {
+        background:
+            radial-gradient(circle at 94% 8%, rgba(193,151,113,0.07), transparent 28%),
+            linear-gradient(180deg, #211B17 0%, #1A1412 100%) !important;
+        border-color: #3B2E27 !important;
+        box-shadow: none !important;
+    }
+
+    html.dark .pd-card-head {
+        background:
+            radial-gradient(circle at 96% 6%, rgba(193,151,113,0.07), transparent 30%),
+            #1D1715 !important;
+        border-color: #3B2E27 !important;
+    }
+
+    html.dark .pd-hero h1,
+    html.dark .pd-card-head h2,
+    html.dark .pd-value,
+    html.dark .pd-info-copy strong,
+    html.dark .pd-contact-box strong,
+    html.dark .pd-item-main strong,
+    html.dark .pd-item-price strong,
+    html.dark .pd-step.is-done .pd-step-copy strong {
+        color: #F5EFE8 !important;
+    }
+
+    html.dark .pd-hero p,
+    html.dark .pd-breadcrumb,
+    html.dark .pd-label,
+    html.dark .pd-card-head p,
+    html.dark .pd-info-copy p,
+    html.dark .pd-item-main span,
+    html.dark .pd-item-price span,
+    html.dark .pd-notes,
+    html.dark .pd-step-copy p,
+    html.dark .pd-step-copy time {
+        color: #AFA19A !important;
+    }
+
+    html.dark .pd-eyebrow {
+        color: #EBA99D !important;
+    }
+
+    html.dark .pd-overview-grid {
+        background: #30231F !important;
+    }
+
+    html.dark .pd-overview-item {
+        background: #1A1412 !important;
+    }
+
+    html.dark .pd-info-box,
+    html.dark .pd-contact-box,
+    html.dark .pd-notes {
+        background: #1D1715 !important;
+        border-color: #3B2E27 !important;
+    }
+
+    html.dark .pd-info-icon,
+    html.dark .pd-item-icon {
+        background: #2D1816 !important;
+        border-color: #60463A !important;
+        color: #EBA99D !important;
+    }
+
+    html.dark .pd-total {
+        background: #1D1715 !important;
+        border-color: #3B2E27 !important;
+    }
+
+    html.dark .pd-total strong {
+        color: #EBA99D !important;
+    }
+
+    html.dark .pd-status.is-maroon,
+    html.dark .pd-status.is-neutral {
+        background: #2D1816 !important;
+        border-color: #60463A !important;
+        color: #EBA99D !important;
+    }
+
+    html.dark .pd-step-dot {
+        background: #1D1715 !important;
+        border-color: #3B2E27 !important;
+        color: #AFA19A !important;
+    }
+
+    html.dark .pd-step.is-done .pd-step-dot {
+        background: #A84538 !important;
+        border-color: #A84538 !important;
+        color: #FFFFFF !important;
+    }
+
+    html.dark .pd-step.is-done:not(:last-child)::after {
+        background: #A84538 !important;
+    }
+
+    html.dark .pd-btn-primary {
+        background: #A84538 !important;
+        border-color: #A84538 !important;
+    }
+
+    html.dark .pd-btn-primary:hover {
+        background: #B84B43 !important;
+        border-color: #B84B43 !important;
+    }
+
+    html.dark .pd-btn-soft {
+        background: #1D1715 !important;
+        border-color: #3B2E27 !important;
+        color: #EBA99D !important;
+    }
+</style>
+
+<div class="pd-page">
+
+    <nav class="pd-breadcrumb" aria-label="Breadcrumb">
+        <a href="{{ route('logistics.dashboard') }}">Dashboard</a>
         <span>/</span>
-
-        <a
-            href="{{ route('logistics.parcels.index') }}"
-            class="transition hover:text-primary"
-        >
-            Parcels
-        </a>
-
+        <a href="{{ route('logistics.parcels.index') }}">Parcels</a>
         <span>/</span>
-
-        <span class="font-semibold text-ink">
-            {{ $parcel['tracking'] }}
-        </span>
-
+        <strong>{{ $parcel['tracking'] }}</strong>
     </nav>
 
-
-    {{-- =====================================================
-        PAGE HEADER
-    ====================================================== --}}
-
-    <section
-        class="
-            flex
-            flex-col
-            gap-5
-            lg:flex-row
-            lg:items-end
-            lg:justify-between
-        "
-    >
-
+    <section class="pd-hero">
         <div>
+            <span class="pd-eyebrow">Parcel Details</span>
 
-            <span
-                class="
-                    text-[10px]
-                    font-bold
-                    uppercase
-                    tracking-[0.18em]
-                    text-primary
-                "
-            >
-                Parcel Details
-            </span>
+            <div class="pd-hero-title">
+                <h1>{{ $parcel['tracking'] }}</h1>
 
-
-            <div
-                class="
-                    mt-2
-                    flex
-                    flex-wrap
-                    items-center
-                    gap-3
-                "
-            >
-
-                <h1
-                    class="
-                        font-display
-                        text-[30px]
-                        font-semibold
-                        tracking-[-0.04em]
-                        text-ink
-                        sm:text-[34px]
-                    "
-                >
-                    {{ $parcel['tracking'] }}
-                </h1>
-
-
-                <span
-                    class="
-                        inline-flex
-                        items-center
-                        gap-1.5
-                        rounded-full
-                        px-2.5
-                        py-1
-                        text-[8px]
-                        font-semibold
-                        {{ $statusClass }}
-                    "
-                >
-
-                    <span
-                        class="
-                            h-1.5
-                            w-1.5
-                            rounded-full
-                            bg-current
-                        "
-                    ></span>
-
+                <span class="pd-status is-{{ $statusTone }}">
                     {{ $parcel['status'] }}
-
                 </span>
-
             </div>
 
-
-            <p
-                class="
-                    mt-2
-                    text-[10px]
-                    text-muted
-                "
-            >
-                Order {{ $parcel['order'] }}
+            <p>
+                Order {{ $parcel['order'] }} · {{ $parcel['seller'] }}
             </p>
-
         </div>
 
-
-        <div
-            class="
-                flex
-                flex-wrap
-                items-center
-                gap-2
-            "
-        >
-
-            <a
-                href="{{ route('logistics.parcels.index') }}"
-                class="
-                    inline-flex
-                    h-10
-                    items-center
-                    justify-center
-                    rounded-lg
-                    border
-                    border-line
-                    bg-surface
-                    px-4
-                    text-[9px]
-                    font-semibold
-                    text-ink
-                    transition
-                    hover:bg-surface-hover
-                "
-            >
+        <div class="pd-actions">
+            <a href="{{ route('logistics.parcels.index') }}" class="pd-btn pd-btn-soft">
                 ← Back
             </a>
 
-
-            <a
-                href="{{ $nextAction['route'] }}"
-                class="
-                    inline-flex
-                    h-10
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-lg
-                    bg-primary
-                    px-4
-                    text-[9px]
-                    font-semibold
-                    text-white
-                    transition
-                    hover:bg-primary-hover
-                "
-            >
+            <a href="{{ $nextAction['route'] }}" class="pd-btn pd-btn-primary">
                 {{ $nextAction['label'] }}
-                <span>→</span>
+
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    {!! $icons['arrow'] !!}
+                </svg>
             </a>
-
         </div>
-
     </section>
 
+    <section class="pd-main-grid">
 
-    {{-- =====================================================
-        MAIN GRID
-    ====================================================== --}}
+        <div class="pd-stack">
 
-    <section
-        class="
-            grid
-            gap-4
-            xl:grid-cols-[minmax(0,1fr)_330px]
-        "
-    >
+            <section class="pd-card">
+                <header class="pd-card-head">
+                    <div>
+                        <h2>Parcel Overview</h2>
+                        <p>Core parcel and order information.</p>
+                    </div>
+                </header>
 
-        {{-- LEFT COLUMN --}}
-
-        <div class="flex min-w-0 flex-col gap-4">
-
-
-            {{-- =============================================
-                PARCEL OVERVIEW
-            ============================================== --}}
-
-            <section
-                class="
-                    overflow-hidden
-                    rounded-xl
-                    border
-                    border-line
-                    bg-surface
-                "
-            >
-
-                <div
-                    class="
-                        border-b
-                        border-line
-                        px-5
-                        py-4
-                    "
-                >
-
-                    <h2
-                        class="
-                            text-[13px]
-                            font-semibold
-                            text-ink
-                        "
-                    >
-                        Parcel Overview
-                    </h2>
-
-
-                    <p
-                        class="
-                            mt-0.5
-                            text-[9px]
-                            text-muted
-                        "
-                    >
-                        Core parcel and order information.
-                    </p>
-
-                </div>
-
-
-                <div
-                    class="
-                        grid
-                        gap-px
-                        bg-line
-                        sm:grid-cols-2
-                        lg:grid-cols-3
-                    "
-                >
-
+                <div class="pd-overview-grid">
                     @foreach([
                         ['label' => 'Order Number', 'value' => $parcel['order']],
                         ['label' => 'Seller', 'value' => $parcel['seller']],
@@ -611,994 +1164,235 @@
                         ['label' => 'Parcel Value', 'value' => '₱' . number_format($parcel['value'], 2)],
                         ['label' => 'Condition', 'value' => $parcel['condition']],
                     ] as $detail)
-
-                        <div class="bg-surface p-5">
-
-                            <span
-                                class="
-                                    text-[8px]
-                                    font-semibold
-                                    uppercase
-                                    tracking-[0.1em]
-                                    text-muted
-                                "
-                            >
-                                {{ $detail['label'] }}
-                            </span>
-
-
-                            <strong
-                                class="
-                                    mt-2
-                                    block
-                                    text-[10px]
-                                    font-semibold
-                                    text-ink
-                                "
-                            >
-                                {{ $detail['value'] }}
-                            </strong>
-
+                        <div class="pd-overview-item">
+                            <span class="pd-label">{{ $detail['label'] }}</span>
+                            <strong class="pd-value">{{ $detail['value'] }}</strong>
                         </div>
-
                     @endforeach
-
                 </div>
-
             </section>
 
-
-            {{-- =============================================
-                DELIVERY INFORMATION
-            ============================================== --}}
-
-            <section
-                class="
-                    rounded-xl
-                    border
-                    border-line
-                    bg-surface
-                    p-5
-                "
-            >
-
-                <div
-                    class="
-                        flex
-                        flex-col
-                        gap-3
-                        border-b
-                        border-line
-                        pb-4
-                        sm:flex-row
-                        sm:items-center
-                        sm:justify-between
-                    "
-                >
-
+            <section class="pd-card">
+                <header class="pd-card-head">
                     <div>
-
-                        <h2
-                            class="
-                                text-[13px]
-                                font-semibold
-                                text-ink
-                            "
-                        >
-                            Delivery Information
-                        </h2>
-
-
-                        <p
-                            class="
-                                mt-0.5
-                                text-[9px]
-                                text-muted
-                            "
-                        >
-                            Destination, delivery area, and rider assignment.
-                        </p>
-
+                        <h2>Delivery Information</h2>
+                        <p>Destination, delivery area, and rider assignment.</p>
                     </div>
 
-
-                    <span
-                        class="
-                            inline-flex
-                            w-fit
-                            rounded-full
-                            border
-                            border-line
-                            bg-page-secondary
-                            px-2.5
-                            py-1
-                            text-[8px]
-                            font-semibold
-                            text-muted
-                        "
-                    >
+                    <span class="pd-status is-neutral">
                         {{ $parcel['area'] }}
                     </span>
+                </header>
 
-                </div>
+                <div class="pd-body">
+                    <div class="pd-delivery-grid">
 
-
-                <div
-                    class="
-                        mt-5
-                        grid
-                        gap-4
-                        md:grid-cols-2
-                    "
-                >
-
-                    <div
-                        class="
-                            rounded-xl
-                            bg-page-secondary
-                            p-4
-                        "
-                    >
-
-                        <div class="flex items-start gap-3">
-
-                            <span
-                                class="
-                                    grid
-                                    h-9
-                                    w-9
-                                    shrink-0
-                                    place-items-center
-                                    rounded-lg
-                                    bg-primary-soft
-                                    text-primary
-                                "
-                            >
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    class="
-                                        h-4
-                                        w-4
-                                        fill-none
-                                        stroke-current
-                                        stroke-[1.6]
-                                    "
-                                >
-                                    <path
-                                        d="
-                                            M12 21
-                                            s7-5 7-11
-                                            a7 7 0 1 0-14 0
-                                            c0 6 7 11 7 11Z
-                                        "
-                                    ></path>
-
-                                    <circle cx="12" cy="10" r="2"></circle>
-                                </svg>
-                            </span>
-
-
-                            <div>
-
-                                <span
-                                    class="
-                                        text-[8px]
-                                        font-semibold
-                                        uppercase
-                                        tracking-[0.1em]
-                                        text-muted
-                                    "
-                                >
-                                    Destination
+                        <div class="pd-info-box">
+                            <div class="pd-info-row">
+                                <span class="pd-info-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24">
+                                        {!! $icons['location'] !!}
+                                    </svg>
                                 </span>
 
-
-                                <strong
-                                    class="
-                                        mt-1
-                                        block
-                                        text-[10px]
-                                        font-semibold
-                                        text-ink
-                                    "
-                                >
-                                    {{ $parcel['destination'] }}
-                                </strong>
-
-
-                                <p
-                                    class="
-                                        mt-1
-                                        text-[9px]
-                                        leading-5
-                                        text-muted
-                                    "
-                                >
-                                    {{ $parcel['address'] }}
-                                </p>
-
+                                <div class="pd-info-copy">
+                                    <span class="pd-label">Destination</span>
+                                    <strong>{{ $parcel['destination'] }}</strong>
+                                    <p>{{ $parcel['address'] }}</p>
+                                </div>
                             </div>
+                        </div>
 
+                        <div class="pd-info-box">
+                            <div class="pd-info-row">
+                                <span class="pd-info-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24">
+                                        {!! $icons['rider'] !!}
+                                    </svg>
+                                </span>
+
+                                <div class="pd-info-copy">
+                                    <span class="pd-label">Assigned Rider</span>
+                                    <strong>{{ $parcel['rider'] }}</strong>
+
+                                    <p>
+                                        {{
+                                            $parcel['rider'] === 'Not assigned'
+                                                ? 'No rider has been assigned to this parcel yet.'
+                                                : 'Rider assigned based on the parcel delivery area.'
+                                        }}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
                     </div>
 
-
-                    <div
-                        class="
-                            rounded-xl
-                            bg-page-secondary
-                            p-4
-                        "
-                    >
-
-                        <div class="flex items-start gap-3">
-
-                            <span
-                                class="
-                                    grid
-                                    h-9
-                                    w-9
-                                    shrink-0
-                                    place-items-center
-                                    rounded-lg
-                                    bg-info-soft
-                                    text-info
-                                "
-                            >
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    class="
-                                        h-4
-                                        w-4
-                                        fill-none
-                                        stroke-current
-                                        stroke-[1.6]
-                                    "
-                                >
-                                    <circle cx="8" cy="7" r="3"></circle>
-                                    <path d="M3 19c0-3 2-5 5-5"></path>
-                                    <path d="M14 7h7"></path>
-                                    <path d="M17.5 3.5V10.5"></path>
-                                </svg>
-                            </span>
-
-
-                            <div>
-
-                                <span
-                                    class="
-                                        text-[8px]
-                                        font-semibold
-                                        uppercase
-                                        tracking-[0.1em]
-                                        text-muted
-                                    "
-                                >
-                                    Assigned Rider
-                                </span>
-
-
-                                <strong
-                                    class="
-                                        mt-1
-                                        block
-                                        text-[10px]
-                                        font-semibold
-                                        text-ink
-                                    "
-                                >
-                                    {{ $parcel['rider'] }}
-                                </strong>
-
-
-                                <p
-                                    class="
-                                        mt-1
-                                        text-[9px]
-                                        leading-5
-                                        text-muted
-                                    "
-                                >
-                                    {{
-                                        $parcel['rider'] === 'Not assigned'
-                                            ? 'No rider has been assigned to this parcel yet.'
-                                            : 'Rider assigned based on the parcel delivery area.'
-                                    }}
-                                </p>
-
-                            </div>
-
+                    <div class="pd-contact-grid">
+                        <div class="pd-contact-box">
+                            <span class="pd-label">Customer Contact</span>
+                            <strong>{{ $parcel['contact'] }}</strong>
                         </div>
 
+                        <div class="pd-contact-box">
+                            <span class="pd-label">Received From</span>
+                            <strong>{{ $parcel['received_from'] }}</strong>
+                        </div>
                     </div>
-
                 </div>
-
-
-                <div
-                    class="
-                        mt-4
-                        grid
-                        gap-4
-                        sm:grid-cols-2
-                    "
-                >
-
-                    <div
-                        class="
-                            rounded-lg
-                            border
-                            border-line
-                            p-4
-                        "
-                    >
-                        <span
-                            class="
-                                text-[8px]
-                                uppercase
-                                tracking-[0.1em]
-                                text-muted
-                            "
-                        >
-                            Customer Contact
-                        </span>
-
-                        <strong
-                            class="
-                                mt-1
-                                block
-                                text-[10px]
-                                font-semibold
-                                text-ink
-                            "
-                        >
-                            {{ $parcel['contact'] }}
-                        </strong>
-                    </div>
-
-
-                    <div
-                        class="
-                            rounded-lg
-                            border
-                            border-line
-                            p-4
-                        "
-                    >
-                        <span
-                            class="
-                                text-[8px]
-                                uppercase
-                                tracking-[0.1em]
-                                text-muted
-                            "
-                        >
-                            Received From
-                        </span>
-
-                        <strong
-                            class="
-                                mt-1
-                                block
-                                text-[10px]
-                                font-semibold
-                                text-ink
-                            "
-                        >
-                            {{ $parcel['received_from'] }}
-                        </strong>
-                    </div>
-
-                </div>
-
             </section>
 
+            <section class="pd-card">
+                <header class="pd-card-head">
+                    <div>
+                        <h2>Parcel Items</h2>
+                        <p>Items included in this order.</p>
+                    </div>
+                </header>
 
-            {{-- =============================================
-                ITEMS
-            ============================================== --}}
-
-            <section
-                class="
-                    overflow-hidden
-                    rounded-xl
-                    border
-                    border-line
-                    bg-surface
-                "
-            >
-
-                <div
-                    class="
-                        border-b
-                        border-line
-                        px-5
-                        py-4
-                    "
-                >
-
-                    <h2
-                        class="
-                            text-[13px]
-                            font-semibold
-                            text-ink
-                        "
-                    >
-                        Parcel Items
-                    </h2>
-
-
-                    <p
-                        class="
-                            mt-0.5
-                            text-[9px]
-                            text-muted
-                        "
-                    >
-                        Items included in this order.
-                    </p>
-
-                </div>
-
-
-                <div class="divide-y divide-line">
-
+                <div class="pd-items">
                     @foreach($parcel['items'] as $item)
-
-                        <article
-                            class="
-                                flex
-                                items-center
-                                gap-4
-                                px-5
-                                py-4
-                            "
-                        >
-
-                            <span
-                                class="
-                                    grid
-                                    h-11
-                                    w-11
-                                    shrink-0
-                                    place-items-center
-                                    rounded-lg
-                                    bg-primary-soft
-                                    text-primary
-                                "
-                            >
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    class="
-                                        h-5
-                                        w-5
-                                        fill-none
-                                        stroke-current
-                                        stroke-[1.6]
-                                    "
-                                >
-                                    <path d="M21 8 12 3 3 8l9 5 9-5Z"></path>
-                                    <path d="M3 8v8l9 5 9-5V8"></path>
+                        <article class="pd-item">
+                            <span class="pd-item-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24">
+                                    {!! $icons['package'] !!}
                                 </svg>
                             </span>
 
-
-                            <div class="min-w-0 flex-1">
-
-                                <strong
-                                    class="
-                                        block
-                                        text-[10px]
-                                        font-semibold
-                                        text-ink
-                                    "
-                                >
-                                    {{ $item['name'] }}
-                                </strong>
-
-
-                                <span
-                                    class="
-                                        mt-1
-                                        block
-                                        text-[8px]
-                                        text-muted
-                                    "
-                                >
-                                    {{ $item['variation'] }}
-                                </span>
-
+                            <div class="pd-item-main">
+                                <strong>{{ $item['name'] }}</strong>
+                                <span>{{ $item['variation'] }}</span>
                             </div>
 
-
-                            <div class="text-right">
-
-                                <strong
-                                    class="
-                                        block
-                                        text-[10px]
-                                        font-semibold
-                                        text-ink
-                                    "
-                                >
-                                    ₱{{ number_format($item['price'], 2) }}
-                                </strong>
-
-
-                                <span
-                                    class="
-                                        mt-1
-                                        block
-                                        text-[8px]
-                                        text-muted
-                                    "
-                                >
-                                    Qty {{ $item['quantity'] }}
-                                </span>
-
+                            <div class="pd-item-price">
+                                <strong>₱{{ number_format($item['price'], 2) }}</strong>
+                                <span>Qty {{ $item['quantity'] }}</span>
                             </div>
-
                         </article>
-
                     @endforeach
-
                 </div>
 
-
-                <div
-                    class="
-                        flex
-                        items-center
-                        justify-between
-                        border-t
-                        border-line
-                        bg-page-secondary
-                        px-5
-                        py-4
-                    "
-                >
-
-                    <span
-                        class="
-                            text-[10px]
-                            font-semibold
-                            text-muted
-                        "
-                    >
-                        Total
-                    </span>
-
-
-                    <strong
-                        class="
-                            text-[13px]
-                            font-bold
-                            text-ink
-                        "
-                    >
-                        ₱{{ number_format($parcel['value'], 2) }}
-                    </strong>
-
+                <div class="pd-total">
+                    <span>Total</span>
+                    <strong>₱{{ number_format($parcel['value'], 2) }}</strong>
                 </div>
-
             </section>
 
+            <section class="pd-card">
+                <header class="pd-card-head">
+                    <div>
+                        <h2>Logistics Notes</h2>
+                        <p>Latest logistics remarks for this parcel.</p>
+                    </div>
+                </header>
 
-            {{-- =============================================
-                NOTES
-            ============================================== --}}
-
-            <section
-                class="
-                    rounded-xl
-                    border
-                    border-line
-                    bg-surface
-                    p-5
-                "
-            >
-
-                <h2
-                    class="
-                        text-[13px]
-                        font-semibold
-                        text-ink
-                    "
-                >
-                    Logistics Notes
-                </h2>
-
-
-                <p
-                    class="
-                        mt-3
-                        rounded-lg
-                        bg-page-secondary
-                        p-4
-                        text-[9px]
-                        leading-5
-                        text-muted
-                    "
-                >
-                    {{ $parcel['notes'] }}
-                </p>
-
+                <div class="pd-body">
+                    <div class="pd-notes">
+                        {{ $parcel['notes'] }}
+                    </div>
+                </div>
             </section>
 
         </div>
 
+        <aside class="pd-stack">
 
-        {{-- =================================================
-            RIGHT COLUMN
-        ================================================== --}}
+            <section class="pd-status-card">
+                <div class="pd-status-card-body">
+                    <small>Current Status</small>
 
-        <aside class="flex flex-col gap-4">
+                    <h2>{{ $parcel['status'] }}</h2>
 
-
-            {{-- STATUS CARD --}}
-
-            <section
-                class="
-                    overflow-hidden
-                    rounded-xl
-                    bg-primary
-                    p-5
-                    text-white
-                    shadow-likhae
-                "
-            >
-
-                <span
-                    class="
-                        text-[8px]
-                        font-semibold
-                        uppercase
-                        tracking-[0.14em]
-                        text-white/55
-                    "
-                >
-                    Current Status
-                </span>
-
-
-                <h2
-                    class="
-                        mt-3
-                        font-display
-                        text-[24px]
-                        font-semibold
-                        tracking-[-0.035em]
-                        text-white
-                    "
-                >
-                    {{ $parcel['status'] }}
-                </h2>
-
-
-                <p
-                    class="
-                        mt-2
-                        text-[9px]
-                        leading-5
-                        text-white/60
-                    "
-                >
-                    Tracking {{ $parcel['tracking'] }}
-                </p>
-
-
-                <div
-                    class="
-                        mt-5
-                        rounded-lg
-                        border
-                        border-white/10
-                        bg-white/[0.08]
-                        p-4
-                    "
-                >
-
-                    <span
-                        class="
-                            text-[8px]
-                            uppercase
-                            tracking-[0.1em]
-                            text-white/45
-                        "
-                    >
-                        Delivery Area
-                    </span>
-
-
-                    <strong
-                        class="
-                            mt-1.5
-                            block
-                            text-[11px]
-                            font-semibold
-                            text-white
-                        "
-                    >
-                        {{ $parcel['area'] }}
-                    </strong>
-
-                </div>
-
-            </section>
-
-
-            {{-- TIMELINE --}}
-
-            <section
-                class="
-                    rounded-xl
-                    border
-                    border-line
-                    bg-surface
-                    p-5
-                "
-            >
-
-                <div>
-
-                    <h2
-                        class="
-                            text-[13px]
-                            font-semibold
-                            text-ink
-                        "
-                    >
-                        Parcel Timeline
-                    </h2>
-
-
-                    <p
-                        class="
-                            mt-0.5
-                            text-[9px]
-                            text-muted
-                        "
-                    >
-                        Delivery workflow and progress.
+                    <p>
+                        Tracking {{ $parcel['tracking'] }}
                     </p>
 
+                    <div class="pd-area-box">
+                        <span>Delivery Area</span>
+                        <strong>{{ $parcel['area'] }}</strong>
+                    </div>
                 </div>
-
-
-                <div class="mt-5">
-
-                    @foreach($timeline as $step)
-
-                        <div
-                            class="
-                                relative
-                                flex
-                                gap-3
-                                pb-5
-                                last:pb-0
-                            "
-                        >
-
-                            @if(!$loop->last)
-
-                                <span
-                                    class="
-                                        absolute
-                                        left-[13px]
-                                        top-7
-                                        h-[calc(100%-12px)]
-                                        w-px
-                                        {{
-                                            $step['done']
-                                                ? 'bg-primary'
-                                                : 'bg-line'
-                                        }}
-                                    "
-                                ></span>
-
-                            @endif
-
-
-                            <span
-                                class="
-                                    relative
-                                    z-10
-                                    grid
-                                    h-7
-                                    w-7
-                                    shrink-0
-                                    place-items-center
-                                    rounded-full
-                                    border
-                                    text-[8px]
-                                    font-bold
-
-                                    {{
-                                        $step['done']
-                                            ? 'border-primary bg-primary text-white'
-                                            : 'border-line bg-page-secondary text-muted'
-                                    }}
-                                "
-                            >
-
-                                @if($step['done'])
-
-                                    <svg
-                                        viewBox="0 0 24 24"
-                                        class="
-                                            h-3.5
-                                            w-3.5
-                                            fill-none
-                                            stroke-current
-                                            stroke-[2]
-                                        "
-                                    >
-                                        <path d="m5 12 4 4 10-10"></path>
-                                    </svg>
-
-                                @else
-
-                                    {{ $loop->iteration }}
-
-                                @endif
-
-                            </span>
-
-
-                            <div class="min-w-0 pt-1">
-
-                                <strong
-                                    class="
-                                        block
-                                        text-[9px]
-                                        font-semibold
-                                        {{
-                                            $step['done']
-                                                ? 'text-ink'
-                                                : 'text-muted'
-                                        }}
-                                    "
-                                >
-                                    {{ $step['title'] }}
-                                </strong>
-
-
-                                <p
-                                    class="
-                                        mt-1
-                                        text-[8px]
-                                        leading-4
-                                        text-muted
-                                    "
-                                >
-                                    {{ $step['description'] }}
-                                </p>
-
-
-                                <span
-                                    class="
-                                        mt-1.5
-                                        block
-                                        text-[7px]
-                                        text-muted-light
-                                    "
-                                >
-                                    {{ $step['time'] ?? 'Pending' }}
-                                </span>
-
-                            </div>
-
-                        </div>
-
-                    @endforeach
-
-                </div>
-
             </section>
 
+            <section class="pd-card">
+                <header class="pd-card-head">
+                    <div>
+                        <h2>Parcel Timeline</h2>
+                        <p>Delivery workflow and progress.</p>
+                    </div>
+                </header>
 
-            {{-- QUICK ACTIONS --}}
+                <div class="pd-body">
+                    <div class="pd-timeline">
+                        @foreach($timeline as $step)
+                            <div class="pd-step {{ $step['done'] ? 'is-done' : '' }}">
+                                <span class="pd-step-dot">
+                                    @if($step['done'])
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            {!! $icons['check'] !!}
+                                        </svg>
+                                    @else
+                                        {{ $loop->iteration }}
+                                    @endif
+                                </span>
 
-            <section
-                class="
-                    rounded-xl
-                    border
-                    border-line
-                    bg-surface
-                    p-5
-                "
-            >
-
-                <h2
-                    class="
-                        text-[13px]
-                        font-semibold
-                        text-ink
-                    "
-                >
-                    Quick Actions
-                </h2>
-
-
-                <div class="mt-4 grid gap-2">
-
-                    <a
-                        href="{{ $nextAction['route'] }}"
-                        class="
-                            inline-flex
-                            h-10
-                            items-center
-                            justify-between
-                            rounded-lg
-                            bg-primary
-                            px-4
-                            text-[9px]
-                            font-semibold
-                            text-white
-                            transition
-                            hover:bg-primary-hover
-                        "
-                    >
-                        {{ $nextAction['label'] }}
-                        <span>→</span>
-                    </a>
-
-
-                    <a
-                        href="{{ route(
-                            'logistics.parcels.tracking',
-                            ['tracking' => $parcel['tracking']]
-                        ) }}"
-                        class="
-                            inline-flex
-                            h-10
-                            items-center
-                            justify-between
-                            rounded-lg
-                            border
-                            border-line
-                            bg-surface
-                            px-4
-                            text-[9px]
-                            font-semibold
-                            text-ink
-                            transition
-                            hover:bg-surface-hover
-                        "
-                    >
-                        Open Tracking
-                        <span>→</span>
-                    </a>
-
-
-                    <button
-                        type="button"
-                        id="copyTrackingButton"
-                        data-tracking="{{ $parcel['tracking'] }}"
-                        class="
-                            inline-flex
-                            h-10
-                            items-center
-                            justify-between
-                            rounded-lg
-                            border
-                            border-line
-                            bg-surface
-                            px-4
-                            text-[9px]
-                            font-semibold
-                            text-ink
-                            transition
-                            hover:bg-surface-hover
-                        "
-                    >
-                        Copy Tracking ID
-                        <span>⧉</span>
-                    </button>
-
+                                <div class="pd-step-copy">
+                                    <strong>{{ $step['title'] }}</strong>
+                                    <p>{{ $step['description'] }}</p>
+                                    <time>{{ $step['time'] ?? 'Pending' }}</time>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
+            </section>
 
+            <section class="pd-card">
+                <header class="pd-card-head">
+                    <div>
+                        <h2>Quick Actions</h2>
+                        <p>Common actions for this parcel.</p>
+                    </div>
+                </header>
+
+                <div class="pd-body">
+                    <div class="pd-quick-actions">
+                        <a href="{{ $nextAction['route'] }}" class="pd-btn pd-btn-primary">
+                            {{ $nextAction['label'] }}
+
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                {!! $icons['arrow'] !!}
+                            </svg>
+                        </a>
+
+                        <a
+                            href="{{ route(
+                                'logistics.parcels.tracking',
+                                ['tracking' => $parcel['tracking']]
+                            ) }}"
+                            class="pd-btn pd-btn-soft"
+                        >
+                            Open Tracking
+
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                {!! $icons['arrow'] !!}
+                            </svg>
+                        </a>
+
+                        <button
+                            type="button"
+                            id="copyTrackingButton"
+                            data-tracking="{{ $parcel['tracking'] }}"
+                            class="pd-btn pd-btn-soft"
+                        >
+                            <span id="copyTrackingLabel">Copy Tracking ID</span>
+
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                {!! $icons['copy'] !!}
+                            </svg>
+                        </button>
+                    </div>
+                </div>
             </section>
 
         </aside>
@@ -1609,69 +1403,59 @@
 
 @endsection
 
-
 @push('scripts')
-
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-
     const copyButton =
-        document.getElementById(
-            'copyTrackingButton'
-        );
+        document.getElementById('copyTrackingButton');
 
+    const copyLabel =
+        document.getElementById('copyTrackingLabel');
 
     copyButton?.addEventListener(
         'click',
         async function () {
-
             const tracking =
                 copyButton.dataset.tracking;
-
 
             if (!tracking) {
                 return;
             }
 
-
             try {
-
                 await navigator.clipboard.writeText(
                     tracking
                 );
 
+                if (copyLabel) {
+                    copyLabel.textContent = 'Copied!';
+                }
 
-                const originalText =
-                    copyButton.innerHTML;
+                copyButton.classList.add(
+                    'pd-copy-success'
+                );
 
-
-                copyButton.innerHTML =
-                    '<span>Copied!</span><span>✓</span>';
-
-
-                setTimeout(
+                window.setTimeout(
                     function () {
+                        if (copyLabel) {
+                            copyLabel.textContent =
+                                'Copy Tracking ID';
+                        }
 
-                        copyButton.innerHTML =
-                            originalText;
-
+                        copyButton.classList.remove(
+                            'pd-copy-success'
+                        );
                     },
                     1500
                 );
-
             } catch (error) {
-
                 window.prompt(
                     'Copy tracking number:',
                     tracking
                 );
-
             }
-
         }
     );
-
 });
 </script>
-
 @endpush

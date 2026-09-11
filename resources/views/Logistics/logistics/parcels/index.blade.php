@@ -4,6 +4,288 @@
 
 @section('content')
 
+
+<style>
+    :root {
+        --lp-bg: #FBF7F2;
+        --lp-bg-soft: #F6EFE7;
+        --lp-bg-warm: #F3E4DE;
+        --lp-card: #FFFDF9;
+        --lp-border: #EADCCC;
+        --lp-border-strong: #DBCEC1;
+        --lp-maroon: #561C17;
+        --lp-maroon-2: #642920;
+        --lp-maroon-dark: #3E130F;
+        --lp-text: #3B211B;
+        --lp-text-dark: #1C160F;
+        --lp-brown: #6C4936;
+        --lp-muted: #987865;
+        --lp-muted-light: #A99386;
+        --lp-tan: #C19771;
+        --lp-success: #256F4A;
+        --lp-success-soft: #EAF7EF;
+        --lp-warning: #9A5B11;
+        --lp-warning-soft: #FFF6DE;
+        --lp-shadow: 0 8px 24px rgba(86, 28, 23, .055);
+        --lp-shadow-hover: 0 18px 44px rgba(86, 28, 23, .10);
+    }
+
+    .lp-page {
+        color: var(--lp-text);
+        font-family: "DM Sans", Poppins, system-ui, sans-serif;
+    }
+
+    .lp-page * { box-sizing: border-box; }
+
+    .lp-breadcrumb {
+        color: var(--lp-muted) !important;
+        font-weight: 750;
+    }
+
+    .lp-breadcrumb a { color: var(--lp-muted) !important; }
+    .lp-breadcrumb a:hover { color: var(--lp-maroon) !important; }
+    .lp-breadcrumb span:last-child { color: var(--lp-text) !important; }
+
+    .lp-hero {
+        padding: 32px 36px;
+        border: 1px solid var(--lp-border);
+        border-radius: 28px;
+        background:
+            radial-gradient(circle at 94% 10%, rgba(193,151,113,.24), transparent 30%),
+            radial-gradient(circle at 8% 16%, rgba(86,28,23,.055), transparent 30%),
+            linear-gradient(135deg, #FFFDF9 0%, #F6EFE7 58%, #EFE7DE 100%);
+        box-shadow: var(--lp-shadow);
+    }
+
+    .lp-hero > div > span:first-child {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--lp-maroon) !important;
+        font-size: 10px !important;
+        font-weight: 950 !important;
+        letter-spacing: .20em !important;
+    }
+
+    .lp-hero > div > span:first-child::before {
+        width: 24px;
+        height: 1px;
+        background: currentColor;
+        content: "";
+    }
+
+    .lp-hero h1 {
+        color: var(--lp-text) !important;
+        font-family: "Instrument Serif", Georgia, serif !important;
+        font-size: clamp(42px, 5vw, 66px) !important;
+        font-weight: 400 !important;
+        line-height: .94 !important;
+        letter-spacing: -.055em !important;
+    }
+
+    .lp-hero p { color: var(--lp-muted) !important; }
+
+    .lp-hero > a {
+        min-height: 42px !important;
+        border-radius: 13px !important;
+        background: var(--lp-maroon) !important;
+        color: #fff !important;
+        box-shadow: 0 10px 22px rgba(86,28,23,.16) !important;
+    }
+
+    .lp-hero > a:hover { background: var(--lp-maroon-dark) !important; }
+
+    .lp-overview {
+        grid-template-columns: repeat(5, minmax(0,1fr)) !important;
+        gap: 14px !important;
+    }
+
+    .lp-stat-card {
+        min-height: 126px;
+        border-color: var(--lp-border) !important;
+        border-radius: 20px !important;
+        background:
+            radial-gradient(circle at 94% 6%, rgba(193,151,113,.14), transparent 28%),
+            linear-gradient(180deg,#FFFDF9 0%,#FFF9F2 100%) !important;
+        box-shadow: var(--lp-shadow);
+        transition: 160ms ease;
+    }
+
+    .lp-stat-card:hover {
+        transform: translateY(-2px);
+        border-color: var(--lp-tan) !important;
+        box-shadow: var(--lp-shadow-hover);
+    }
+
+    .lp-stat-card span.text-muted { color: var(--lp-muted) !important; }
+    .lp-stat-card strong { color: var(--lp-text-dark) !important; }
+
+    .lp-stat-card > div > span.rounded-full {
+        width: 38px !important;
+        height: 38px !important;
+        margin-top: 0 !important;
+        border: 1px solid #E6C7BE !important;
+        border-radius: 13px !important;
+        background: var(--lp-bg-warm) !important;
+        color: var(--lp-maroon) !important;
+    }
+
+    .lp-toolbar,
+    .lp-directory {
+        border-color: var(--lp-border) !important;
+        border-radius: 22px !important;
+        background: var(--lp-card) !important;
+        box-shadow: var(--lp-shadow);
+    }
+
+    .lp-toolbar input,
+    .lp-toolbar select {
+        border-color: var(--lp-border) !important;
+        border-radius: 12px !important;
+        background: var(--lp-bg-soft) !important;
+        color: var(--lp-text) !important;
+    }
+
+    .lp-toolbar input:focus,
+    .lp-toolbar select:focus {
+        border-color: var(--lp-tan) !important;
+        background: #fff !important;
+        box-shadow: 0 0 0 4px rgba(86,28,23,.07) !important;
+    }
+
+    .lp-toolbar button {
+        border-color: var(--lp-border) !important;
+        border-radius: 12px !important;
+        background: var(--lp-card) !important;
+        color: var(--lp-maroon) !important;
+    }
+
+    .lp-toolbar button:hover {
+        border-color: var(--lp-tan) !important;
+        background: var(--lp-bg-warm) !important;
+    }
+
+    .lp-directory > div:first-child {
+        background:
+            radial-gradient(circle at 96% 6%, rgba(193,151,113,.13), transparent 30%),
+            linear-gradient(135deg,#FFFDF9 0%,#F8F0E8 100%) !important;
+        border-color: var(--lp-border) !important;
+    }
+
+    .lp-directory h2 {
+        color: var(--lp-text) !important;
+        font-family: "Instrument Serif", Georgia, serif !important;
+        font-size: 28px !important;
+        font-weight: 400 !important;
+        letter-spacing: -.04em !important;
+    }
+
+    .lp-directory p { color: var(--lp-muted) !important; }
+
+    .lp-table thead tr { background: var(--lp-bg-soft) !important; }
+    .lp-table th { color: var(--lp-muted) !important; border-color: var(--lp-border) !important; }
+    .lp-table td { color: var(--lp-brown) !important; border-color: #EFE1D5 !important; }
+    .lp-table tbody tr:hover td { background: var(--lp-bg-soft) !important; }
+
+    .lp-table td a.text-ink,
+    .lp-table td .text-ink { color: var(--lp-text) !important; }
+
+    .lp-table td a.text-ink:hover { color: var(--lp-maroon) !important; }
+
+    .lp-table .bg-primary-soft {
+        background: var(--lp-bg-warm) !important;
+        color: var(--lp-maroon) !important;
+    }
+
+    .lp-table .bg-info-soft {
+        background: var(--lp-bg-warm) !important;
+        color: var(--lp-maroon) !important;
+    }
+
+    .lp-table .bg-warning-soft {
+        background: var(--lp-warning-soft) !important;
+        color: var(--lp-warning) !important;
+    }
+
+    .lp-table .bg-success-soft {
+        background: var(--lp-success-soft) !important;
+        color: var(--lp-success) !important;
+    }
+
+    .lp-table a.bg-primary {
+        background: var(--lp-maroon) !important;
+        color: #fff !important;
+    }
+
+    .lp-table a.bg-primary:hover { background: var(--lp-maroon-dark) !important; }
+
+    @media (max-width: 1250px) {
+        .lp-overview { grid-template-columns: repeat(3,minmax(0,1fr)) !important; }
+    }
+
+    @media (max-width: 760px) {
+        .lp-hero { padding: 26px 22px; }
+        .lp-overview { grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+    }
+
+    @media (max-width: 520px) {
+        .lp-overview { grid-template-columns: 1fr !important; }
+    }
+
+    html.dark .lp-hero,
+    html.dark .lp-stat-card,
+    html.dark .lp-toolbar,
+    html.dark .lp-directory {
+        background:
+            radial-gradient(circle at 94% 8%, rgba(193,151,113,.07), transparent 28%),
+            linear-gradient(180deg,#211B17 0%,#1A1412 100%) !important;
+        border-color: #3B2E27 !important;
+        box-shadow: none !important;
+    }
+
+    html.dark .lp-hero h1,
+    html.dark .lp-stat-card strong,
+    html.dark .lp-directory h2,
+    html.dark .lp-table td .text-ink,
+    html.dark .lp-table td a.text-ink {
+        color: #F5EFE8 !important;
+    }
+
+    html.dark .lp-hero p,
+    html.dark .lp-breadcrumb,
+    html.dark .lp-stat-card span.text-muted,
+    html.dark .lp-directory p,
+    html.dark .lp-table th {
+        color: #AFA19A !important;
+    }
+
+    html.dark .lp-hero > div > span:first-child { color: #EBA99D !important; }
+
+    html.dark .lp-toolbar input,
+    html.dark .lp-toolbar select,
+    html.dark .lp-toolbar button {
+        background: #1D1715 !important;
+        border-color: #3B2E27 !important;
+        color: #F5EFE8 !important;
+    }
+
+    html.dark .lp-directory > div:first-child,
+    html.dark .lp-table thead tr {
+        background: #1D1715 !important;
+        border-color: #3B2E27 !important;
+    }
+
+    html.dark .lp-table td { border-color: #30231F !important; color: #D0C4BD !important; }
+    html.dark .lp-table tbody tr:hover td { background: #241817 !important; }
+    html.dark .lp-table .bg-primary-soft,
+    html.dark .lp-table .bg-info-soft {
+        background: #2D1816 !important;
+        color: #EBA99D !important;
+    }
+    html.dark .lp-table a.bg-primary { background: #A84538 !important; }
+</style>
+
+
 @php
 
     /*
@@ -153,21 +435,14 @@
 @endphp
 
 
-<div class="flex w-full flex-col gap-6">
+<div class="lp-page flex w-full flex-col gap-6">
 
     {{-- =====================================================
         BREADCRUMB
     ====================================================== --}}
 
     <nav
-        class="
-            flex
-            flex-wrap
-            items-center
-            gap-2
-            text-[10px]
-            text-muted
-        "
+        class="lp-breadcrumb flex flex-wrap items-center gap-2 text-[10px] text-muted"
     >
 
         <a
@@ -191,14 +466,7 @@
     ====================================================== --}}
 
     <section
-        class="
-            flex
-            flex-col
-            gap-5
-            lg:flex-row
-            lg:items-end
-            lg:justify-between
-        "
+        class="lp-hero flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"
     >
 
         <div>
@@ -292,24 +560,13 @@
     ====================================================== --}}
 
     <section
-        class="
-            grid
-            gap-3
-            sm:grid-cols-2
-            lg:grid-cols-5
-        "
+        class="lp-overview grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
     >
 
         @foreach($overview as $item)
 
             <article
-                class="
-                    rounded-xl
-                    border
-                    border-line
-                    bg-surface
-                    p-4
-                "
+                class="lp-stat-card rounded-xl border border-line bg-surface p-4"
             >
 
                 <div class="flex items-start justify-between gap-3">
@@ -367,13 +624,7 @@
     ====================================================== --}}
 
     <section
-        class="
-            rounded-xl
-            border
-            border-line
-            bg-surface
-            p-4
-        "
+        class="lp-toolbar rounded-xl border border-line bg-surface p-4"
     >
 
         <div
@@ -566,13 +817,7 @@
     ====================================================== --}}
 
     <section
-        class="
-            overflow-hidden
-            rounded-xl
-            border
-            border-line
-            bg-surface
-        "
+        class="lp-directory overflow-hidden rounded-xl border border-line bg-surface"
     >
 
         <div
@@ -656,10 +901,7 @@
         <div class="overflow-x-auto">
 
             <table
-                class="
-                    w-full
-                    min-w-[1050px]
-                "
+                class="lp-table w-full min-w-[1050px]"
             >
 
                 <thead>

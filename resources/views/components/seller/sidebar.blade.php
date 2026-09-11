@@ -166,14 +166,14 @@
         >
             <span style="display:flex;align-items:center;gap:8px;">
                 <span class="sl-nav-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>
                 </span>
-                <span class="sl-nav-text" style="flex-direction:column;align-items:flex-start;">
-                    <span style="display:block;font-weight:600;font-size:.8125rem;">Appearance</span>
-                    <span style="display:block;font-size:.7rem;opacity:.6;">Light / Dark Mode</span>
+                <span style="display:grid;text-align:left;">
+                    <strong style="color:inherit;font-size:10.5px;font-weight:500;line-height:1.1;">Appearance</strong>
+                    <span style="margin-top:2px;color:#987865;font-size:8px;line-height:1.1;">Light / Dark Mode</span>
                 </span>
             </span>
-            <span id="themeToggleBadge" style="border-radius:9999px;padding:2px 10px;font-size:.7rem;font-weight:700;background:#c92d2f;color:#fff;">ON</span>
+            <span id="themeToggleBadge" style="display:inline-flex;min-height:21px;align-items:center;padding:0 9px;border-radius:9999px;background:#E3E3E2;color:#494644;font-size:7px;font-weight:900;white-space:nowrap;">OFF</span>
         </button>
         <form method="POST" action="{{ Route::has('logout') ? route('logout') : url('/logout') }}">
             @csrf

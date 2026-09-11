@@ -1,1465 +1,805 @@
+@php
+    $icons = [
+        'dashboard' => '
+            <rect x="3" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+            <rect x="14" y="14" width="7" height="7" rx="1"/>
+        ',
+        'parcel' => '
+            <path d="M21 8 12 3 3 8l9 5 9-5Z"/>
+            <path d="M3 8v8l9 5 9-5V8"/>
+            <path d="M12 13v8"/>
+        ',
+        'plus' => '
+            <path d="M12 5v14"/>
+            <path d="M5 12h14"/>
+        ',
+        'sort' => '
+            <path d="M8 3v18"/>
+            <path d="m4 7 4-4 4 4"/>
+            <path d="M16 21V3"/>
+            <path d="m12 17 4 4 4-4"/>
+        ',
+        'assignment' => '
+            <circle cx="8" cy="7" r="3"/>
+            <path d="M3 19c0-3 2-5 5-5"/>
+            <path d="M13 13h8"/>
+            <path d="m18 9 4 4-4 4"/>
+        ',
+        'tracking' => '
+            <circle cx="12" cy="12" r="8"/>
+            <circle cx="12" cy="12" r="3"/>
+        ',
+        'riders' => '
+            <circle cx="9" cy="7" r="3"/>
+            <path d="M3 20c0-4 2.5-6 6-6s6 2 6 6"/>
+            <path d="M17 11h4"/>
+            <path d="M19 9v4"/>
+        ',
+        'application' => '
+            <path d="M6 3h9l4 4v14H6z"/>
+            <path d="M14 3v5h5"/>
+            <path d="m9 14 2 2 4-4"/>
+        ',
+        'map' => '
+            <path d="M12 21s7-5 7-11a7 7 0 1 0-14 0c0 6 7 11 7 11Z"/>
+            <circle cx="12" cy="10" r="2"/>
+        ',
+        'message' => '
+            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/>
+        ',
+        'reports' => '
+            <path d="M5 20V10"/>
+            <path d="M12 20V4"/>
+            <path d="M19 20v-7"/>
+        ',
+        'profile' => '
+            <circle cx="12" cy="8" r="4"/>
+            <path d="M4 21c0-5 3-8 8-8s8 3 8 8"/>
+        ',
+        'logout' => '
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <path d="m16 17 5-5-5-5"/>
+            <path d="M21 12H9"/>
+        ',
+        'moon' => '
+            <path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/>
+        ',
+        'sun' => '
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2"/>
+            <path d="M12 20v2"/>
+            <path d="M4.93 4.93l1.41 1.41"/>
+            <path d="M17.66 17.66l1.41 1.41"/>
+            <path d="M2 12h2"/>
+            <path d="M20 12h2"/>
+            <path d="M6.34 17.66l-1.41 1.41"/>
+            <path d="M19.07 4.93l-1.41 1.41"/>
+        ',
+        'close' => '
+            <path d="M6 6l12 12"/>
+            <path d="M18 6 6 18"/>
+        ',
+    ];
+
+    $navGroups = [
+        [
+            'label' => 'Operations',
+            'items' => [
+                [
+                    'label' => 'All Parcels',
+                    'href' => route('logistics.parcels'),
+                    'active' => ['logistics.parcels', 'logistics.parcels.show'],
+                    'icon' => 'parcel',
+                ],
+                [
+                    'label' => 'Receive Parcel',
+                    'href' => route('logistics.parcels.receive'),
+                    'active' => ['logistics.parcels.receive'],
+                    'icon' => 'plus',
+                ],
+                [
+                    'label' => 'Parcel Sorting',
+                    'href' => route('logistics.sorting'),
+                    'active' => ['logistics.sorting', 'logistics.sorting.*'],
+                    'icon' => 'sort',
+                    'badge' => '34',
+                ],
+                [
+                    'label' => 'Rider Assignment',
+                    'href' => route('logistics.assignments'),
+                    'active' => ['logistics.assignments', 'logistics.assignments.*'],
+                    'icon' => 'assignment',
+                    'badge' => '18',
+                ],
+                [
+                    'label' => 'Parcel Tracking',
+                    'href' => route('logistics.parcels.tracking'),
+                    'active' => ['logistics.parcels.tracking'],
+                    'icon' => 'tracking',
+                ],
+            ],
+        ],
+        [
+            'label' => 'Delivery Management',
+            'items' => [
+                [
+                    'label' => 'Riders',
+                    'href' => route('logistics.riders'),
+                    'active' => ['logistics.riders', 'logistics.riders.show'],
+                    'icon' => 'riders',
+                ],
+                [
+                    'label' => 'Rider Applications',
+                    'href' => route('logistics.riders.applications'),
+                    'active' => ['logistics.riders.applications', 'logistics.rider-applications'],
+                    'icon' => 'application',
+                    'badge' => '5',
+                    'badgeTone' => 'danger',
+                ],
+                [
+                    'label' => 'Delivery Areas',
+                    'href' => route('logistics.delivery-areas'),
+                    'active' => ['logistics.delivery-areas', 'logistics.delivery-areas.*'],
+                    'icon' => 'map',
+                ],
+            ],
+        ],
+        [
+            'label' => 'Communication',
+            'items' => [
+                [
+                    'label' => 'Messages',
+                    'href' => route('logistics.messages'),
+                    'active' => ['logistics.messages', 'logistics.messages.*'],
+                    'icon' => 'message',
+                    'dot' => true,
+                ],
+            ],
+        ],
+        [
+            'label' => 'Analytics',
+            'items' => [
+                [
+                    'label' => 'Reports',
+                    'href' => route('logistics.reports'),
+                    'active' => ['logistics.reports', 'logistics.reports.*'],
+                    'icon' => 'reports',
+                ],
+            ],
+        ],
+    ];
+
+    $isActiveRoute = function (array $patterns) {
+        return collect($patterns)->contains(fn ($pattern) => request()->routeIs($pattern));
+    };
+
+    $dashboardActive = request()->routeIs('logistics.dashboard');
+@endphp
+
+@once
+<style>
+    :root {
+        --logi-bg: #FBF7F2;
+        --logi-bg-soft: #F6EFE7;
+        --logi-card: #FFFDF9;
+        --logi-border: #EADCCC;
+
+        --logi-maroon: #561C17;
+        --logi-maroon-2: #642920;
+        --logi-maroon-dark: #3E130F;
+
+        --logi-text: #3B211B;
+        --logi-muted: #CBB7AA;
+        --logi-muted-strong: #F3D8CC;
+
+        --logi-tan: #C19771;
+        --logi-success: #77C896;
+        --logi-danger: #F2A49A;
+    }
+
+    #logisticsSidebar,
+    .logi-sidebar {
+        width: 252px !important;
+        background:
+            radial-gradient(circle at 12% 5%, rgba(193, 151, 113, 0.18), transparent 26%),
+            radial-gradient(circle at 100% 30%, rgba(255, 253, 249, 0.07), transparent 34%),
+            linear-gradient(180deg, var(--logi-maroon) 0%, var(--logi-maroon-2) 46%, var(--logi-maroon-dark) 100%) !important;
+        color: #FFFFFF !important;
+        border-right: 1px solid rgba(255, 255, 255, 0.10) !important;
+        box-shadow: 12px 0 36px rgba(86, 28, 23, 0.14) !important;
+    }
+
+    .logi-brand {
+        display: flex;
+        min-height: 78px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 0 18px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+    }
+
+    .logi-brand-link {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 12px;
+        color: #FFFFFF;
+        text-decoration: none;
+    }
+
+    .logi-logo-mark {
+        display: grid;
+        width: 40px;
+        height: 40px;
+        flex: 0 0 40px;
+        place-items: center;
+        border-radius: 14px;
+        background: #FFFDF9;
+        color: var(--logi-maroon);
+        font-size: 17px;
+        font-weight: 950;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+    }
+
+    .logi-brand-text strong {
+        display: block;
+        color: #FFFFFF;
+        font-size: 15px;
+        font-weight: 950;
+        line-height: 1;
+        letter-spacing: -0.04em;
+    }
+
+    .logi-brand-text small {
+        display: block;
+        margin-top: 5px;
+        color: rgba(255, 255, 255, 0.50);
+        font-size: 7px;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+    }
+
+    .logi-mobile-close {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.10);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.72);
+        cursor: pointer;
+        transition: 160ms ease;
+    }
+
+    .logi-mobile-close:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: #FFFFFF;
+    }
+
+    .logi-mobile-close svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .logi-user-wrap {
+        padding: 16px;
+    }
+
+    .logi-user-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 18px;
+        background:
+            radial-gradient(circle at 92% 10%, rgba(255, 253, 249, 0.10), transparent 30%),
+            rgba(255, 255, 255, 0.065);
+    }
+
+    .logi-user-avatar {
+        display: grid;
+        width: 40px;
+        height: 40px;
+        flex: 0 0 40px;
+        place-items: center;
+        border-radius: 14px;
+        background: #F3E4DE;
+        color: var(--logi-maroon);
+        font-size: 10px;
+        font-weight: 950;
+    }
+
+    .logi-user-copy {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .logi-user-copy strong {
+        display: block;
+        overflow: hidden;
+        color: #FFFFFF;
+        font-size: 11px;
+        font-weight: 900;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .logi-user-copy span {
+        display: block;
+        margin-top: 4px;
+        color: rgba(255, 255, 255, 0.46);
+        font-size: 8px;
+        font-weight: 700;
+    }
+
+    .logi-online-dot {
+        width: 9px;
+        height: 9px;
+        flex: 0 0 9px;
+        border-radius: 999px;
+        background: var(--logi-success);
+        box-shadow: 0 0 0 4px rgba(119, 200, 150, 0.14);
+    }
+
+    .logi-nav {
+        display: flex;
+        min-height: 0;
+        flex: 1;
+        flex-direction: column;
+        padding: 0 12px 18px;
+    }
+
+    .logi-nav-group {
+        margin-top: 22px;
+    }
+
+    .logi-nav-title {
+        margin: 0 0 8px;
+        padding: 0 10px;
+        color: rgba(255, 255, 255, 0.35);
+        font-size: 7px;
+        font-weight: 950;
+        letter-spacing: 0.20em;
+        text-transform: uppercase;
+    }
+
+    .logi-nav-list {
+        display: grid;
+        gap: 5px;
+    }
+
+    .logi-nav-link {
+        position: relative;
+        display: flex;
+        min-height: 42px;
+        align-items: center;
+        gap: 11px;
+        padding: 0 10px;
+        border: 1px solid transparent;
+        border-radius: 14px;
+        color: rgba(255, 255, 255, 0.68);
+        font-size: 10px;
+        font-weight: 850;
+        line-height: 1;
+        text-decoration: none;
+        transition: 160ms ease;
+    }
+
+    .logi-nav-link:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #FFFFFF;
+    }
+
+    .logi-nav-link.is-active {
+        background: #FFFDF9;
+        border-color: rgba(255, 255, 255, 0.24);
+        color: var(--logi-maroon);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+    }
+
+    .logi-nav-link.is-active::before {
+        position: absolute;
+        top: 10px;
+        bottom: 10px;
+        left: -12px;
+        width: 4px;
+        border-radius: 0 999px 999px 0;
+        background: #F3D8CC;
+        content: "";
+    }
+
+    .logi-nav-icon {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        flex: 0 0 30px;
+        place-items: center;
+        border-radius: 11px;
+        background: rgba(255, 255, 255, 0.075);
+        color: currentColor;
+    }
+
+    .logi-nav-link.is-active .logi-nav-icon {
+        background: #F3E4DE;
+        color: var(--logi-maroon);
+    }
+
+    .logi-nav-icon svg {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.65;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .logi-nav-label {
+        min-width: 0;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .logi-badge {
+        display: grid;
+        min-width: 24px;
+        height: 22px;
+        place-items: center;
+        padding: 0 7px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.11);
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 8px;
+        font-weight: 950;
+    }
+
+    .logi-nav-link.is-active .logi-badge {
+        background: #F3E4DE;
+        color: var(--logi-maroon);
+    }
+
+    .logi-badge.is-danger {
+        background: #F3D8CC;
+        color: var(--logi-maroon);
+    }
+
+    .logi-dot-alert {
+        width: 8px;
+        height: 8px;
+        flex: 0 0 8px;
+        border-radius: 999px;
+        background: #F2A49A;
+        box-shadow: 0 0 0 4px rgba(242, 164, 154, 0.13);
+    }
+
+    .logi-spacer {
+        min-height: 24px;
+        flex: 1;
+    }
+
+    .logi-footer-group {
+        margin-top: 18px;
+        padding-top: 18px;
+        border-top: 1px solid rgba(255, 255, 255, 0.10);
+    }
+
+    .logi-theme-toggle {
+        display: flex;
+        width: 100%;
+        min-height: 62px;
+        align-items: center;
+        gap: 12px;
+        padding: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 18px;
+        background:
+            radial-gradient(circle at 92% 10%, rgba(255, 253, 249, 0.10), transparent 30%),
+            rgba(255, 255, 255, 0.065);
+        color: #FFFFFF;
+        text-align: left;
+        cursor: pointer;
+        transition: 160ms ease;
+    }
+
+    .logi-theme-toggle:hover {
+        background: rgba(255, 255, 255, 0.10);
+    }
+
+    .logi-theme-icon {
+        display: grid;
+        width: 40px;
+        height: 40px;
+        flex: 0 0 40px;
+        place-items: center;
+        border-radius: 14px;
+        background: #FFFDF9;
+        color: var(--logi-maroon);
+    }
+
+    .logi-theme-icon svg {
+        width: 17px;
+        height: 17px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.7;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+
+    .logi-theme-copy {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .logi-theme-copy strong {
+        display: block;
+        color: #FFFFFF;
+        font-size: 11px;
+        font-weight: 900;
+    }
+
+    .logi-theme-copy small {
+        display: block;
+        margin-top: 3px;
+        color: rgba(255, 255, 255, 0.48);
+        font-size: 9px;
+        font-weight: 700;
+    }
+
+    .logi-theme-state {
+        display: inline-flex;
+        min-height: 24px;
+        align-items: center;
+        padding: 0 9px;
+        border-radius: 999px;
+        background: #F3E4DE;
+        color: var(--logi-maroon);
+        font-size: 8px;
+        font-weight: 950;
+        letter-spacing: 0.08em;
+    }
+
+    .logi-profile-area {
+        display: grid;
+        gap: 5px;
+        margin-top: 14px;
+    }
+
+    .logi-logout {
+        width: 100%;
+        cursor: pointer;
+        text-align: left;
+    }
+
+    .logi-logout:hover {
+        background: rgba(180, 35, 24, 0.18);
+        color: #FFDAD6;
+    }
+
+    #themeSunIcon.hidden,
+    #themeMoonIcon.hidden {
+        display: none;
+    }
+
+    html.dark #logisticsSidebar,
+    html.dark .logi-sidebar {
+        background:
+            radial-gradient(circle at 12% 5%, rgba(193, 151, 113, 0.12), transparent 26%),
+            radial-gradient(circle at 100% 30%, rgba(255, 253, 249, 0.045), transparent 34%),
+            linear-gradient(180deg, #321614 0%, #21100F 100%) !important;
+    }
+
+    html.dark .logi-nav-link.is-active {
+        background: #2D1414;
+        border-color: #60463A;
+        color: #EBA99D;
+    }
+
+    html.dark .logi-nav-link.is-active .logi-nav-icon,
+    html.dark .logi-nav-link.is-active .logi-badge,
+    html.dark .logi-theme-icon {
+        background: #1E1A17;
+        color: #EBA99D;
+    }
+
+    @media (min-width: 1024px) {
+        .logi-mobile-close {
+            display: none;
+        }
+    }
+</style>
+@endonce
+
 <aside
     id="logisticsSidebar"
-    class="
-        fixed
-        inset-y-0
-        left-0
-        z-50
-
-        flex
-        w-[245px]
-        -translate-x-full
-        flex-col
-
-        overflow-y-auto
-
-        border-r
-        border-white/10
-
-        bg-sidebar
-        text-sidebar-text
-
-        shadow-[10px_0_35px_rgba(50,15,18,0.08)]
-
-        transition-transform
-        duration-300
-        ease-out
-
-        lg:translate-x-0
-    "
+    class="logi-sidebar fixed inset-y-0 left-0 z-50 flex -translate-x-full flex-col overflow-y-auto transition-transform duration-300 ease-out lg:translate-x-0"
 >
-
-    {{-- =====================================================
-        BRAND
-    ====================================================== --}}
-
-    <div
-        class="
-            flex
-            min-h-[78px]
-            items-center
-            justify-between
-
-            border-b
-            border-white/10
-
-            px-5
-        "
-    >
-
-        <a
-            href="{{ route('logistics.dashboard') }}"
-            class="
-                flex
-                min-w-0
-                items-center
-                gap-3
-            "
-        >
-
-            <span
-                class="
-                    grid
-                    h-9
-                    w-9
-                    shrink-0
-                    place-items-center
-
-                    rounded-[10px]
-
-                    bg-white
-
-                    text-[15px]
-                    font-black
-                    text-[#74181c]
-
-                    shadow-sm
-
-                    dark:bg-primary
-                    dark:text-white
-                "
-            >
+    <div class="logi-brand">
+        <a href="{{ route('logistics.dashboard') }}" class="logi-brand-link">
+            <span class="logi-logo-mark">
                 L
             </span>
 
-
-            <span class="min-w-0">
-
-                <strong
-                    class="
-                        block
-
-                        text-[14px]
-                        font-extrabold
-                        leading-none
-                        tracking-[-0.04em]
-                        text-white
-                    "
-                >
-                    LIKHAE
-                </strong>
-
-
-                <small
-                    class="
-                        mt-1
-                        block
-
-                        text-[7px]
-                        font-semibold
-                        uppercase
-                        tracking-[0.18em]
-
-                        text-white/45
-                    "
-                >
-                    Logistics Center
-                </small>
-
+            <span class="logi-brand-text">
+                <strong>LIKHAE</strong>
+                <small>Logistics Center</small>
             </span>
-
         </a>
-
-
-        {{-- MOBILE CLOSE --}}
 
         <button
             type="button"
             id="mobileSidebarClose"
+            class="logi-mobile-close"
             aria-label="Close navigation"
-            class="
-                grid
-                h-8
-                w-8
-                place-items-center
-
-                rounded-lg
-
-                text-white/60
-
-                transition
-
-                hover:bg-white/10
-                hover:text-white
-
-                lg:hidden
-            "
         >
-
-            <svg
-                viewBox="0 0 24 24"
-                class="
-                    h-4
-                    w-4
-
-                    fill-none
-                    stroke-current
-                    stroke-[1.7]
-                "
-            >
-                <path d="M6 6l12 12"></path>
-                <path d="M18 6 6 18"></path>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                {!! $icons['close'] !!}
             </svg>
-
         </button>
-
     </div>
 
-
-    {{-- =====================================================
-        LOGISTICS USER
-    ====================================================== --}}
-
-    <div class="px-4 py-4">
-
-        <div
-            class="
-                flex
-                items-center
-                gap-3
-
-                rounded-xl
-
-                border
-                border-white/10
-
-                bg-white/[0.07]
-
-                p-3
-            "
-        >
-
-            <div
-                class="
-                    grid
-                    h-9
-                    w-9
-                    shrink-0
-                    place-items-center
-
-                    rounded-full
-
-                    bg-white
-
-                    text-[9px]
-                    font-extrabold
-                    text-[#74181c]
-
-                    dark:bg-primary
-                    dark:text-white
-                "
-            >
+    <div class="logi-user-wrap">
+        <div class="logi-user-card">
+            <span class="logi-user-avatar">
                 LC
-            </div>
+            </span>
 
-
-            <div class="min-w-0 flex-1">
-
-                <strong
-                    class="
-                        block
-                        truncate
-
-                        text-[10px]
-                        font-semibold
-                        text-white
-                    "
-                >
+            <div class="logi-user-copy">
+                <strong>
                     Logistics Center
                 </strong>
 
-
-                <span
-                    class="
-                        mt-0.5
-                        block
-
-                        text-[7px]
-                        text-white/45
-                    "
-                >
+                <span>
                     Operations Staff
                 </span>
-
             </div>
 
-
-            <span
-                class="
-                    h-2
-                    w-2
-                    shrink-0
-
-                    rounded-full
-
-                    bg-[#55a879]
-
-                    shadow-[0_0_0_3px_rgba(85,168,121,0.13)]
-                "
-                title="Online"
-            ></span>
-
+            <span class="logi-online-dot" title="Online"></span>
         </div>
-
     </div>
 
-
-    {{-- =====================================================
-        NAVIGATION
-    ====================================================== --}}
-
-    <nav
-        class="
-            flex
-            flex-1
-            flex-col
-
-            px-3
-            pb-5
-        "
-    >
-
-        {{-- =================================================
-            DASHBOARD
-        ================================================== --}}
-
+    <nav class="logi-nav" aria-label="Logistics navigation">
         <a
             href="{{ route('logistics.dashboard') }}"
-            class="
-                group
-                relative
-
-                flex
-                min-h-[42px]
-                items-center
-                gap-3
-
-                rounded-[10px]
-
-                px-3
-
-                text-[9px]
-                font-semibold
-
-                transition-all
-                duration-200
-
-                {{
-                    request()->routeIs('logistics.dashboard')
-                        ? 'bg-white text-[#74181c] shadow-sm dark:bg-white/10 dark:text-white'
-                        : 'text-white/65 hover:bg-white/10 hover:text-white'
-                }}
-            "
+            class="logi-nav-link {{ $dashboardActive ? 'is-active' : '' }}"
         >
-
-            @if(request()->routeIs('logistics.dashboard'))
-
-                <span
-                    class="
-                        absolute
-                        bottom-[10px]
-                        left-0
-                        top-[10px]
-
-                        w-[3px]
-
-                        rounded-r-full
-
-                        bg-[#74181c]
-
-                        dark:bg-[#d45c62]
-                    "
-                ></span>
-
-            @endif
-
-
-            <svg
-                viewBox="0 0 24 24"
-                class="
-                    h-[17px]
-                    w-[17px]
-                    shrink-0
-
-                    fill-none
-                    stroke-current
-                    stroke-[1.5]
-
-                    {{
-                        request()->routeIs('logistics.dashboard')
-                            ? 'text-[#74181c] dark:text-[#d45c62]'
-                            : 'text-white/55 group-hover:text-white'
-                    }}
-                "
-            >
-                <rect
-                    x="3"
-                    y="3"
-                    width="7"
-                    height="7"
-                    rx="1"
-                ></rect>
-
-                <rect
-                    x="14"
-                    y="3"
-                    width="7"
-                    height="7"
-                    rx="1"
-                ></rect>
-
-                <rect
-                    x="3"
-                    y="14"
-                    width="7"
-                    height="7"
-                    rx="1"
-                ></rect>
-
-                <rect
-                    x="14"
-                    y="14"
-                    width="7"
-                    height="7"
-                    rx="1"
-                ></rect>
-            </svg>
-
-
-            <span>
-                Dashboard
+            <span class="logi-nav-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                    {!! $icons['dashboard'] !!}
+                </svg>
             </span>
 
+            <span class="logi-nav-label">
+                Dashboard
+            </span>
         </a>
 
-
-        {{-- =================================================
-            OPERATIONS
-        ================================================== --}}
-
-        <div class="mt-6">
-
-            <p
-                class="
-                    mb-2
-                    px-3
-
-                    text-[6px]
-                    font-bold
-                    uppercase
-                    tracking-[0.2em]
-
-                    text-white/30
-                "
-            >
-                Operations
-            </p>
-
-
-            {{-- ALL PARCELS --}}
-
-            <a
-                href="{{ route('logistics.parcels') }}"
-                class="
-                    group
-                    relative
-
-                    mb-1
-                    flex
-                    min-h-[40px]
-                    items-center
-                    gap-3
-
-                    rounded-[10px]
-
-                    px-3
-
-                    text-[9px]
-                    font-semibold
-
-                    transition-all
-
-                    {{
-                        request()->routeIs('logistics.parcels')
-                        || request()->routeIs('logistics.parcels.show')
-                            ? 'bg-white text-[#74181c] shadow-sm dark:bg-white/10 dark:text-white'
-                            : 'text-white/60 hover:bg-white/10 hover:text-white'
-                    }}
-                "
-            >
-
-                <svg
-                    viewBox="0 0 24 24"
-                    class="
-                        h-4
-                        w-4
-                        shrink-0
-
-                        fill-none
-                        stroke-current
-                        stroke-[1.5]
-                    "
-                >
-                    <path d="M21 8 12 3 3 8l9 5 9-5Z"></path>
-                    <path d="M3 8v8l9 5 9-5V8"></path>
-                    <path d="M12 13v8"></path>
-                </svg>
-
-
-                <span>
-                    All Parcels
-                </span>
-
-            </a>
-
-
-            {{-- RECEIVE PARCEL --}}
-
-            <a
-                href="{{ route('logistics.parcels.receive') }}"
-                class="
-                    group
-                    relative
-
-                    mb-1
-                    flex
-                    min-h-[40px]
-                    items-center
-                    gap-3
-
-                    rounded-[10px]
-
-                    px-3
-
-                    text-[9px]
-                    font-semibold
-
-                    transition-all
-
-                    {{
-                        request()->routeIs('logistics.parcels.receive')
-                            ? 'bg-white text-[#74181c] shadow-sm dark:bg-white/10 dark:text-white'
-                            : 'text-white/60 hover:bg-white/10 hover:text-white'
-                    }}
-                "
-            >
-
-                <svg
-                    viewBox="0 0 24 24"
-                    class="
-                        h-4
-                        w-4
-
-                        fill-none
-                        stroke-current
-                        stroke-[1.5]
-                    "
-                >
-                    <path d="M12 5v14"></path>
-                    <path d="M5 12h14"></path>
-                </svg>
-
-
-                <span>
-                    Receive Parcel
-                </span>
-
-            </a>
-
-
-            {{-- SORTING --}}
-
-            <a
-                href="{{ route('logistics.sorting') }}"
-                class="
-                    group
-                    relative
-
-                    mb-1
-                    flex
-                    min-h-[40px]
-                    items-center
-                    gap-3
-
-                    rounded-[10px]
-
-                    px-3
-
-                    text-[9px]
-                    font-semibold
-
-                    transition-all
-
-                    {{
-                        request()->routeIs('logistics.sorting.*')
-                            ? 'bg-white text-[#74181c] shadow-sm dark:bg-white/10 dark:text-white'
-                            : 'text-white/60 hover:bg-white/10 hover:text-white'
-                    }}
-                "
-            >
-
-                <svg
-                    viewBox="0 0 24 24"
-                    class="
-                        h-4
-                        w-4
-
-                        fill-none
-                        stroke-current
-                        stroke-[1.5]
-                    "
-                >
-                    <path d="M8 3v18"></path>
-                    <path d="m4 7 4-4 4 4"></path>
-
-                    <path d="M16 21V3"></path>
-                    <path d="m12 17 4 4 4-4"></path>
-                </svg>
-
-
-                <span>
-                    Parcel Sorting
-                </span>
-
-
-                <span
-                    class="
-                        ml-auto
-
-                        min-w-[22px]
-
-                        rounded-full
-
-                        bg-white/10
-
-                        px-1.5
-                        py-1
-
-                        text-center
-                        text-[6px]
-                        font-bold
-                        text-white/75
-
-                        {{
-                            request()->routeIs('logistics.sorting.*')
-                                ? 'bg-[#f6e5e3] text-[#74181c] dark:bg-white/10 dark:text-white'
-                                : ''
-                        }}
-                    "
-                >
-                    34
-                </span>
-
-            </a>
-
-
-            {{-- RIDER ASSIGNMENT --}}
-
-            <a
-                href="{{ route('logistics.assignments') }}"
-                class="
-                    group
-                    relative
-
-                    mb-1
-                    flex
-                    min-h-[40px]
-                    items-center
-                    gap-3
-
-                    rounded-[10px]
-
-                    px-3
-
-                    text-[9px]
-                    font-semibold
-
-                    transition-all
-
-                    {{
-                        request()->routeIs('logistics.assignments.*')
-                            ? 'bg-white text-[#74181c] shadow-sm dark:bg-white/10 dark:text-white'
-                            : 'text-white/60 hover:bg-white/10 hover:text-white'
-                    }}
-                "
-            >
-
-                <svg
-                    viewBox="0 0 24 24"
-                    class="
-                        h-4
-                        w-4
-
-                        fill-none
-                        stroke-current
-                        stroke-[1.5]
-                    "
-                >
-                    <circle cx="8" cy="7" r="3"></circle>
-                    <path d="M3 19c0-3 2-5 5-5"></path>
-                    <path d="M13 13h8"></path>
-                    <path d="m18 9 4 4-4 4"></path>
-                </svg>
-
-
-                <span>
-                    Rider Assignment
-                </span>
-
-
-                <span
-                    class="
-                        ml-auto
-
-                        min-w-[22px]
-
-                        rounded-full
-
-                        bg-white/10
-
-                        px-1.5
-                        py-1
-
-                        text-center
-                        text-[6px]
-                        font-bold
-                        text-white/75
-
-                        {{
-                            request()->routeIs('logistics.assignments.*')
-                                ? 'bg-[#f6e5e3] text-[#74181c] dark:bg-white/10 dark:text-white'
-                                : ''
-                        }}
-                    "
-                >
-                    18
-                </span>
-
-            </a>
-
-
-            {{-- TRACKING --}}
-
-            <a
-                href="{{ route('logistics.parcels.tracking') }}"
-                class="
-                    group
-                    relative
-
-                    mb-1
-                    flex
-                    min-h-[40px]
-                    items-center
-                    gap-3
-
-                    rounded-[10px]
-
-                    px-3
-
-                    text-[9px]
-                    font-semibold
-
-                    transition-all
-
-                    {{
-                        request()->routeIs('logistics.parcels.tracking')
-                            ? 'bg-white text-[#74181c] shadow-sm dark:bg-white/10 dark:text-white'
-                            : 'text-white/60 hover:bg-white/10 hover:text-white'
-                    }}
-                "
-            >
-
-                <svg
-                    viewBox="0 0 24 24"
-                    class="
-                        h-4
-                        w-4
-
-                        fill-none
-                        stroke-current
-                        stroke-[1.5]
-                    "
-                >
-                    <circle cx="12" cy="12" r="8"></circle>
-                    <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-
-
-                <span>
-                    Parcel Tracking
-                </span>
-
-            </a>
-
-        </div>
-
-
-        {{-- =================================================
-            DELIVERY MANAGEMENT
-        ================================================== --}}
-
-        <div class="mt-6">
-
-            <p
-                class="
-                    mb-2
-                    px-3
-
-                    text-[6px]
-                    font-bold
-                    uppercase
-                    tracking-[0.2em]
-
-                    text-white/30
-                "
-            >
-                Delivery Management
-            </p>
-
-
-            {{-- RIDERS --}}
-
-            <a
-                href="{{ route('logistics.riders') }}"
-                class="
-                    group
-
-                    mb-1
-                    flex
-                    min-h-[40px]
-                    items-center
-                    gap-3
-
-                    rounded-[10px]
-
-                    px-3
-
-                    text-[9px]
-                    font-semibold
-
-                    transition
-
-                    {{
-                        request()->routeIs('logistics.riders')
-                        || request()->routeIs('logistics.riders.show')
-                            ? 'bg-white text-[#74181c] shadow-sm dark:bg-white/10 dark:text-white'
-                            : 'text-white/60 hover:bg-white/10 hover:text-white'
-                    }}
-                "
-            >
-
-                <svg
-                    viewBox="0 0 24 24"
-                    class="
-                        h-4
-                        w-4
-
-                        fill-none
-                        stroke-current
-                        stroke-[1.5]
-                    "
-                >
-                    <circle cx="9" cy="7" r="3"></circle>
-                    <path d="M3 20c0-4 2.5-6 6-6s6 2 6 6"></path>
-                    <path d="M17 11h4"></path>
-                    <path d="M19 9v4"></path>
-                </svg>
-
-
-                <span>
-                    Riders
-                </span>
-
-            </a>
-
-
-            {{-- RIDER APPLICATIONS --}}
-
-            <a
-                href="{{ route('logistics.riders.applications') }}"
-                class="
-                    group
-
-                    mb-1
-                    flex
-                    min-h-[40px]
-                    items-center
-                    gap-3
-
-                    rounded-[10px]
-
-                    px-3
-
-                    text-[9px]
-                    font-semibold
-
-                    transition
-
-                    {{
-                        request()->routeIs('logistics.rider-applications')
-                            ? 'bg-white text-[#74181c] shadow-sm dark:bg-white/10 dark:text-white'
-                            : 'text-white/60 hover:bg-white/10 hover:text-white'
-                    }}
-                "
-            >
-
-                <svg
-                    viewBox="0 0 24 24"
-                    class="
-                        h-4
-                        w-4
-
-                        fill-none
-                        stroke-current
-                        stroke-[1.5]
-                    "
-                >
-                    <path d="M6 3h9l4 4v14H6z"></path>
-                    <path d="M14 3v5h5"></path>
-                    <path d="m9 14 2 2 4-4"></path>
-                </svg>
-
-
-                <span>
-                    Rider Applications
-                </span>
-
-
-                <span
-                    class="
-                        ml-auto
-
-                        min-w-[22px]
-
-                        rounded-full
-
-                        bg-[#f4c6c8]
-
-                        px-1.5
-                        py-1
-
-                        text-center
-                        text-[6px]
-                        font-bold
-                        text-[#74181c]
-
-                        dark:bg-[#a92b31]/25
-                        dark:text-[#e9969a]
-                    "
-                >
-                    5
-                </span>
-
-            </a>
-
-
-            {{-- DELIVERY AREAS --}}
-
-            <a
-                href="{{ route('logistics.delivery-areas') }}"
-                class="
-                    group
-
-                    mb-1
-                    flex
-                    min-h-[40px]
-                    items-center
-                    gap-3
-
-                    rounded-[10px]
-
-                    px-3
-
-                    text-[9px]
-                    font-semibold
-
-                    transition
-
-                    {{
-                        request()->routeIs('logistics.delivery-areas.*')
-                            ? 'bg-white text-[#74181c] shadow-sm dark:bg-white/10 dark:text-white'
-                            : 'text-white/60 hover:bg-white/10 hover:text-white'
-                    }}
-                "
-            >
-
-                <svg
-                    viewBox="0 0 24 24"
-                    class="
-                        h-4
-                        w-4
-
-                        fill-none
-                        stroke-current
-                        stroke-[1.5]
-                    "
-                >
-                    <path
-                        d="
-                            M12 21
-                            s7-5 7-11
-                            a7 7 0 1 0-14 0
-                            c0 6 7 11 7 11Z
-                        "
-                    ></path>
-
-                    <circle
-                        cx="12"
-                        cy="10"
-                        r="2"
-                    ></circle>
-                </svg>
-
-
-                <span>
-                    Delivery Areas
-                </span>
-
-            </a>
-
-        </div>
-
-
-        {{-- =================================================
-            COMMUNICATION
-        ================================================== --}}
-
-        <div class="mt-6">
-
-            <p
-                class="
-                    mb-2
-                    px-3
-
-                    text-[6px]
-                    font-bold
-                    uppercase
-                    tracking-[0.2em]
-
-                    text-white/30
-                "
-            >
-                Communication
-            </p>
-
-
-            <a
-                href="{{ route('logistics.messages') }}"
-                class="
-                    group
-
-                    flex
-                    min-h-[40px]
-                    items-center
-                    gap-3
-
-                    rounded-[10px]
-
-                    px-3
-
-                    text-[9px]
-                    font-semibold
-
-                    transition
-
-                    {{
-                        request()->routeIs('logistics.messages.*')
-                            ? 'bg-white text-[#74181c] shadow-sm dark:bg-white/10 dark:text-white'
-                            : 'text-white/60 hover:bg-white/10 hover:text-white'
-                    }}
-                "
-            >
-
-                <svg
-                    viewBox="0 0 24 24"
-                    class="
-                        h-4
-                        w-4
-
-                        fill-none
-                        stroke-current
-                        stroke-[1.5]
-                    "
-                >
-                    <path
-                        d="
-                            M21 15
-                            a4 4 0 0 1-4 4
-                            H8
-                            l-5 3
-                            V7
-                            a4 4 0 0 1 4-4
-                            h10
-                            a4 4 0 0 1 4 4
-                            Z
-                        "
-                    ></path>
-                </svg>
-
-
-                <span>
-                    Messages
-                </span>
-
-
-                <span
-                    class="
-                        ml-auto
-
-                        h-1.5
-                        w-1.5
-
-                        rounded-full
-
-                        bg-[#f3a3a7]
-                    "
-                ></span>
-
-            </a>
-
-        </div>
-
-
-        {{-- =================================================
-            ANALYTICS
-        ================================================== --}}
-
-        <div class="mt-6">
-
-            <p
-                class="
-                    mb-2
-                    px-3
-
-                    text-[6px]
-                    font-bold
-                    uppercase
-                    tracking-[0.2em]
-
-                    text-white/30
-                "
-            >
-                Analytics
-            </p>
-
-
-            <a
-                href="{{ route('logistics.reports') }}"
-                class="
-                    group
-
-                    flex
-                    min-h-[40px]
-                    items-center
-                    gap-3
-
-                    rounded-[10px]
-
-                    px-3
-
-                    text-[9px]
-                    font-semibold
-
-                    transition
-
-                    {{
-                        request()->routeIs('logistics.reports.*')
-                            ? 'bg-white text-[#74181c] shadow-sm dark:bg-white/10 dark:text-white'
-                            : 'text-white/60 hover:bg-white/10 hover:text-white'
-                    }}
-                "
-            >
-
-                <svg
-                    viewBox="0 0 24 24"
-                    class="
-                        h-4
-                        w-4
-
-                        fill-none
-                        stroke-current
-                        stroke-[1.5]
-                    "
-                >
-                    <path d="M5 20V10"></path>
-                    <path d="M12 20V4"></path>
-                    <path d="M19 20v-7"></path>
-                </svg>
-
-
-                <span>
-                    Reports
-                </span>
-
-            </a>
-
-        </div>
-
-
-        {{-- =================================================
-            SPACER
-        ================================================== --}}
-
-        <div class="min-h-6 flex-1"></div>
-
-
-        {{-- =================================================
-            APPEARANCE
-        ================================================== --}}
-
-        <div
-            class="
-                border-t
-                border-white/10
-
-                pt-5
-            "
-        >
-
-            <p
-                class="
-                    mb-2
-                    px-3
-
-                    text-[6px]
-                    font-bold
-                    uppercase
-                    tracking-[0.2em]
-
-                    text-white/30
-                "
-            >
+        @foreach ($navGroups as $group)
+            <div class="logi-nav-group">
+                <p class="logi-nav-title">
+                    {{ $group['label'] }}
+                </p>
+
+                <div class="logi-nav-list">
+                    @foreach ($group['items'] as $item)
+                        @php
+                            $active = $isActiveRoute($item['active']);
+                            $badgeTone = data_get($item, 'badgeTone') === 'danger' ? 'is-danger' : '';
+                        @endphp
+
+                        <a
+                            href="{{ $item['href'] }}"
+                            class="logi-nav-link {{ $active ? 'is-active' : '' }}"
+                        >
+                            <span class="logi-nav-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24">
+                                    {!! $icons[$item['icon']] ?? $icons['parcel'] !!}
+                                </svg>
+                            </span>
+
+                            <span class="logi-nav-label">
+                                {{ $item['label'] }}
+                            </span>
+
+                            @if (!empty($item['badge']))
+                                <span class="logi-badge {{ $badgeTone }}">
+                                    {{ $item['badge'] }}
+                                </span>
+                            @endif
+
+                            @if (!empty($item['dot']))
+                                <span class="logi-dot-alert" aria-label="Unread messages"></span>
+                            @endif
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+        @endforeach
+
+        <div class="logi-spacer"></div>
+
+        <div class="logi-footer-group">
+            <p class="logi-nav-title">
                 Appearance
             </p>
-
-
-            {{-- THEME TOGGLE --}}
 
             <button
                 type="button"
                 id="logisticsThemeToggle"
+                class="logi-theme-toggle"
                 aria-label="Toggle light and dark theme"
                 aria-pressed="false"
-                class="
-                    group
-
-                    flex
-                    min-h-[60px]
-                    w-full
-                    items-center
-                    gap-4
-
-                    rounded-2xl
-
-                    border
-                    border-white/10
-
-                    bg-white/[0.06]
-
-                    px-5
-
-                    text-left
-
-                    transition
-
-                    hover:bg-white/10
-                "
             >
-
-                {{-- ICON --}}
-
-                <span
-                    class="
-                        grid
-                        h-11
-                        w-11
-                        shrink-0
-                        place-items-center
-
-                        rounded-xl
-
-                        bg-surface
-
-                        text-ink
-                    "
-                >
-
-                    {{-- MOON --}}
-                    <svg
-                        id="themeMoonIcon"
-                        viewBox="0 0 24 24"
-                        class="
-                            h-4
-                            w-4
-
-                            fill-none
-                            stroke-current
-                            stroke-[1.6]
-                        "
-                    >
-                        <path
-                            d="
-                                M20 15.5
-                                A8.5 8.5 0 0 1
-                                8.5 4
-                                A8.5 8.5 0 1 0
-                                20 15.5Z
-                            "
-                        ></path>
+                <span class="logi-theme-icon" aria-hidden="true">
+                    <svg id="themeMoonIcon" viewBox="0 0 24 24">
+                        {!! $icons['moon'] !!}
                     </svg>
 
-
-                    {{-- SUN --}}
-                    <svg
-                        id="themeSunIcon"
-                        viewBox="0 0 24 24"
-                        class="
-                            hidden
-                            h-4
-                            w-4
-
-                            fill-none
-                            stroke-current
-                            stroke-[1.6]
-                        "
-                    >
-                        <circle
-                            cx="12"
-                            cy="12"
-                            r="4"
-                        ></circle>
-
-                        <path d="M12 2v2"></path>
-                        <path d="M12 20v2"></path>
-
-                        <path d="M4.93 4.93l1.41 1.41"></path>
-                        <path d="M17.66 17.66l1.41 1.41"></path>
-
-                        <path d="M2 12h2"></path>
-                        <path d="M20 12h2"></path>
-
-                        <path d="M6.34 17.66l-1.41 1.41"></path>
-                        <path d="M19.07 4.93l-1.41 1.41"></path>
+                    <svg id="themeSunIcon" viewBox="0 0 24 24" class="hidden">
+                        {!! $icons['sun'] !!}
                     </svg>
-
                 </span>
 
-
-                {{-- LABEL --}}
-
-                <span class="min-w-0 flex-1">
-
-                    <strong
-                        id="themeToggleTitle"
-                        class="
-                            block
-
-                            text-sm
-                            font-semibold
-                            text-ink
-                        "
-                    >
+                <span class="logi-theme-copy">
+                    <strong id="themeToggleTitle">
                         Dark Mode
                     </strong>
 
-
-                    <small
-                        id="themeToggleDescription"
-                        class="
-                            mt-0.5
-                            block
-
-                            text-xs
-                            text-muted
-                        "
-                    >
+                    <small id="themeToggleDescription">
                         Switch to dark theme
                     </small>
-
                 </span>
 
-
-                {{-- TOGGLE TRACK --}}
-
-                <span
-                    id="themeToggleTrack"
-                    class="
-                        rounded-full
-                        bg-primary
-                        px-3
-                        py-1
-                        text-xs
-                        font-bold
-                        text-white
-                    "
-                >
-                    ON
+                <span id="themeToggleTrack" class="logi-theme-state">
+                    OFF
                 </span>
-
             </button>
-
         </div>
 
-
-        {{-- =================================================
-            PROFILE
-        ================================================== --}}
-
-        <div class="mt-4">
-
+        <div class="logi-profile-area">
             <a
                 href="{{ route('logistics.profile') }}"
-                class="
-                    group
-
-                    flex
-                    min-h-[40px]
-                    items-center
-                    gap-3
-
-                    rounded-[10px]
-
-                    px-3
-
-                    text-[9px]
-                    font-semibold
-
-                    transition
-
-                    {{
-                        request()->routeIs('logistics.profile.*')
-                            ? 'bg-white text-[#74181c] shadow-sm dark:bg-white/10 dark:text-white'
-                            : 'text-white/60 hover:bg-white/10 hover:text-white'
-                    }}
-                "
+                class="logi-nav-link {{ request()->routeIs('logistics.profile', 'logistics.profile.*') ? 'is-active' : '' }}"
             >
-
-                <svg
-                    viewBox="0 0 24 24"
-                    class="
-                        h-4
-                        w-4
-
-                        fill-none
-                        stroke-current
-                        stroke-[1.5]
-                    "
-                >
-                    <circle cx="12" cy="8" r="4"></circle>
-
-                    <path
-                        d="
-                            M4 21
-                            c0-5 3-8 8-8
-                            s8 3 8 8
-                        "
-                    ></path>
-                </svg>
-
-
-                <span>
-                    My Profile
+                <span class="logi-nav-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                        {!! $icons['profile'] !!}
+                    </svg>
                 </span>
 
+                <span class="logi-nav-label">
+                    My Profile
+                </span>
             </a>
 
-
-            {{-- LOGOUT --}}
-
-            <form method="POST" action="{{ route('logout') }}" class="mt-1">
+            <form method="POST" action="{{ route('logout') }}">
                 @csrf
 
-                <button
-                    type="submit"
-                    class="
-                        group
-                        flex
-                        min-h-[40px]
-                        w-full
-                        items-center
-                        gap-3
-                        rounded-[10px]
-                        px-3
-                        text-left
-                        text-[9px]
-                        font-semibold
-                        text-white/50
-                        transition
-                        hover:bg-[#a92b31]/25
-                        hover:text-[#ffd7d8]
-                    "
-                >
-                    <svg viewBox="0 0 24 24" class="h-4 w-4 fill-none stroke-current stroke-[1.5]">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <path d="m16 17 5-5-5-5"></path>
-                        <path d="M21 12H9"></path>
-                    </svg>
-                    <span>Logout</span>
+                <button type="submit" class="logi-nav-link logi-logout">
+                    <span class="logi-nav-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24">
+                            {!! $icons['logout'] !!}
+                        </svg>
+                    </span>
+
+                    <span class="logi-nav-label">
+                        Logout
+                    </span>
                 </button>
             </form>
-
         </div>
-
     </nav>
-
 </aside>
