@@ -7,6 +7,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -21,11 +22,14 @@ use Illuminate\Notifications\Notifiable;
     'sex',
     'birthday',
     'contact_number',
+    'region',
     'province',
     'municipality',
     'barangay',
     'house_number',
     'street',
+    'postal_code',
+    'landmark',
     'valid_id_path',
     'business_name',
     'store_name',
@@ -42,6 +46,8 @@ use Illuminate\Notifications\Notifiable;
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
+    public const PUBLIC_ROLES = ['buyer', 'seller', 'logistics', 'courier', 'rider'];
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
@@ -55,6 +61,35 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'birthday' => 'date',
+            'reviewed_at' => 'datetime',
         ];
+    }
+
+    public function workspaceRoute(): string
+    {
+        return match ($this->role) {
+            'admin' => 'admin.dashboard',
+            'buyer' => 'buyer.home',
+            'seller' => 'seller.dashboard',
+            'logistics' => 'logistics.dashboard',
+            'rider', 'courier' => 'rider.dashboard',
+            default => 'home',
+        };
+    }
+
+    public function inactiveMessage(): string
+    {
+        return match ($this->status) {
+            'pending' => 'Your account is pending administrator approval.',
+            'rejected' => 'Your registration has been rejected. Please contact support for assistance.',
+            'suspended' => 'Your account has been suspended. Please contact support for assistance.',
+            default => 'Your account is not active. Please contact support for assistance.',
+        };
+    }
+
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'reviewed_by');
     }
 }

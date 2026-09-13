@@ -4,84 +4,33 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureWorkspaceRole
 {
-    /**
-     * Handle an incoming request.
-     */
-    public function handle(
-        Request $request,
-        Closure $next,
-        string $role
-    ): Response {
-
-        $user = $request
-            ->session()
-            ->get('demo_user');
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Not Logged In
-        |--------------------------------------------------------------------------
-        */
-
-        if (!$user) {
-
-            return redirect()
-                ->route('login')
-                ->withErrors([
-                    'email' => 'Please sign in first.',
-                ]);
+    public function handle(Request $request, Closure $next, string $role): Response
+    {
+        if (! Auth::check()) {
+            return redirect()->route('login')->withErrors(['email' => 'Please sign in first.']);
         }
 
+        $user = Auth::user();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Wrong Workspace
-        |--------------------------------------------------------------------------
-        */
+        if ($user->status !== 'active') {
+            $message = $user->inactiveMessage();
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
 
-        if (($user['role'] ?? null) !== $role) {
-
-            return $this->redirectToWorkspace(
-                $user['role'] ?? null
-            );
+            return redirect()->route(in_array($role, ['logistics', 'rider', 'courier'], true) ? 'logistics.login' : 'login')
+                ->withErrors(['email' => $message]);
         }
 
+        $actualRole = $user->role === 'courier' ? 'rider' : $user->role;
+        $expectedRole = $role === 'courier' ? 'rider' : $role;
+        abort_unless($actualRole === $expectedRole, 403);
 
         return $next($request);
-    }
-
-
-    /**
-     * Redirect user to their correct workspace.
-     */
-    private function redirectToWorkspace(
-        ?string $role
-    ): Response {
-
-        return match ($role) {
-
-            'admin' => redirect()
-                ->route('admin.dashboard'),
-
-            'buyer' => redirect()
-                ->route('buyer.home'),
-
-            'seller' => redirect()
-                ->route('seller.dashboard'),
-
-            'logistics' => redirect()
-                ->route('logistics.dashboard'),
-
-            'rider' => redirect()
-                ->route('rider.dashboard'),
-
-            default => redirect()
-                ->route('login'),
-        };
     }
 }

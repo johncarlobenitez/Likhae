@@ -1,158 +1,894 @@
+@extends('layouts.buyer')
+
+@section('title', 'Messages')
+@section('active', 'messages')
 
 @php
-    $sellers = collect(view()->shared('buyerProducts', []))->map(function ($p) {
-        $name = data_get($p, 'seller', 'LIKHAE Seller');
-        $slug = data_get($p, 'seller_slug', \Illuminate\Support\Str::slug($name));
+    $buyerProducts = collect(view()->shared('buyerProducts', []));
+
+    $sellers = $buyerProducts->map(function ($product) {
+        $sellerValue = data_get($product, 'seller.store_name')
+            ?? data_get($product, 'seller.name')
+            ?? data_get($product, 'seller')
+            ?? 'LIKHAE Seller';
+
+        $name = is_scalar($sellerValue)
+            ? (string) $sellerValue
+            : 'LIKHAE Seller';
+
+        $slug = data_get(
+            $product,
+            'seller_slug',
+            \Illuminate\Support\Str::slug($name)
+        );
+
         return [
             'name' => $name,
             'slug' => $slug,
-            'avatar' => 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=7f1d1d&color=fff',
-            'product' => data_get($p, 'name'),
+            'avatar' => 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=561C17&color=fff',
+            'product' => data_get($product, 'name'),
             'last_message' => 'Hello! Thanks for reaching out. How can we assist you today?',
             'time' => 'Just now',
             'unread' => false,
         ];
     })->unique('slug')->values();
 
-    $selectedSlug = request('seller') ?? (request('product') ? collect(view()->shared('buyerProducts', []))->firstWhere('slug', request('product'))['seller_slug'] ?? null : null);
+    $selectedSlug = request('seller');
+
+    if (!$selectedSlug && request('product')) {
+        $selectedProduct = $buyerProducts->firstWhere('slug', request('product'));
+
+        if ($selectedProduct) {
+            $selectedSlug = data_get($selectedProduct, 'seller_slug');
+
+            if (!$selectedSlug) {
+                $sellerName = data_get($selectedProduct, 'seller.store_name')
+                    ?? data_get($selectedProduct, 'seller.name')
+                    ?? data_get($selectedProduct, 'seller')
+                    ?? 'LIKHAE Seller';
+
+                $selectedSlug = \Illuminate\Support\Str::slug((string) $sellerName);
+            }
+        }
+    }
+
     if (!$selectedSlug && $sellers->isNotEmpty()) {
         $selectedSlug = $sellers->first()['slug'];
     }
 
     $activeSeller = $sellers->firstWhere('slug', $selectedSlug);
+
     if (!$activeSeller && $selectedSlug) {
+        $fallbackName = ucwords(str_replace('-', ' ', $selectedSlug));
+
         $activeSeller = [
-            'name' => ucwords(str_replace('-', ' ', $selectedSlug)),
+            'name' => $fallbackName,
             'slug' => $selectedSlug,
-            'avatar' => 'https://ui-avatars.com/api/?name=' . urlencode($selectedSlug) . '&background=7f1d1d&color=fff',
+            'avatar' => 'https://ui-avatars.com/api/?name=' . urlencode($fallbackName) . '&background=561C17&color=fff',
             'last_message' => 'Hello! How can we assist you today?',
             'time' => 'Just now',
             'unread' => false,
         ];
+
         $sellers->prepend($activeSeller);
+    }
+
+    $refProduct = null;
+
+    if (request('product')) {
+        $refProduct = $buyerProducts->firstWhere('slug', request('product'));
     }
 @endphp
 
-@extends('layouts.buyer')
-@section('title', 'Messages')
-@section('active', 'messages')
-@section('content')
+@push('head')
+<style>
+    :root {
+        --lk-bg: #FBF7F2;
+        --lk-bg-soft: #F6EFE7;
+        --lk-bg-alt: #EFE7DE;
+        --lk-card: #FFFDF9;
 
-<div class="lk-page">
+        --lk-border: #EADCCC;
+        --lk-border-strong: #DBCEC1;
+
+        --lk-maroon: #561C17;
+        --lk-maroon-2: #642920;
+        --lk-maroon-dark: #3E130F;
+
+        --lk-text: #3B211B;
+        --lk-brown: #6C4936;
+        --lk-muted: #987865;
+        --lk-muted-2: #A99386;
+
+        --lk-tan: #C19771;
+        --lk-shadow-soft: 0 8px 24px rgba(86, 28, 23, 0.055);
+        --lk-shadow-card: 0 16px 40px rgba(86, 28, 23, 0.09);
+    }
+
+    .lk-messages-page {
+        display: grid;
+        gap: 22px;
+    }
+
+    .lk-messages-shell {
+        display: grid;
+        min-height: 620px;
+        overflow: hidden;
+
+        border: 1px solid var(--lk-border);
+        border-radius: 24px;
+
+        background: var(--lk-card);
+        box-shadow: var(--lk-shadow-soft);
+    }
+
+    @media (min-width: 1024px) {
+        .lk-messages-shell {
+            grid-template-columns: 330px minmax(0, 1fr);
+        }
+    }
+
+    .lk-messages-sidebar {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+
+        border-bottom: 1px solid var(--lk-border);
+        background:
+            radial-gradient(circle at 0% 0%, rgba(193, 151, 113, 0.16), transparent 32%),
+            linear-gradient(180deg, #FFFDF9, #F8F0E8);
+    }
+
+    @media (min-width: 1024px) {
+        .lk-messages-sidebar {
+            border-right: 1px solid var(--lk-border);
+            border-bottom: 0;
+        }
+    }
+
+    .lk-messages-sidebar-head,
+    .lk-chat-head,
+    .lk-chat-form {
+        border-color: var(--lk-border);
+        background: rgba(255, 253, 249, 0.9);
+    }
+
+    .lk-messages-sidebar-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+
+        padding: 18px 18px;
+        border-bottom: 1px solid var(--lk-border);
+    }
+
+    .lk-messages-sidebar-head h2 {
+        margin: 0;
+        color: var(--lk-text);
+        font-size: 14px;
+        font-weight: 900;
+        letter-spacing: -0.025em;
+    }
+
+    .lk-conversation-list {
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    .lk-conversation-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+
+        padding: 15px 18px;
+
+        border-bottom: 1px solid #EFE1D5;
+        color: var(--lk-text);
+        text-decoration: none;
+
+        transition: background 160ms ease, border-color 160ms ease;
+    }
+
+    .lk-conversation-item:hover {
+        background: #F6EFE7;
+    }
+
+    .lk-conversation-item.is-active {
+        background: #F3E4DE;
+        box-shadow: inset 4px 0 var(--lk-maroon);
+    }
+
+    .lk-chat-avatar {
+        width: 42px;
+        height: 42px;
+        flex: 0 0 42px;
+
+        border: 2px solid #FFFFFF;
+        border-radius: 999px;
+
+        background: var(--lk-maroon);
+        object-fit: cover;
+
+        box-shadow: 0 8px 18px rgba(86, 28, 23, 0.12);
+    }
+
+    .lk-conversation-copy {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .lk-conversation-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .lk-conversation-name {
+        overflow: hidden;
+        color: var(--lk-text);
+        font-size: 12px;
+        font-weight: 900;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .lk-conversation-time {
+        color: var(--lk-muted-2);
+        font-size: 10px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .lk-conversation-preview {
+        overflow: hidden;
+        margin: 4px 0 0;
+
+        color: var(--lk-muted);
+        font-size: 11px;
+        line-height: 1.45;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .lk-messages-empty {
+        padding: 42px 20px;
+        color: var(--lk-muted);
+        font-size: 12px;
+        text-align: center;
+    }
+
+    .lk-chat-area {
+        display: flex;
+        min-width: 0;
+        min-height: 520px;
+        flex-direction: column;
+        background: var(--lk-bg-soft);
+    }
+
+    .lk-chat-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+
+        padding: 16px 18px;
+        border-bottom: 1px solid var(--lk-border);
+    }
+
+    .lk-chat-user {
+        display: flex;
+        min-width: 0;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .lk-chat-user-copy {
+        min-width: 0;
+    }
+
+    .lk-chat-user-copy strong {
+        display: block;
+        overflow: hidden;
+
+        color: var(--lk-text);
+
+        font-size: 14px;
+        font-weight: 900;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .lk-chat-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+
+        margin-top: 3px;
+
+        color: #256F4A;
+
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .lk-chat-status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #256F4A;
+    }
+
+    .lk-chat-store-btn {
+        min-height: 36px !important;
+        padding: 0 13px !important;
+        border-radius: 11px !important;
+        font-size: 11px !important;
+    }
+
+    .lk-chat-stream {
+        flex: 1;
+        overflow-y: auto;
+
+        padding: 20px;
+
+        background:
+            radial-gradient(circle at 12% 12%, rgba(193, 151, 113, 0.10), transparent 28%),
+            linear-gradient(180deg, #FBF7F2, #F6EFE7);
+    }
+
+    .lk-chat-day {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 18px;
+    }
+
+    .lk-chat-day span {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        padding: 0 12px;
+
+        border: 1px solid var(--lk-border);
+        border-radius: 999px;
+
+        background: rgba(255, 253, 249, 0.86);
+        color: var(--lk-muted);
+
+        font-size: 10px;
+        font-weight: 800;
+    }
+
+    .lk-message-row {
+        display: flex;
+        max-width: 82%;
+        align-items: flex-start;
+        gap: 10px;
+        margin-top: 14px;
+    }
+
+    .lk-message-row.is-buyer {
+        justify-content: flex-end;
+        margin-left: auto;
+    }
+
+    .lk-message-small-avatar {
+        width: 30px;
+        height: 30px;
+        flex: 0 0 30px;
+
+        border-radius: 999px;
+        object-fit: cover;
+    }
+
+    .lk-message-bubble {
+        padding: 13px 14px;
+
+        border: 1px solid var(--lk-border);
+        border-radius: 18px;
+        border-top-left-radius: 6px;
+
+        background: var(--lk-card);
+        color: var(--lk-text);
+
+        box-shadow: 0 8px 20px rgba(86, 28, 23, 0.055);
+
+        font-size: 12px;
+        line-height: 1.65;
+    }
+
+    .lk-message-row.is-buyer .lk-message-bubble {
+        border-color: var(--lk-maroon);
+        border-top-left-radius: 18px;
+        border-top-right-radius: 6px;
+
+        background: linear-gradient(135deg, var(--lk-maroon), var(--lk-maroon-2));
+        color: #FFFFFF;
+    }
+
+    .lk-message-time {
+        display: block;
+        margin-top: 6px;
+
+        color: var(--lk-muted-2);
+
+        font-size: 10px;
+        font-weight: 600;
+    }
+
+    .lk-message-row.is-buyer .lk-message-time {
+        color: #E8C8B2;
+        text-align: right;
+    }
+
+    .lk-product-inquiry-card {
+        display: grid;
+        gap: 10px;
+
+        padding: 14px;
+
+        border-radius: 18px;
+        border-top-right-radius: 6px;
+
+        background: linear-gradient(135deg, var(--lk-maroon), var(--lk-maroon-2));
+        color: #FFFFFF;
+
+        box-shadow: 0 10px 24px rgba(86, 28, 23, 0.16);
+
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .lk-product-inquiry-preview {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        padding: 9px;
+
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 14px;
+
+        background: rgba(62, 19, 15, 0.55);
+    }
+
+    .lk-product-inquiry-preview img {
+        width: 46px;
+        height: 46px;
+        flex: 0 0 46px;
+
+        border-radius: 12px;
+        object-fit: cover;
+    }
+
+    .lk-product-inquiry-preview div {
+        min-width: 0;
+    }
+
+    .lk-product-inquiry-preview strong {
+        display: block;
+        overflow: hidden;
+
+        color: #FFFFFF;
+
+        font-size: 12px;
+        font-weight: 900;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .lk-product-inquiry-preview span {
+        color: #E8C8B2;
+        font-size: 11px;
+    }
+
+    .lk-chat-form {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        padding: 14px;
+        border-top: 1px solid var(--lk-border);
+    }
+
+    .lk-chat-input {
+        min-width: 0;
+        flex: 1;
+
+        min-height: 42px;
+        padding: 0 15px;
+
+        border: 1px solid var(--lk-border);
+        border-radius: 14px;
+
+        background: var(--lk-card);
+        color: var(--lk-text);
+
+        font-size: 12px;
+        outline: none;
+
+        transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .lk-chat-input:focus {
+        border-color: var(--lk-tan);
+        box-shadow: 0 0 0 4px rgba(86, 28, 23, 0.08);
+    }
+
+    .lk-chat-input::placeholder {
+        color: var(--lk-muted-2);
+    }
+
+    .lk-chat-send {
+        min-height: 42px !important;
+        padding: 0 16px !important;
+        border-radius: 14px !important;
+        font-size: 12px !important;
+    }
+
+    .lk-chat-send svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .lk-chat-empty-state {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+
+        padding: 42px 24px;
+        text-align: center;
+        color: var(--lk-muted);
+    }
+
+    .lk-chat-empty-state svg {
+        width: 58px;
+        height: 58px;
+        margin-bottom: 14px;
+        color: var(--lk-tan);
+    }
+
+    .lk-chat-empty-state h3 {
+        margin: 0;
+        color: var(--lk-text);
+        font-size: 16px;
+        font-weight: 900;
+    }
+
+    .lk-chat-empty-state p {
+        margin: 6px 0 0;
+        color: var(--lk-muted);
+        font-size: 12px;
+    }
+
+    @media (max-width: 640px) {
+        .lk-chat-head,
+        .lk-chat-form {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .lk-chat-store-btn,
+        .lk-chat-send {
+            width: 100% !important;
+        }
+
+        .lk-message-row {
+            max-width: 94%;
+        }
+    }
+
+    html.dark .lk-messages-shell,
+    html.dark .lk-messages-sidebar,
+    html.dark .lk-chat-area,
+    html.dark .lk-messages-sidebar-head,
+    html.dark .lk-chat-head,
+    html.dark .lk-chat-form {
+        background: #211B17 !important;
+        border-color: #3B2E27 !important;
+        color: #F5EFE8 !important;
+    }
+
+    html.dark .lk-chat-stream {
+        background: linear-gradient(180deg, #161210, #1E1A17) !important;
+    }
+
+    html.dark .lk-conversation-item {
+        border-color: #3B2E27 !important;
+    }
+
+    html.dark .lk-conversation-item:hover,
+    html.dark .lk-conversation-item.is-active {
+        background: #2D1414 !important;
+    }
+
+    html.dark .lk-conversation-name,
+    html.dark .lk-chat-user-copy strong,
+    html.dark .lk-chat-empty-state h3 {
+        color: #F5EFE8 !important;
+    }
+
+    html.dark .lk-conversation-preview,
+    html.dark .lk-conversation-time,
+    html.dark .lk-message-time,
+    html.dark .lk-chat-empty-state p {
+        color: #C8B7AD !important;
+    }
+
+    html.dark .lk-message-bubble,
+    html.dark .lk-chat-input,
+    html.dark .lk-chat-day span {
+        background: #211B17 !important;
+        border-color: #3B2E27 !important;
+        color: #F5EFE8 !important;
+    }
+</style>
+@endpush
+
+@section('content')
+<div class="lk-page lk-messages-page">
     <div class="lk-page-title">
         <div>
-            <span class="lk-kicker">Communication</span>
-            <h1>Messages</h1>
-            <p>Keep conversations with local sellers in one place.</p>
+            <span class="lk-kicker">
+                Communication
+            </span>
+
+            <h1>
+                Messages
+            </h1>
+
+            <p>
+                Keep conversations with sellers in one polished LIKHAE inbox.
+            </p>
         </div>
     </div>
 
-    <section class="grid min-h-[580px] overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm lg:grid-cols-[320px_minmax(0,1fr)]">
-        <!-- Sidebar Conversations -->
-        <aside class="flex flex-col border-b border-stone-200 lg:border-b-0 lg:border-r">
-            <div class="flex items-center justify-between border-b border-stone-100 p-4">
-                <h2 class="text-sm font-bold text-stone-900">Conversations ({{ $sellers->count() }})</h2>
+    <section class="lk-messages-shell">
+        <aside class="lk-messages-sidebar">
+            <div class="lk-messages-sidebar-head">
+                <h2>
+                    Conversations ({{ $sellers->count() }})
+                </h2>
             </div>
-            <div class="flex-1 overflow-y-auto divide-y divide-stone-100">
+
+            <div class="lk-conversation-list">
                 @forelse($sellers as $item)
-                    <a href="{{ route('buyer.messages', ['seller' => $item['slug']]) }}"
-                       class="flex items-start gap-3 p-4 transition-colors hover:bg-stone-50 {{ $selectedSlug === $item['slug'] ? 'bg-red-50/70' : '' }}">
-                        <img class="h-10 w-10 flex-shrink-0 rounded-full object-cover border border-stone-200" src="{{ $item['avatar'] }}" alt="{{ $item['name'] }}">
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-center justify-between gap-1">
-                                <strong class="truncate text-xs font-semibold text-stone-900">{{ $item['name'] }}</strong>
-                                <span class="text-[10px] text-stone-400">{{ $item['time'] }}</span>
+                    <a
+                        href="{{ route('buyer.messages', ['seller' => $item['slug']]) }}"
+                        class="lk-conversation-item {{ $selectedSlug === $item['slug'] ? 'is-active' : '' }}"
+                    >
+                        <img
+                            class="lk-chat-avatar"
+                            src="{{ $item['avatar'] }}"
+                            alt="{{ $item['name'] }}"
+                        >
+
+                        <div class="lk-conversation-copy">
+                            <div class="lk-conversation-top">
+                                <strong class="lk-conversation-name">
+                                    {{ $item['name'] }}
+                                </strong>
+
+                                <span class="lk-conversation-time">
+                                    {{ $item['time'] }}
+                                </span>
                             </div>
-                            <p class="truncate text-xs text-stone-500 mt-0.5">{{ $item['last_message'] }}</p>
+
+                            <p class="lk-conversation-preview">
+                                {{ $item['last_message'] }}
+                            </p>
                         </div>
                     </a>
                 @empty
-                    <div class="p-8 text-center text-xs text-stone-400">
+                    <div class="lk-messages-empty">
                         No conversations yet
                     </div>
                 @endforelse
             </div>
         </aside>
 
-        <!-- Chat Area -->
-        <main class="flex flex-col min-h-[480px]">
+        <main class="lk-chat-area">
             @if($activeSeller)
-                <!-- Chat Header -->
-                <div class="flex items-center justify-between border-b border-stone-100 p-4 bg-stone-50/50">
-                    <div class="flex items-center gap-3">
-                        <img class="h-10 w-10 rounded-full object-cover border border-stone-200" src="{{ $activeSeller['avatar'] }}" alt="{{ $activeSeller['name'] }}">
-                        <div>
-                            <strong class="block text-sm font-bold text-stone-900">{{ $activeSeller['name'] }}</strong>
-                            <span class="inline-flex items-center gap-1.5 text-[11px] text-emerald-600 font-medium">
-                                <span class="h-2 w-2 rounded-full bg-emerald-500"></span> Verified Seller · Online
+                <div class="lk-chat-head">
+                    <div class="lk-chat-user">
+                        <img
+                            class="lk-chat-avatar"
+                            src="{{ $activeSeller['avatar'] }}"
+                            alt="{{ $activeSeller['name'] }}"
+                        >
+
+                        <div class="lk-chat-user-copy">
+                            <strong>
+                                {{ $activeSeller['name'] }}
+                            </strong>
+
+                            <span class="lk-chat-status">
+                                <span class="lk-chat-status-dot"></span>
+                                Verified Seller · Online
                             </span>
                         </div>
                     </div>
-                    <a href="{{ route('buyer.shop', ['seller' => $activeSeller['slug']]) }}" class="lk-btn lk-btn-light !min-h-[34px] !px-3 !text-xs">
+
+                    <a
+                        href="{{ route('buyer.shop', ['seller' => $activeSeller['slug']]) }}"
+                        class="lk-btn lk-btn-light lk-chat-store-btn"
+                    >
                         View Store
                     </a>
                 </div>
 
-                <!-- Chat Messages Stream -->
-                <div id="chatMessages" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-stone-50/30">
-                    <div class="flex justify-center">
-                        <span class="rounded-full bg-stone-100 px-3 py-1 text-[11px] font-medium text-stone-500">Today</span>
+                <div
+                    id="chatMessages"
+                    class="lk-chat-stream"
+                >
+                    <div class="lk-chat-day">
+                        <span>Today</span>
                     </div>
 
-                    <!-- Seller message -->
-                    <div class="flex items-start gap-2.5 max-w-[80%]">
-                        <img class="h-7 w-7 rounded-full object-cover flex-shrink-0" src="{{ $activeSeller['avatar'] }}" alt="{{ $activeSeller['name'] }}">
+                    <div class="lk-message-row">
+                        <img
+                            class="lk-message-small-avatar"
+                            src="{{ $activeSeller['avatar'] }}"
+                            alt="{{ $activeSeller['name'] }}"
+                        >
+
                         <div>
-                            <div class="rounded-2xl rounded-tl-sm bg-white p-3.5 border border-stone-200 text-xs text-stone-800 shadow-sm leading-relaxed">
-                                Hello! Welcome to <strong>{{ $activeSeller['name'] }}</strong>. Feel free to ask about our stock, shipping timelines, or product inquiries.
+                            <div class="lk-message-bubble">
+                                Hello! Welcome to <strong>{{ $activeSeller['name'] }}</strong>.
+                                Feel free to ask about stock, shipping timelines, or product inquiries.
                             </div>
-                            <span class="text-[10px] text-stone-400 mt-1 block">Just now</span>
+
+                            <span class="lk-message-time">
+                                Just now
+                            </span>
                         </div>
                     </div>
 
-                    @if(request('product'))
-                        @php
-                            $refProduct = collect(view()->shared('buyerProducts', []))->firstWhere('slug', request('product'));
-                        @endphp
-                        @if($refProduct)
-                            <!-- Product inquiry preview card -->
-                            <div class="flex justify-end">
-                                <div class="max-w-[80%] rounded-2xl bg-red-900 text-white p-3.5 shadow-sm text-xs space-y-2">
-                                    <p class="font-medium">Inquiry regarding product:</p>
-                                    <div class="flex items-center gap-2 bg-red-950/50 p-2 rounded-xl border border-red-800">
-                                        <img src="{{ data_get($refProduct, 'image') }}" alt="{{ data_get($refProduct, 'name') }}" class="h-10 w-10 rounded-lg object-cover">
-                                        <div class="min-w-0">
-                                            <strong class="block truncate font-semibold text-white">{{ data_get($refProduct, 'name') }}</strong>
-                                            <span class="text-red-200 text-[11px]">₱{{ number_format(data_get($refProduct, 'price', 0), 2) }}</span>
-                                        </div>
+                    @if($refProduct)
+                        <div class="lk-message-row is-buyer">
+                            <div class="lk-product-inquiry-card">
+                                <p>
+                                    <strong>Inquiry regarding product:</strong>
+                                </p>
+
+                                <div class="lk-product-inquiry-preview">
+                                    <img
+                                        src="{{ data_get($refProduct, 'image_url') ?? data_get($refProduct, 'image') }}"
+                                        alt="{{ data_get($refProduct, 'name') }}"
+                                    >
+
+                                    <div>
+                                        <strong>
+                                            {{ data_get($refProduct, 'name') }}
+                                        </strong>
+
+                                        <span>
+                                            ₱{{ number_format((float) data_get($refProduct, 'price', 0), 2) }}
+                                        </span>
                                     </div>
-                                    <p>Hi, is this item currently available for immediate delivery?</p>
                                 </div>
+
+                                <p>
+                                    Hi, is this item currently available for immediate delivery?
+                                </p>
+
+                                <span class="lk-message-time">
+                                    Just now
+                                </span>
                             </div>
-                        @endif
+                        </div>
                     @endif
                 </div>
 
-                <!-- Message Input -->
-                <form id="chatForm" class="flex items-center gap-2 border-t border-stone-200 p-3.5 bg-white" onsubmit="event.preventDefault(); const inp = this.querySelector('input'); if(!inp.value.trim()) return; const list = document.getElementById('chatMessages'); const d = document.createElement('div'); d.className = 'flex justify-end'; d.innerHTML = '<div class=\'max-w-[80%] rounded-2xl rounded-tr-sm bg-red-900 text-white p-3.5 shadow-sm text-xs leading-relaxed\'>' + inp.value.replace(/</g, '&lt;') + '<span class=\'text-[10px] text-red-200 block text-right mt-1\'>Just now</span></div>'; list.appendChild(d); inp.value = ''; list.scrollTop = list.scrollHeight; if(window.lkBuyerToast) window.lkBuyerToast('Message sent to seller.');">
-                    <input type="text" placeholder="Type your message to {{ $activeSeller['name'] }}..." class="flex-1 rounded-xl border border-stone-300 px-4 py-2.5 text-xs outline-none focus:border-red-800 transition-colors">
-                    <button type="submit" class="lk-btn lk-btn-red !min-h-[38px] !px-4 !text-xs">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
-                        <span>Send</span>
+                <form
+                    id="chatForm"
+                    class="lk-chat-form"
+                    data-chat-form
+                >
+                    <input
+                        type="text"
+                        placeholder="Type your message to {{ $activeSeller['name'] }}..."
+                        class="lk-chat-input"
+                        data-chat-input
+                    >
+
+                    <button
+                        type="submit"
+                        class="lk-btn lk-btn-red lk-chat-send"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                        >
+                            <path d="m22 2-7 20-4-9-9-4Z"/>
+                            <path d="M22 2 11 13"/>
+                        </svg>
+
+                        <span>
+                            Send
+                        </span>
                     </button>
                 </form>
             @else
-                <div class="flex flex-1 flex-col items-center justify-center p-8 text-center text-stone-400">
-                    <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.5" class="mb-3">
+                <div class="lk-chat-empty-state">
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                        aria-hidden="true"
+                    >
                         <path d="M4 5h16v11H8l-4 4z"/>
-                        <path d="M8 9h8"/><path d="M8 13h5"/>
+                        <path d="M8 9h8"/>
+                        <path d="M8 13h5"/>
                     </svg>
-                    <h3 class="text-base font-semibold text-stone-800">No conversation selected</h3>
-                    <p class="text-xs text-stone-500 mt-1">Select a conversation from the left to start chatting.</p>
+
+                    <h3>
+                        No conversation selected
+                    </h3>
+
+                    <p>
+                        Select a conversation from the left to start chatting.
+                    </p>
                 </div>
             @endif
         </main>
     </section>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.querySelector('[data-chat-form]');
+    const input = document.querySelector('[data-chat-input]');
+    const list = document.getElementById('chatMessages');
+
+    if (!form || !input || !list) {
+        return;
+    }
+
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+
+        const message = input.value.trim();
+
+        if (!message) {
+            return;
+        }
+
+        const row = document.createElement('div');
+        row.className = 'lk-message-row is-buyer';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'lk-message-bubble';
+
+        const text = document.createTextNode(message);
+        bubble.appendChild(text);
+
+        const time = document.createElement('span');
+        time.className = 'lk-message-time';
+        time.textContent = 'Just now';
+
+        bubble.appendChild(time);
+        row.appendChild(bubble);
+        list.appendChild(row);
+
+        input.value = '';
+        list.scrollTop = list.scrollHeight;
+
+        if (window.lkBuyerToast) {
+            window.lkBuyerToast('Message sent to seller.');
+        }
+    });
+
+    list.scrollTop = list.scrollHeight;
+});
+</script>
 @endsection

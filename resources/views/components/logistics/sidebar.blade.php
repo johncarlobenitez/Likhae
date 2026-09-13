@@ -135,6 +135,25 @@
     </nav>
 
     <div class="sl-sidebar-foot">
+        {{-- DARK MODE TOGGLE --}}
+        <button
+            id="themeToggle"
+            type="button"
+            class="sl-nav-link"
+            data-title="Appearance"
+            style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;background:none;border:none;"
+        >
+            <span style="display:flex;align-items:center;gap:8px;">
+                <span class="sl-nav-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>
+                </span>
+                <span style="display:grid;text-align:left;">
+                    <strong style="color:inherit;font-size:10.5px;font-weight:500;line-height:1.1;">Appearance</strong>
+                    <span style="margin-top:2px;color:currentColor;opacity:0.5;font-size:8px;line-height:1.1;">Light / Dark Mode</span>
+                </span>
+            </span>
+            <span id="themeToggleBadge" style="display:inline-flex;min-height:21px;align-items:center;padding:0 9px;border-radius:9999px;background:#E3E3E2;color:#494644;font-size:7px;font-weight:900;white-space:nowrap;">OFF</span>
+        </button>
         <form method="POST" action="{{ route('logout') }}">
             @csrf
             <button type="submit" class="sl-nav-link sl-logout" data-title="Logout">

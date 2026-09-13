@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <title>{{ $accountLabel }} Registration — LIKHAE</title>
 
     @vite([
@@ -16,8 +20,7 @@
     <aside class="register-side">
         <div class="register-side__inner">
             <a href="{{ $homeRoute }}" class="register-brand">
-                <span class="register-brand__mark">L</span>
-                <span class="register-brand__name">LIKHAE</span>
+                <x-likhae-logo :context="$accountLabel" class="likhae-logo--auth" />
             </a>
 
             <div class="register-side__content">

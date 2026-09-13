@@ -14,6 +14,16 @@
         content="{{ csrf_token() }}"
     >
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --lk-register-bg-image: url("{{ asset('images/login-page-bg.jpg') }}");
+        }
+    </style>
+
     <title>Create Account — LIKHAE</title>
 
     @vite([
@@ -29,117 +39,103 @@
     {{-- =========================================================
         LEFT PANEL
     ========================================================== --}}
-    <aside class="register-side">
+    <aside class="register-sidebar" aria-label="Getting started with LIKHAE">
+        <section class="register-side" aria-labelledby="register-hero-title">
 
-        <div class="register-side__inner">
+            <div class="register-side__inner">
 
-            <a
-                href="{{ url('/') }}"
-                class="register-brand"
-            >
-                <span class="register-brand__mark">
-                    L
-                </span>
+                <div class="register-side__content">
 
-                <span class="register-brand__name">
-                    LIKHAE
-                </span>
-            </a>
+                    <span class="register-eyebrow">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
+                        </svg>
+                        Join the LIKHAE community
+                    </span>
 
+                    <h1 id="register-hero-title">
+                        Good finds.
+                        <em>Great beginnings.</em>
+                    </h1>
 
-            <div class="register-side__content">
+                    <p>
+                        Find something you love, or build a store others will.
+                        Your LIKHAE journey starts here.
+                    </p>
 
-                <span class="register-eyebrow">
-                    Join the LIKHAE marketplace
-                </span>
+                </div>
 
-
-                <h1>
-                    One marketplace.
-                    <br>
-                    Two ways to join.
-                </h1>
-
-
-                <p>
-                    Create a buyer account to discover products across
-                    every category, or register as a seller and start
-                    building your store on LIKHAE.
-                </p>
-
-
-                <div class="register-side__features">
-
-                    <div class="register-feature">
-
-                        <span class="register-feature__icon">
-                            ✓
-                        </span>
-
-                        <div>
-                            <strong>
-                                Verified accounts
-                            </strong>
-
-                            <span>
-                                Buyer and seller registrations are
-                                reviewed before approval.
-                            </span>
-                        </div>
-
-                    </div>
-
-
-                    <div class="register-feature">
-
-                        <span class="register-feature__icon">
-                            ✓
-                        </span>
-
-                        <div>
-                            <strong>
-                                Philippine address support
-                            </strong>
-
-                            <span>
-                                Province, Municipality / City,
-                                and Barangay selection.
-                            </span>
-                        </div>
-
-                    </div>
-
-
-                    <div class="register-feature">
-
-                        <span class="register-feature__icon">
-                            ✓
-                        </span>
-
-                        <div>
-                            <strong>
-                                Secure verification
-                            </strong>
-
-                            <span>
-                                Submit the required identification
-                                and business documents.
-                            </span>
-                        </div>
-
-                    </div>
-
+                <div class="register-side__footer">
+                    <ul class="register-side__features" aria-label="Two ways to join LIKHAE">
+                        <li class="register-feature">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M5 7h14l1 14H4L5 7Z" />
+                                <path d="M9 9V6a3 3 0 0 1 6 0v3" />
+                            </svg>
+                            <span class="register-feature__label">For buyers</span>
+                            <strong>Discover &amp; shop</strong>
+                            <span>Find your everyday favorites.</span>
+                        </li>
+                        <li class="register-feature">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="m3 7 2-4h14l2 4v3a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0V7Z" />
+                                <path d="M5 13v8h14v-8M9 21v-6h6v6M3 7h18" />
+                            </svg>
+                            <span class="register-feature__label">For sellers</span>
+                            <strong>Create &amp; sell</strong>
+                            <span>Make your store feel at home.</span>
+                        </li>
+                    </ul>
+                    <p class="register-side__tagline">A place for buyers. A home for sellers.</p>
                 </div>
 
             </div>
 
+        </section>
 
-            <p class="register-side__footer">
-                LIKHAE · General Multi-Category Marketplace
-            </p>
+        <section class="register-prep" aria-labelledby="register-prep-title">
+            <header class="register-prep__head">
+                <span class="register-prep__eyebrow">A smooth start</span>
+                <h2 id="register-prep-title">Before you begin</h2>
+                <p>Keep these handy as you create your account.</p>
+            </header>
 
-        </div>
+            <ul class="register-prep__list">
+                <li>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <rect x="3" y="5" width="18" height="14" rx="2" />
+                        <path d="m3 7 9 6 9-6" />
+                    </svg>
+                    <div>
+                        <strong>Your contact details</strong>
+                        <span>Email, mobile number, and home address.</span>
+                    </div>
+                </li>
+                <li>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <rect x="2" y="4" width="20" height="16" rx="2" />
+                        <circle cx="8" cy="10" r="2" />
+                        <path d="M5 16a3 3 0 0 1 6 0M15 9h4M15 13h4" />
+                    </svg>
+                    <div>
+                        <strong>A valid ID</strong>
+                        <span>A clear JPG, PNG, or PDF copy for verification.</span>
+                    </div>
+                </li>
+                <li>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="m3 7 2-4h14l2 4v3a3 3 0 0 1-6 0 3 3 0 0 1-6 0 3 3 0 0 1-6 0V7Z" />
+                        <path d="M5 13v8h14v-8M9 21v-6h6v6M3 7h18" />
+                    </svg>
+                    <div>
+                        <strong>Planning to sell?</strong>
+                        <span>Have your business details and permit ready.</span>
+                    </div>
+                </li>
+            </ul>
 
+            <p class="register-prep__note">Applications are reviewed before approval.</p>
+        </section>
     </aside>
 
 
@@ -149,6 +145,10 @@
     <main class="register-main">
 
         <div class="register-container">
+
+            <a href="{{ url('/') }}" class="register-brand register-brand--main">
+                <x-likhae-logo context="Marketplace" class="likhae-logo--auth" />
+            </a>
 
             {{-- =================================================
                 HEADER
@@ -233,7 +233,15 @@
                     >
 
                         <span class="account-type-option__icon">
-                            🛍
+                            <svg
+                                aria-hidden="true"
+                                focusable="false"
+                                viewBox="0 0 24 24"
+                            >
+                                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
+                                <path d="M3 6h18"></path>
+                                <path d="M16 10a4 4 0 0 1-8 0"></path>
+                            </svg>
                         </span>
 
 
@@ -266,7 +274,17 @@
                     >
 
                         <span class="account-type-option__icon">
-                            🏪
+                            <svg
+                                aria-hidden="true"
+                                focusable="false"
+                                viewBox="0 0 24 24"
+                            >
+                                <path d="m2 7 4.4-4.4A2 2 0 0 1 7.8 2h8.4a2 2 0 0 1 1.4.6L22 7"></path>
+                                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                                <path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"></path>
+                                <path d="M2 7h20"></path>
+                                <path d="M22 7v3a2 2 0 0 1-2 2 2.7 2.7 0 0 1-2.6-2 2.7 2.7 0 0 1-5.2 0 2.7 2.7 0 0 1-5.2 0A2.7 2.7 0 0 1 4.4 12H4a2 2 0 0 1-2-2V7"></path>
+                            </svg>
                         </span>
 
 
@@ -299,7 +317,18 @@
                     >
 
                         <span class="account-type-option__icon">
-                            🏭
+                            <svg
+                                aria-hidden="true"
+                                focusable="false"
+                                viewBox="0 0 24 24"
+                            >
+                                <path d="M3 21h18"></path>
+                                <path d="M5 21V9l7-4 7 4v12"></path>
+                                <path d="M9 21v-7h6v7"></path>
+                                <path d="M9 11h.01"></path>
+                                <path d="M12 11h.01"></path>
+                                <path d="M15 11h.01"></path>
+                            </svg>
                         </span>
 
 
@@ -332,7 +361,18 @@
                     >
 
                         <span class="account-type-option__icon">
-                            🛵
+                            <svg
+                                aria-hidden="true"
+                                focusable="false"
+                                viewBox="0 0 24 24"
+                            >
+                                <circle cx="5.5" cy="17.5" r="3.5"></circle>
+                                <circle cx="18.5" cy="17.5" r="3.5"></circle>
+                                <path d="M15 6h2l2 5"></path>
+                                <path d="M5.5 17.5 9 11l3 6.5"></path>
+                                <path d="M9 11h4l2.5 6.5"></path>
+                                <path d="M12 11l3-4"></path>
+                            </svg>
                         </span>
 
 
@@ -477,6 +517,7 @@
                 class="register-form"
                 id="registrationForm"
                 novalidate
+                data-address-base="{{ url('/address/philippines') }}"
             >
 
                 @csrf
@@ -486,7 +527,7 @@
                     type="hidden"
                     name="account_type"
                     id="accountType"
-                    value="{{ old('account_type', 'buyer') }}"
+                    value="{{ old('account_type', ($preselectedRole ?? 'buyer') === 'courier' ? 'rider' : ($preselectedRole ?? 'buyer')) }}"
                 >
 
 
@@ -524,27 +565,6 @@
 
                         <div class="register-grid">
 
-                            {{-- LAST NAME --}}
-                            <div class="register-field">
-
-                                <label for="last_name">
-                                    Last Name
-                                    <span>*</span>
-                                </label>
-
-                                <input
-                                    id="last_name"
-                                    name="last_name"
-                                    type="text"
-                                    value="{{ old('last_name') }}"
-                                    placeholder="Dela Cruz"
-                                    autocomplete="family-name"
-                                    required
-                                >
-
-                            </div>
-
-
                             {{-- FIRST NAME --}}
                             <div class="register-field">
 
@@ -570,7 +590,7 @@
                             <div class="register-field">
 
                                 <label for="middle_initial">
-                                    Middle Initial
+                                    Middle Name / Initial
                                 </label>
 
                                 <input
@@ -578,8 +598,30 @@
                                     name="middle_initial"
                                     type="text"
                                     value="{{ old('middle_initial') }}"
-                                    maxlength="2"
-                                    placeholder="D"
+                                    maxlength="80"
+                                    placeholder="Santos"
+                                    autocomplete="additional-name"
+                                >
+
+                            </div>
+
+
+                            {{-- LAST NAME --}}
+                            <div class="register-field">
+
+                                <label for="last_name">
+                                    Last Name
+                                    <span>*</span>
+                                </label>
+
+                                <input
+                                    id="last_name"
+                                    name="last_name"
+                                    type="text"
+                                    value="{{ old('last_name') }}"
+                                    placeholder="Dela Cruz"
+                                    autocomplete="family-name"
+                                    required
                                 >
 
                             </div>
@@ -988,6 +1030,30 @@
                 </section>
 
 
+                <section class="register-step" data-form-step data-step="rider-vehicle" data-rider-step hidden>
+                    <div class="register-section">
+                        <div class="register-section__head">
+                            <span class="register-section__number">04</span>
+                            <div><h3>Vehicle Information</h3><p>Enter the vehicle you will use for deliveries.</p></div>
+                        </div>
+                        <div class="register-grid">
+                            <div class="register-field">
+                                <label for="vehicle_type">Vehicle Type <span>*</span></label>
+                                <select id="vehicle_type" name="vehicle_type" data-rider-required>
+                                    <option value="">Select vehicle type</option>
+                                    @foreach(['motorcycle' => 'Motorcycle', 'car' => 'Car', 'van' => 'Van', 'truck' => 'Truck'] as $value => $label)
+                                        <option value="{{ $value }}" @selected(old('vehicle_type') === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="register-field">
+                                <label for="plate_number">Plate Number <span>*</span></label>
+                                <input id="plate_number" name="plate_number" value="{{ old('plate_number') }}" maxlength="30" data-rider-required>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 {{-- =================================================
                     FINAL STEP — VERIFICATION
                 ================================================== --}}
@@ -1111,6 +1177,56 @@
                         </div>
 
 
+                        <div class="register-grid" id="riderVehicleSection" hidden>
+                            @foreach(['or_cr' => 'Vehicle OR / CR', 'drivers_license' => "Driver's License"] as $field => $label)
+                                <div class="upload-box">
+                                    <input id="{{ $field }}" name="{{ $field }}" type="file" accept=".jpg,.jpeg,.png,.pdf" data-file-input data-rider-required>
+                                    <label for="{{ $field }}" class="upload-box__label">
+                                        <strong>Upload {{ $label }}</strong>
+                                        <span>JPG, JPEG, PNG or PDF, up to 5 MB</span>
+                                        <small data-file-name>No file selected</small>
+                                    </label>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        {{-- PASSWORD --}}
+                        <div class="register-grid" style="margin-top:1.5rem;">
+
+                            <div class="register-field">
+                                <label for="password">
+                                    Password <span>*</span>
+                                </label>
+                                <input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    minlength="8"
+                                    maxlength="72"
+                                    pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,72}"
+                                    title="Use 8–72 characters with uppercase and lowercase letters and a number."
+                                    placeholder="Min. 8 chars, uppercase, number"
+                                    autocomplete="new-password"
+                                    required
+                                >
+                            </div>
+
+                            <div class="register-field">
+                                <label for="password_confirmation">
+                                    Confirm Password <span>*</span>
+                                </label>
+                                <input
+                                    id="password_confirmation"
+                                    name="password_confirmation"
+                                    type="password"
+                                    placeholder="Re-enter your password"
+                                    autocomplete="new-password"
+                                    required
+                                >
+                            </div>
+
+                        </div>
+
                         {{-- APPROVAL --}}
                         <div class="approval-notice">
 
@@ -1118,24 +1234,18 @@
                                 i
                             </span>
 
-
                             <div>
-
                                 <strong>
                                     Administrator approval required
                                 </strong>
-
                                 <p>
                                     After submitting your registration,
                                     please wait for the administrator's
-                                    approval. The decision will be sent
-                                    to your registered email.
+                                    approval. Sign in after approval to access your account.
                                 </p>
-
                             </div>
 
                         </div>
-
 
                         {{-- TERMS --}}
                         <label class="register-terms">

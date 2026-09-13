@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuthenticationController;
 use App\Http\Controllers\PhilippineAddressController;
 use App\Http\Controllers\RegistrationController;
 use Illuminate\Http\Request;
@@ -15,11 +16,11 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-require __DIR__ . '/Admin.php';
-require __DIR__ . '/Seller.php';
-require __DIR__ . '/Buyer.php';
-require __DIR__ . '/logistics.php';
-require __DIR__ . '/rider.php';
+require __DIR__.'/Admin.php';
+require __DIR__.'/Seller.php';
+require __DIR__.'/Buyer.php';
+require __DIR__.'/logistics.php';
+require __DIR__.'/rider.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +32,10 @@ Route::get('/', function () {
     return view('guest.home');
 })->name('home');
 
+Route::get('/guest-account', function () {
+    return view('guest.products');
+})->name('guest.home');
+
 Route::get('/products', function () {
     return view('guest.products');
 })->name('products');
@@ -39,7 +44,7 @@ Route::get('/products/{slug}', function (string $slug) {
     $product = collect(view()->shared('buyerProducts', []))
         ->firstWhere('slug', $slug);
 
-    abort_if(!$product, 404);
+    abort_if(! $product, 404);
 
     return view('guest.product-details', [
         'product' => $product,
@@ -48,79 +53,20 @@ Route::get('/products/{slug}', function (string $slug) {
 
 /*
 |--------------------------------------------------------------------------
-| Shared Login — All Roles
+| Marketplace Login
 |--------------------------------------------------------------------------
 |
-| ONE login page handles Admin, Buyer, Seller, Logistics, and Rider.
-| The demo account map determines the role automatically from the email.
+| Marketplace login handles Admin, Buyer, and Seller accounts.
+| Logistics and Rider accounts use the separate Logistics Portal.
+| Database credentials and administrator approval determine access.
 |
 */
 
 Route::get('/login', function () {
     return view('auth.login');
-})->name('login');
+})->middleware('guest')->name('login');
 
-Route::post('/login', function (Request $request) {
-    $request->validate([
-        'email' => ['required', 'email'],
-        'password' => ['required', 'string'],
-    ]);
-
-    $accounts = [
-        'admin@likhae.com' => [
-            'password' => 'admin',
-            'role' => 'admin',
-        ],
-        'admintest@likhae.com' => [
-            'password' => 'admin',
-            'role' => 'admin',
-        ],
-        'buyer@likhae.com' => [
-            'password' => 'buyer',
-            'role' => 'buyer',
-        ],
-        'seller@likhae.com' => [
-            'password' => 'seller',
-            'role' => 'seller',
-        ],
-        'logistics@likhae.com' => [
-            'password' => 'logistics',
-            'role' => 'logistics',
-        ],
-        'rider@likhae.com' => [
-            'password' => 'rider',
-            'role' => 'rider',
-        ],
-    ];
-
-    $user = $accounts[$request->email] ?? null;
-
-    if (!$user || $user['password'] !== $request->password) {
-        return back()
-            ->withErrors([
-                'email' => 'Invalid email or password.',
-            ])
-            ->withInput($request->only('email'));
-    }
-
-    $request->session()->regenerate();
-
-    $request->session()->put('demo_user', [
-        'email' => $request->email,
-        'role' => $user['role'],
-    ]);
-
-    $redirects = [
-        'admin'      => route('admin.dashboard'),
-        'buyer'      => route('buyer.home'),
-        'seller'     => route('seller.dashboard'),
-        'logistics'  => route('logistics.dashboard'),
-        'rider'      => route('rider.dashboard'),
-    ];
-
-    return redirect($redirects[$user['role']])
-        ->with('status', 'Signed in as ' . ucfirst($user['role']) . '.');
-})->name('login.post');
+Route::post('/login', [AuthenticationController::class, 'store'])->middleware(['guest', 'throttle:30,1'])->name('login.post');
 
 /*
 |--------------------------------------------------------------------------
@@ -138,10 +84,20 @@ Route::get('/register', function (Request $request) {
     return view('auth.register', [
         'preselectedRole' => $request->query('role', 'buyer'),
     ]);
-})->name('register');
+})->middleware('guest')->name('register');
+
+Route::get('/registration/pending', function (Request $request) {
+    return view('auth.pending', ['accountType' => $request->query('type', 'LIKHAE')]);
+})->name('registration.pending');
+
+Route::get('/register/{role}', function (string $role) {
+    abort_unless(in_array($role, ['buyer', 'seller', 'logistics', 'rider'], true), 404);
+
+    return redirect()->route('register', ['role' => $role === 'rider' ? 'courier' : $role]);
+})->name('register.role');
 
 Route::post('/register', [RegistrationController::class, 'store'])
-    ->name('register.store');
+    ->middleware(['guest', 'throttle:10,1'])->name('register.store');
 
 /*
 |--------------------------------------------------------------------------
@@ -171,15 +127,7 @@ Route::prefix('address/philippines')
 |--------------------------------------------------------------------------
 */
 
-Route::post('/logout', function (Request $request) {
-    $request->session()->forget('demo_user');
-    $request->session()->invalidate();
-    $request->session()->regenerateToken();
-
-    return redirect()
-        ->route('login')
-        ->with('status', 'You have been signed out.');
-})->name('logout');
+Route::post('/logout', [AuthenticationController::class, 'destroy'])->name('logout');
 
 /*
 |--------------------------------------------------------------------------
@@ -200,13 +148,13 @@ Route::get('/auth/google', function () {
 |--------------------------------------------------------------------------
 */
 
-Route::get('/guest/continue', function (Request $request) {
+Route::get('/continue-as-guest', function (Request $request) {
     $request->session()->put('demo_user', [
         'email' => 'guest',
         'role' => 'guest',
     ]);
 
-    return redirect()->route('home');
+    return redirect()->route('guest.home');
 })->name('guest.continue');
 
 /*

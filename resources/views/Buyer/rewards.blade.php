@@ -4,42 +4,917 @@
 @section('active', 'rewards')
 @section('subtitle', 'Manage vouchers, points, and cashback in one place.')
 
-@section('content')
 @php
-    $tab = in_array(request('tab'), ['vouchers','points','cashback'], true) ? request('tab') : 'vouchers';
-    $tabs = ['vouchers' => 'My Vouchers', 'points' => 'Reward Points', 'cashback' => 'Cashback'];
+    $tab = in_array(request('tab'), ['vouchers', 'points', 'cashback'], true)
+        ? request('tab')
+        : 'vouchers';
+
+    $tabs = [
+        'vouchers' => 'My Vouchers',
+        'points' => 'Reward Points',
+        'cashback' => 'Cashback',
+    ];
 @endphp
 
-<div class="lk-page">
-    <div class="lk-page-title"><div><span class="lk-kicker">Buyer Benefits</span><h1>Rewards & Vouchers</h1><p>Use earned benefits before they expire.</p></div><a class="lk-btn lk-btn-light" href="{{ route('buyer.products') }}">Browse Products</a></div>
+@push('head')
+<style>
+    :root {
+        --lk-bg: #FBF7F2;
+        --lk-bg-soft: #F6EFE7;
+        --lk-bg-alt: #EFE7DE;
+        --lk-card: #FFFDF9;
 
-    <nav class="flex gap-1 overflow-x-auto rounded-xl border border-stone-200 bg-white p-1 shadow-sm" aria-label="Reward sections">
-        @foreach($tabs as $key => $label)<a class="whitespace-nowrap rounded-lg px-4 py-2.5 text-xs font-semibold transition {{ $tab === $key ? 'bg-red-900 text-white' : 'text-stone-600 hover:bg-stone-50 hover:text-red-900' }}" href="{{ route('buyer.rewards', ['tab' => $key]) }}">{{ $label }}</a>@endforeach
+        --lk-border: #EADCCC;
+        --lk-border-strong: #DBCEC1;
+
+        --lk-maroon: #561C17;
+        --lk-maroon-2: #642920;
+        --lk-maroon-dark: #3E130F;
+
+        --lk-text: #3B211B;
+        --lk-brown: #6C4936;
+        --lk-muted: #987865;
+        --lk-muted-2: #A99386;
+
+        --lk-tan: #C19771;
+        --lk-gold: #C88418;
+
+        --lk-success: #256F4A;
+        --lk-warning: #9A5B11;
+
+        --lk-shadow-soft: 0 8px 24px rgba(86, 28, 23, 0.055);
+        --lk-shadow-card: 0 16px 40px rgba(86, 28, 23, 0.09);
+    }
+
+    .lk-rewards-page {
+        display: grid;
+        gap: 22px;
+    }
+
+    .lk-rewards-tabs {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+
+        padding: 6px;
+
+        border: 1px solid var(--lk-border);
+        border-radius: 16px;
+
+        background: var(--lk-card);
+        box-shadow: var(--lk-shadow-soft);
+    }
+
+    .lk-reward-tab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        min-height: 40px;
+        padding: 0 16px;
+
+        border-radius: 12px;
+
+        color: var(--lk-brown);
+
+        font-size: 12px;
+        font-weight: 900;
+        text-decoration: none;
+        white-space: nowrap;
+
+        transition: 160ms ease;
+    }
+
+    .lk-reward-tab:hover {
+        background: var(--lk-bg-soft);
+        color: var(--lk-maroon);
+    }
+
+    .lk-reward-tab.is-active {
+        background: var(--lk-maroon);
+        color: #FFFFFF;
+        box-shadow: 0 8px 18px rgba(86, 28, 23, 0.16);
+    }
+
+    .lk-reward-voucher-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .lk-voucher-card,
+    .lk-reward-panel,
+    .lk-points-card,
+    .lk-cashback-card {
+        overflow: hidden;
+
+        border: 1px solid var(--lk-border);
+        border-radius: 22px;
+
+        background:
+            radial-gradient(circle at 96% 4%, rgba(193, 151, 113, 0.13), transparent 28%),
+            linear-gradient(180deg, #FFFDF9 0%, #FFF9F2 100%);
+
+        color: var(--lk-text);
+        box-shadow: var(--lk-shadow-soft);
+
+        transition:
+            transform 180ms ease,
+            border-color 180ms ease,
+            box-shadow 180ms ease;
+    }
+
+    .lk-voucher-card:hover,
+    .lk-points-card:hover,
+    .lk-cashback-card:hover {
+        transform: translateY(-3px);
+        border-color: var(--lk-tan);
+        box-shadow: var(--lk-shadow-card);
+    }
+
+    .lk-voucher-top {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+
+        padding: 18px;
+
+        border-bottom: 1px dashed var(--lk-border-strong);
+    }
+
+    .lk-voucher-icon {
+        display: grid;
+        width: 58px;
+        height: 58px;
+        flex: 0 0 58px;
+        place-items: center;
+
+        border-radius: 16px;
+
+        background: #F1E4D7;
+        color: var(--lk-maroon);
+
+        font-size: 18px;
+        font-weight: 950;
+    }
+
+    .lk-voucher-status {
+        color: var(--lk-maroon);
+
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .lk-voucher-card h2 {
+        margin: 4px 0 0;
+
+        color: var(--lk-text);
+
+        font-size: 21px;
+        font-weight: 950;
+        letter-spacing: -0.04em;
+    }
+
+    .lk-voucher-card p {
+        margin: 4px 0 0;
+
+        color: var(--lk-muted);
+
+        font-size: 12px;
+        line-height: 1.55;
+    }
+
+    .lk-voucher-bottom {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+
+        padding: 16px 18px;
+    }
+
+    .lk-voucher-code {
+        display: inline-flex;
+        align-items: center;
+
+        min-height: 28px;
+        padding: 0 10px;
+
+        border: 1px solid var(--lk-border);
+        border-radius: 9px;
+
+        background: var(--lk-bg-soft);
+        color: var(--lk-maroon);
+
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: 0.08em;
+    }
+
+    .lk-voucher-expiry {
+        display: block;
+        margin-top: 5px;
+
+        color: var(--lk-muted-2);
+
+        font-size: 10px;
+        font-weight: 600;
+    }
+
+    .lk-reward-panel {
+        padding: 20px;
+    }
+
+    .lk-reward-panel h2 {
+        margin: 0;
+
+        color: var(--lk-text);
+
+        font-size: 18px;
+        font-weight: 950;
+        letter-spacing: -0.035em;
+    }
+
+    .lk-reward-table-wrap {
+        overflow-x: auto;
+        margin-top: 14px;
+    }
+
+    .lk-reward-table {
+        width: 100%;
+        min-width: 560px;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    .lk-reward-table thead {
+        border-top: 1px solid var(--lk-border);
+        border-bottom: 1px solid var(--lk-border);
+        background: var(--lk-bg-soft);
+    }
+
+    .lk-reward-table th {
+        padding: 13px 14px;
+
+        color: var(--lk-muted);
+
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .lk-reward-table td {
+        padding: 13px 14px;
+        border-bottom: 1px solid #EFE1D5;
+
+        color: var(--lk-brown);
+
+        font-size: 12px;
+    }
+
+    .lk-reward-table td strong {
+        color: var(--lk-text);
+        font-weight: 900;
+    }
+
+    .lk-reward-table .is-muted {
+        color: var(--lk-muted);
+    }
+
+    .lk-points-layout {
+        display: grid;
+        grid-template-columns: 360px minmax(0, 1fr);
+        gap: 16px;
+    }
+
+    .lk-points-wallet {
+        padding: 26px;
+
+        border-radius: 22px;
+
+        background:
+            radial-gradient(circle at 92% 10%, rgba(255, 255, 255, 0.15), transparent 28%),
+            linear-gradient(135deg, var(--lk-maroon) 0%, var(--lk-maroon-2) 58%, var(--lk-maroon-dark) 100%);
+
+        color: #FFFFFF;
+        box-shadow: 0 18px 44px rgba(86, 28, 23, 0.18);
+    }
+
+    .lk-points-wallet span {
+        color: #E8C8B2;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .lk-points-wallet strong {
+        display: block;
+        margin-top: 8px;
+
+        color: #FFFFFF;
+
+        font-size: 46px;
+        font-weight: 950;
+        letter-spacing: -0.055em;
+        line-height: 1;
+    }
+
+    .lk-points-note {
+        margin-top: 24px;
+        padding-top: 16px;
+
+        border-top: 1px solid rgba(255, 255, 255, 0.16);
+
+        color: #F4DED4;
+
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .lk-points-card {
+        padding: 20px;
+    }
+
+    .lk-points-card h2 {
+        margin: 0;
+
+        color: var(--lk-text);
+
+        font-size: 18px;
+        font-weight: 950;
+        letter-spacing: -0.035em;
+    }
+
+    .lk-earn-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+
+        margin-top: 16px;
+    }
+
+    .lk-earn-item {
+        padding: 16px;
+
+        border: 1px solid var(--lk-border);
+        border-radius: 16px;
+
+        background: var(--lk-card);
+    }
+
+    .lk-earn-item strong {
+        display: block;
+
+        color: var(--lk-maroon);
+
+        font-size: 24px;
+        font-weight: 950;
+        letter-spacing: -0.04em;
+    }
+
+    .lk-earn-item p {
+        margin: 5px 0 0;
+
+        color: var(--lk-muted);
+
+        font-size: 12px;
+    }
+
+    .lk-activity-list {
+        display: grid;
+        margin-top: 12px;
+    }
+
+    .lk-activity-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+
+        padding: 14px 0;
+
+        border-bottom: 1px solid #EFE1D5;
+    }
+
+    .lk-activity-row:last-child {
+        border-bottom: 0;
+    }
+
+    .lk-activity-row strong {
+        display: block;
+
+        color: var(--lk-text);
+
+        font-size: 12px;
+        font-weight: 900;
+    }
+
+    .lk-activity-row time,
+    .lk-activity-row small {
+        display: block;
+        margin-top: 3px;
+
+        color: var(--lk-muted-2);
+
+        font-size: 10px;
+    }
+
+    .lk-activity-amount {
+        color: var(--lk-maroon);
+
+        font-size: 12px;
+        font-weight: 950;
+        white-space: nowrap;
+    }
+
+    .lk-activity-amount.is-negative {
+        color: var(--lk-muted);
+    }
+
+    .lk-cashback-grid {
+        display: grid;
+        grid-template-columns: 340px minmax(0, 1fr);
+        gap: 16px;
+    }
+
+    .lk-cashback-card {
+        padding: 22px;
+    }
+
+    .lk-cashback-label {
+        display: block;
+
+        color: var(--lk-muted);
+
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .lk-cashback-value {
+        display: block;
+        margin-top: 8px;
+
+        color: var(--lk-maroon);
+
+        font-size: 38px;
+        font-weight: 950;
+        letter-spacing: -0.05em;
+        line-height: 1;
+    }
+
+    .lk-cashback-card h2 {
+        margin: 0;
+
+        color: var(--lk-text);
+
+        font-size: 18px;
+        font-weight: 950;
+        letter-spacing: -0.035em;
+    }
+
+    .lk-cashback-card p {
+        margin: 9px 0 0;
+
+        color: var(--lk-muted);
+
+        font-size: 13px;
+        line-height: 1.75;
+    }
+
+    .lk-cashback-pending {
+        margin-top: 18px;
+        padding: 14px;
+
+        border: 1px solid #EAD39A;
+        border-radius: 14px;
+
+        background: #FFF6DE;
+        color: var(--lk-warning);
+
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .lk-cashback-activity-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 120px 120px 120px;
+        gap: 14px;
+
+        padding: 14px 0;
+
+        border-bottom: 1px solid #EFE1D5;
+
+        color: var(--lk-brown);
+        font-size: 12px;
+    }
+
+    .lk-cashback-activity-row:last-child {
+        border-bottom: 0;
+    }
+
+    .lk-cashback-activity-row strong {
+        color: var(--lk-text);
+        font-weight: 900;
+    }
+
+    .lk-cashback-activity-row span {
+        color: var(--lk-muted);
+    }
+
+    .lk-cashback-activity-row .lk-cashback-amount {
+        color: var(--lk-maroon);
+        font-weight: 900;
+    }
+
+    .lk-cashback-activity-row time {
+        color: var(--lk-muted-2);
+        text-align: right;
+    }
+
+    @media (max-width: 1100px) {
+        .lk-reward-voucher-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .lk-points-layout,
+        .lk-cashback-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 700px) {
+        .lk-reward-voucher-grid,
+        .lk-earn-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .lk-voucher-bottom {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .lk-voucher-bottom .lk-btn {
+            width: 100%;
+        }
+
+        .lk-cashback-activity-row {
+            grid-template-columns: 1fr;
+            gap: 4px;
+        }
+
+        .lk-cashback-activity-row time {
+            text-align: left;
+        }
+    }
+
+    html.dark .lk-rewards-tabs,
+    html.dark .lk-voucher-card,
+    html.dark .lk-reward-panel,
+    html.dark .lk-points-card,
+    html.dark .lk-cashback-card,
+    html.dark .lk-earn-item {
+        background: #211B17 !important;
+        border-color: #3B2E27 !important;
+        color: #F5EFE8 !important;
+    }
+
+    html.dark .lk-reward-tab {
+        color: #C8B7AD !important;
+    }
+
+    html.dark .lk-reward-tab:hover {
+        background: #2D1414 !important;
+        color: #EBA99D !important;
+    }
+
+    html.dark .lk-reward-tab.is-active {
+        background: #8A3A2F !important;
+        color: #FFFFFF !important;
+    }
+
+    html.dark .lk-voucher-card h2,
+    html.dark .lk-reward-panel h2,
+    html.dark .lk-points-card h2,
+    html.dark .lk-cashback-card h2,
+    html.dark .lk-activity-row strong,
+    html.dark .lk-cashback-activity-row strong {
+        color: #F5EFE8 !important;
+    }
+
+    html.dark .lk-voucher-card p,
+    html.dark .lk-activity-row time,
+    html.dark .lk-activity-row small,
+    html.dark .lk-cashback-card p,
+    html.dark .lk-cashback-activity-row span,
+    html.dark .lk-cashback-activity-row time {
+        color: #C8B7AD !important;
+    }
+
+    html.dark .lk-voucher-icon,
+    html.dark .lk-voucher-code {
+        background: #2D1414 !important;
+        border-color: #51342D !important;
+        color: #EBA99D !important;
+    }
+
+    html.dark .lk-reward-table thead {
+        background: #1E1A17 !important;
+        border-color: #3B2E27 !important;
+    }
+
+    html.dark .lk-reward-table td,
+    html.dark .lk-activity-row,
+    html.dark .lk-cashback-activity-row {
+        border-color: #3B2E27 !important;
+        color: #C8B7AD !important;
+    }
+
+    html.dark .lk-reward-table td strong,
+    html.dark .lk-activity-amount,
+    html.dark .lk-cashback-value,
+    html.dark .lk-cashback-activity-row .lk-cashback-amount {
+        color: #EBA99D !important;
+    }
+</style>
+@endpush
+
+@section('content')
+<div class="lk-page lk-rewards-page">
+    <div class="lk-page-title">
+        <div>
+            <span class="lk-kicker">
+                Buyer Benefits
+            </span>
+
+            <h1>
+                Rewards & Vouchers
+            </h1>
+
+            <p>
+                Use earned benefits before they expire.
+            </p>
+        </div>
+
+        <a
+            class="lk-btn lk-btn-light"
+            href="{{ route('buyer.products') }}"
+        >
+            Browse Products
+        </a>
+    </div>
+
+    <nav
+        class="lk-rewards-tabs"
+        aria-label="Reward sections"
+    >
+        @foreach($tabs as $key => $label)
+            <a
+                class="lk-reward-tab {{ $tab === $key ? 'is-active' : '' }}"
+                href="{{ route('buyer.rewards', ['tab' => $key]) }}"
+            >
+                {{ $label }}
+            </a>
+        @endforeach
     </nav>
 
     @if($tab === 'vouchers')
-        <section class="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <section class="lk-reward-voucher-grid">
             @foreach([
-                ['LIKHAE100','₱100 OFF','Minimum spend ₱1,000','Sep 30, 2026','Available'],
-                ['LOCAL15','15% OFF','Selected local sellers · cap ₱250','Sep 18, 2026','Available'],
-                ['SHIPFREE','FREE SHIPPING','Minimum spend ₱499','Sep 12, 2026','Available'],
-            ] as [$code,$value,$condition,$expires,$status])
-                <article class="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
-                    <div class="flex items-center gap-4 border-b border-dashed border-stone-200 p-4"><div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-red-50 text-sm font-black text-red-900">{{ str_contains($value, '%') ? '%' : '₱' }}</div><div><span class="text-[10px] font-bold uppercase tracking-widest text-red-800">{{ $status }}</span><h2 class="text-lg font-bold text-stone-900">{{ $value }}</h2><p class="text-xs text-stone-500">{{ $condition }}</p></div></div>
-                    <div class="flex items-center justify-between gap-3 p-4"><div><code class="rounded bg-stone-100 px-2 py-1 text-xs font-bold text-stone-700">{{ $code }}</code><small class="mt-1 block text-[10px] text-stone-400">Expires {{ $expires }}</small></div><button type="button" class="lk-btn lk-btn-red" data-demo-action="Voucher {{ $code }} copied.">Use Now</button></div>
+                ['LIKHAE100', '₱100 OFF', 'Minimum spend ₱1,000', 'Sep 30, 2026', 'Available'],
+                ['LOCAL15', '15% OFF', 'Selected local sellers · cap ₱250', 'Sep 18, 2026', 'Available'],
+                ['SHIPFREE', 'FREE SHIPPING', 'Minimum spend ₱499', 'Sep 12, 2026', 'Available'],
+            ] as [$code, $value, $condition, $expires, $status])
+                <article class="lk-voucher-card">
+                    <div class="lk-voucher-top">
+                        <div class="lk-voucher-icon">
+                            {{ str_contains($value, '%') ? '%' : (str_contains($value, 'FREE') ? '↗' : '₱') }}
+                        </div>
+
+                        <div>
+                            <span class="lk-voucher-status">
+                                {{ $status }}
+                            </span>
+
+                            <h2>
+                                {{ $value }}
+                            </h2>
+
+                            <p>
+                                {{ $condition }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="lk-voucher-bottom">
+                        <div>
+                            <code class="lk-voucher-code">
+                                {{ $code }}
+                            </code>
+
+                            <small class="lk-voucher-expiry">
+                                Expires {{ $expires }}
+                            </small>
+                        </div>
+
+                        <button
+                            type="button"
+                            class="lk-btn lk-btn-red"
+                            data-demo-action="Voucher {{ $code }} copied."
+                        >
+                            Use Now
+                        </button>
+                    </div>
                 </article>
             @endforeach
         </section>
-        <section class="mt-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><h2 class="text-base font-bold text-stone-900">Voucher history</h2><div class="mt-3 overflow-x-auto"><table class="w-full min-w-[560px] text-left text-xs"><thead class="border-y border-stone-100 bg-stone-50 text-[10px] uppercase tracking-wide text-stone-500"><tr><th class="px-4 py-3">Voucher</th><th class="px-4 py-3">Benefit</th><th class="px-4 py-3">Order</th><th class="px-4 py-3">Status</th></tr></thead><tbody class="divide-y divide-stone-100"><tr><td class="px-4 py-3 font-semibold">WELCOME50</td><td class="px-4 py-3">₱50 discount</td><td class="px-4 py-3">#LK-2048</td><td class="px-4 py-3 text-stone-500">Used</td></tr><tr><td class="px-4 py-3 font-semibold">SHIPSEP</td><td class="px-4 py-3">Free shipping</td><td class="px-4 py-3">—</td><td class="px-4 py-3 text-stone-500">Expired</td></tr></tbody></table></div></section>
-    @elseif($tab === 'points')
-        <section class="mt-5 grid gap-4 lg:grid-cols-[340px_1fr]">
-            <article class="rounded-2xl bg-red-950 p-6 text-white shadow-sm"><span class="text-xs text-red-200">Available balance</span><strong class="mt-2 block text-4xl">2,450</strong><span class="text-xs text-red-200">LIKHAE Reward Points</span><div class="mt-6 border-t border-red-800 pt-4 text-xs text-red-100">100 points = ₱1 checkout discount</div></article>
-            <article class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><h2 class="text-base font-bold text-stone-900">Earn more points</h2><div class="mt-4 grid gap-3 sm:grid-cols-3">@foreach([['Complete an order','+50'],['Review a product','+20'],['Shop local picks','2×']] as [$label,$value])<div class="rounded-xl border border-stone-200 p-4"><strong class="text-lg text-red-900">{{ $value }}</strong><p class="mt-1 text-xs text-stone-600">{{ $label }}</p></div>@endforeach</div></article>
+
+        <section class="lk-reward-panel">
+            <h2>
+                Voucher history
+            </h2>
+
+            <div class="lk-reward-table-wrap">
+                <table class="lk-reward-table">
+                    <thead>
+                        <tr>
+                            <th>Voucher</th>
+                            <th>Benefit</th>
+                            <th>Order</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr>
+                            <td>
+                                <strong>WELCOME50</strong>
+                            </td>
+
+                            <td>₱50 discount</td>
+
+                            <td>#LK-2048</td>
+
+                            <td class="is-muted">Used</td>
+                        </tr>
+
+                        <tr>
+                            <td>
+                                <strong>SHIPSEP</strong>
+                            </td>
+
+                            <td>Free shipping</td>
+
+                            <td>—</td>
+
+                            <td class="is-muted">Expired</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </section>
-        <section class="mt-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><h2 class="text-base font-bold text-stone-900">Points activity</h2><div class="mt-3 divide-y divide-stone-100">@foreach([['Order #LK-2071 completed','+50 points','Sep 3, 2026'],['Product review submitted','+20 points','Aug 31, 2026'],['Checkout discount','−500 points','Aug 28, 2026']] as [$label,$amount,$date])<div class="flex items-center justify-between gap-4 py-3"><div><strong class="block text-xs text-stone-800">{{ $label }}</strong><span class="text-[10px] text-stone-400">{{ $date }}</span></div><span class="text-xs font-bold {{ str_starts_with($amount, '+') ? 'text-red-800' : 'text-stone-500' }}">{{ $amount }}</span></div>@endforeach</div></section>
+    @elseif($tab === 'points')
+        <section class="lk-points-layout">
+            <article class="lk-points-wallet">
+                <span>
+                    Available balance
+                </span>
+
+                <strong>
+                    2,450
+                </strong>
+
+                <span>
+                    LIKHAE Reward Points
+                </span>
+
+                <div class="lk-points-note">
+                    100 points = ₱1 checkout discount
+                </div>
+            </article>
+
+            <article class="lk-points-card">
+                <h2>
+                    Earn more points
+                </h2>
+
+                <div class="lk-earn-grid">
+                    @foreach([
+                        ['Complete an order', '+50'],
+                        ['Review a product', '+20'],
+                        ['Shop local picks', '2×'],
+                    ] as [$label, $value])
+                        <div class="lk-earn-item">
+                            <strong>
+                                {{ $value }}
+                            </strong>
+
+                            <p>
+                                {{ $label }}
+                            </p>
+                        </div>
+                    @endforeach
+                </div>
+            </article>
+        </section>
+
+        <section class="lk-reward-panel">
+            <h2>
+                Points activity
+            </h2>
+
+            <div class="lk-activity-list">
+                @foreach([
+                    ['Order #LK-2071 completed', '+50 points', 'Sep 3, 2026'],
+                    ['Product review submitted', '+20 points', 'Aug 31, 2026'],
+                    ['Checkout discount', '−500 points', 'Aug 28, 2026'],
+                ] as [$label, $amount, $date])
+                    <div class="lk-activity-row">
+                        <div>
+                            <strong>
+                                {{ $label }}
+                            </strong>
+
+                            <time>
+                                {{ $date }}
+                            </time>
+                        </div>
+
+                        <span class="lk-activity-amount {{ str_starts_with($amount, '−') ? 'is-negative' : '' }}">
+                            {{ $amount }}
+                        </span>
+                    </div>
+                @endforeach
+            </div>
+        </section>
     @else
-        <section class="mt-5 grid gap-4 sm:grid-cols-3"><article class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:col-span-1"><span class="text-xs text-stone-500">Available cashback</span><strong class="mt-2 block text-3xl text-red-900">₱368.00</strong><button type="button" class="lk-btn lk-btn-red mt-5" data-demo-action="Cashback will be applied at checkout.">Use at Checkout</button></article><article class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:col-span-2"><h2 class="text-base font-bold text-stone-900">How cashback works</h2><p class="mt-2 text-sm leading-6 text-stone-600">Eligible purchases earn cashback after the order is completed. Use the balance on a future checkout before its expiration date.</p><div class="mt-4 rounded-xl bg-amber-50 p-4 text-xs text-amber-900">₱125 pending · available when current orders are completed.</div></article></section>
-        <section class="mt-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><h2 class="text-base font-bold text-stone-900">Cashback activity</h2><div class="mt-3 divide-y divide-stone-100">@foreach([['Order #LK-2071','Earned','₱85.00','Sep 3, 2026'],['Order #LK-2064','Used','−₱120.00','Aug 28, 2026'],['Order #LK-2050','Earned','₱45.00','Aug 21, 2026']] as [$order,$type,$amount,$date])<div class="grid grid-cols-[1fr_auto] gap-4 py-3 text-xs sm:grid-cols-4"><strong>{{ $order }}</strong><span class="text-stone-500">{{ $type }}</span><span class="font-semibold text-stone-800">{{ $amount }}</span><time class="text-right text-stone-400">{{ $date }}</time></div>@endforeach</div></section>
+        <section class="lk-cashback-grid">
+            <article class="lk-cashback-card">
+                <span class="lk-cashback-label">
+                    Available cashback
+                </span>
+
+                <strong class="lk-cashback-value">
+                    ₱368.00
+                </strong>
+
+                <button
+                    type="button"
+                    class="lk-btn lk-btn-red mt-5"
+                    data-demo-action="Cashback will be applied at checkout."
+                >
+                    Use at Checkout
+                </button>
+            </article>
+
+            <article class="lk-cashback-card">
+                <h2>
+                    How cashback works
+                </h2>
+
+                <p>
+                    Eligible purchases earn cashback after the order is completed.
+                    Use the balance on a future checkout before its expiration date.
+                </p>
+
+                <div class="lk-cashback-pending">
+                    ₱125 pending · available when current orders are completed.
+                </div>
+            </article>
+        </section>
+
+        <section class="lk-reward-panel">
+            <h2>
+                Cashback activity
+            </h2>
+
+            <div class="lk-activity-list">
+                @foreach([
+                    ['Order #LK-2071', 'Earned', '₱85.00', 'Sep 3, 2026'],
+                    ['Order #LK-2064', 'Used', '−₱120.00', 'Aug 28, 2026'],
+                    ['Order #LK-2050', 'Earned', '₱45.00', 'Aug 21, 2026'],
+                ] as [$order, $type, $amount, $date])
+                    <div class="lk-cashback-activity-row">
+                        <strong>
+                            {{ $order }}
+                        </strong>
+
+                        <span>
+                            {{ $type }}
+                        </span>
+
+                        <span class="lk-cashback-amount">
+                            {{ $amount }}
+                        </span>
+
+                        <time>
+                            {{ $date }}
+                        </time>
+                    </div>
+                @endforeach
+            </div>
+        </section>
     @endif
 </div>
 @endsection

@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <title>{{ $accountLabel }} Login — LIKHAE</title>
 
     @vite([
@@ -17,8 +21,7 @@
     <section class="auth-hero">
         <div class="auth-hero__inner">
             <a href="{{ $homeRoute }}" class="auth-brand">
-                <span class="auth-brand__mark">L</span>
-                <span class="auth-brand__name">LIKHAE</span>
+                <x-likhae-logo :context="$accountLabel" class="likhae-logo--auth" />
             </a>
 
             <div class="auth-hero__content">
@@ -58,8 +61,7 @@
         <div class="auth-panel__inner">
             <div class="auth-mobile-brand">
                 <a href="{{ $homeRoute }}" class="auth-brand">
-                    <span class="auth-brand__mark">L</span>
-                    <span class="auth-brand__name">LIKHAE</span>
+                    <x-likhae-logo :context="$accountLabel" class="likhae-logo--auth" />
                 </a>
             </div>
 
@@ -95,7 +97,7 @@
                             name="email"
                             type="email"
                             value="{{ old('email') }}"
-                            placeholder="{{ $demoEmail }}"
+                            placeholder="you@example.com"
                             autocomplete="email"
                             required
                             autofocus
@@ -148,13 +150,6 @@
                     </svg>
                 </button>
             </form>
-
-            <div class="auth-divider">Demo access</div>
-
-            <div class="auth-alert auth-alert--success">
-                <span><strong>Email:</strong> {{ $demoEmail }}</span>
-                <span><strong>Password:</strong> {{ $demoPassword }}</span>
-            </div>
 
             <p class="auth-switch">
                 Need a {{ strtolower($accountLabel) }} account?

@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('rider')
     ->name('rider.')
+    ->middleware(['auth', \App\Http\Middleware\EnsureWorkspaceRole::class.':rider'])
     ->group(function () {
 
         Route::get('/', function () {
