@@ -1,5 +1,5 @@
 <footer class="sl-footer">
-    <p>© {{ date('Y') }} LIKHAE Marketplace · Seller Center</p>
+    <p>&copy; {{ date('Y') }} LIKHAE Marketplace &middot; Seller Center</p>
     <nav aria-label="Seller footer links">
         <a href="{{ route('seller.messages') }}">Seller Support</a>
         <a href="{{ route('seller.store', ['tab' => 'settings']) }}">Store Settings</a>

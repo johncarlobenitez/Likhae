@@ -3,6 +3,8 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "clean:hot": "node scripts/clean-vite-hot.mjs",
+        "prebuild": "npm run clean:hot",
         "build": "vite build",
         "dev": "vite"
     },

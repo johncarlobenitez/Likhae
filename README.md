@@ -12,6 +12,20 @@ php artisan app:create-admin
 npm run build
 ```
 
+For local development, run the Laravel dev command:
+
+```sh
+composer run dev
+```
+
+For production or hosting uploads, always run:
+
+```sh
+composer run deploy
+```
+
+This rebuilds the Vite assets, removes the local Vite hot marker, clears stale Laravel caches, and refreshes the production caches. Do not upload `public/hot`; it is only for local Vite development and will make the live site try to load assets from `127.0.0.1`.
+
 The admin command privately prompts for a password and never overwrites an existing account. `db:seed` provides demo accounts only in local/testing environments and preserves existing credentials. Registration does not create administrator accounts.
 
 For an existing installation, run `php artisan app:secure-registration-documents` after migration to move old public uploads into private storage. New uploads are private automatically and can only be downloaded through an authenticated admin route.

@@ -1,5 +1,5 @@
 {{-- =====================================================
-    DARK MODE TOGGLE — shared across all role sidebars
+    DARK MODE TOGGLE ï¿½ shared across all role sidebars
     Reads/writes localStorage key: likhae-theme
     Syncs badge in sidebar with current state
 ====================================================== --}}
@@ -8,8 +8,7 @@
     const root = document.documentElement;
 
     // Restore on load (also set by <head> initializer if present)
-    const saved = localStorage.getItem('likhae-theme')
-        ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const saved = localStorage.getItem('likhae-theme') || 'light';
 
     if (saved === 'dark') root.classList.add('dark');
 
