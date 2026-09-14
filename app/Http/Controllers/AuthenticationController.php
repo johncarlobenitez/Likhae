@@ -31,7 +31,7 @@ class AuthenticationController extends Controller
         RateLimiter::hit($key, 60);
 
         $authenticated = Auth::attemptWhen([
-            fn ($query) => $query->whereRaw('LOWER(email) = ?', [$email]),
+            'email' => $email,
             'password' => $credentials['password'],
         ], function (User $user) use ($request): bool {
             if ($user->status !== 'active') {

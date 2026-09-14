@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
         toast.classList.add('is-visible');
         toastTimer = window.setTimeout(() => toast.classList.remove('is-visible'), 2600);
     };
+    window.slShowToast = showToast;
 
     const setMobileSidebar = (open) => {
         if (!sidebar) return;
@@ -96,14 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    selectAll('[data-demo-action]').forEach((button) => {
-        button.addEventListener('click', (event) => {
-            if (button.tagName === 'A' && button.getAttribute('href') !== '#') return;
-            event.preventDefault();
-            showToast(button.dataset.demoAction);
-        });
-    });
-
     const openModal = (modal) => {
         if (!modal) return;
         modal.hidden = false;
@@ -124,15 +117,6 @@ document.addEventListener('DOMContentLoaded', () => {
     selectAll('[data-modal]').forEach((modal) => modal.addEventListener('click', (event) => {
         if (event.target === modal) closeModal(modal);
     }));
-
-    selectAll('[data-demo-form]').forEach((form) => {
-        form.addEventListener('submit', (event) => {
-            event.preventDefault();
-            if (!form.reportValidity()) return;
-            showToast(form.dataset.success || 'Changes saved successfully.');
-            closeModal(form.closest('[data-modal]'));
-        });
-    });
 
     const characterField = select('[data-character-count]');
     if (characterField) {
@@ -160,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!list) return;
         const row = document.createElement('div');
         row.className = 'sl-variation-row';
-        row.innerHTML = '<input placeholder="e.g. Color" aria-label="Variation name"><input placeholder="e.g. Navy Blue" aria-label="Variation option"><input placeholder="SKU" aria-label="Variation SKU"><input type="number" min="0" value="0" aria-label="Variation stock"><button type="button" class="sl-icon-btn" data-remove-row aria-label="Remove variation">×</button>';
+        row.innerHTML = '<input name="variation_name[]" placeholder="e.g. Color" aria-label="Variation name"><input name="variation_value[]" placeholder="e.g. Navy Blue" aria-label="Variation option"><input name="variation_sku[]" placeholder="SKU" aria-label="Variation SKU"><input name="variation_price[]" type="number" min="0" step="0.01" placeholder="Price" aria-label="Variation price"><input name="variation_stock[]" type="number" min="0" aria-label="Variation stock"><button type="button" class="sl-icon-btn" data-remove-row aria-label="Remove variation">&times;</button>';
         list.appendChild(row);
         select('input', row)?.focus();
     });
@@ -188,34 +172,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     select('[data-product-search]')?.addEventListener('input', filterProductRows);
     select('[data-product-status-filter]')?.addEventListener('change', filterProductRows);
-
-    selectAll('[data-stock-update]').forEach((button) => button.addEventListener('click', () => {
-        const product = button.dataset.product || 'this product';
-        const value = window.prompt(`Enter the new available stock for ${product}:`);
-        if (value === null) return;
-        const stock = Number.parseInt(value, 10);
-        if (!Number.isFinite(stock) || stock < 0) {
-            showToast('Enter a valid stock quantity.');
-            return;
-        }
-        showToast(`${product} stock updated to ${stock}.`);
-    }));
-
-    selectAll('[data-order-action]').forEach((button) => button.addEventListener('click', () => {
-        const card = button.closest('[data-order-card]');
-        const label = select('[data-order-status]', card);
-        if (button.dataset.orderAction === 'accept') {
-            if (label) label.textContent = 'To Prepare';
-            button.textContent = 'Order Accepted';
-            button.disabled = true;
-            showToast('Order accepted and moved to To Prepare.');
-        } else {
-            if (label) label.textContent = 'Ready Pickup';
-            button.textContent = 'Package Prepared';
-            button.disabled = true;
-            showToast('Package marked ready for courier assignment.');
-        }
-    }));
 
     const orderSearch = select('[data-order-search]');
     orderSearch?.addEventListener('input', () => {
@@ -247,45 +203,6 @@ document.addEventListener('DOMContentLoaded', () => {
         selectAll('[data-conversation-filter]').forEach((item) => item.classList.toggle('is-active', item === button));
         filterConversations();
     }));
-
-    const conversationContent = {
-        angela: ['AC', 'Angela Cruz', 'Order #10001', '27-inch Borderless Monitor'],
-        marco: ['MR', 'Marco Reyes', 'Order #10002', 'Mechanical Keyboard 87 Keys'],
-        sarah: ['SL', 'Sarah Lim', 'Order #10003', 'Wireless Gaming Mouse'],
-        daniel: ['DT', 'Daniel Tan', 'Order #10004', 'Studio Wireless Headphones'],
-        patricia: ['PG', 'Patricia Go', 'Product question', 'Adjustable LED Desk Lamp'],
-    };
-
-    selectAll('[data-conversation]').forEach((button) => button.addEventListener('click', () => {
-        selectAll('[data-conversation]').forEach((item) => item.classList.toggle('is-active', item === button));
-        const data = conversationContent[button.dataset.key] || ['BY', button.dataset.name, 'Conversation', 'Product inquiry'];
-        const avatar = select('[data-chat-avatar]');
-        const name = select('[data-chat-name]');
-        const order = select('[data-chat-order]');
-        const product = select('[data-chat-product]');
-        if (avatar) avatar.textContent = data[0];
-        if (name) name.textContent = data[1];
-        if (order) order.textContent = data[2];
-        if (product) product.textContent = data[3];
-        button.dataset.unread = 'false';
-        select('.sl-unread', button)?.remove();
-    }));
-
-    select('[data-chat-form]')?.addEventListener('submit', (event) => {
-        event.preventDefault();
-        const input = select('[data-chat-input]', event.currentTarget);
-        const list = select('[data-chat-messages]');
-        const message = input?.value.trim();
-        if (!message || !list) return;
-        const bubble = document.createElement('div');
-        bubble.className = 'sl-message is-seller';
-        bubble.innerHTML = `<p></p><small>Just now · Sending</small>`;
-        select('p', bubble).textContent = message;
-        list.appendChild(bubble);
-        input.value = '';
-        list.scrollTop = list.scrollHeight;
-        window.setTimeout(() => { const time = select('small', bubble); if (time) time.textContent = 'Just now · Sent'; }, 550);
-    });
 
     const filterNotifications = (type) => {
         let visible = 0;

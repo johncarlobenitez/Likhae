@@ -34,7 +34,7 @@
         </a>
         <a href="{{ route('seller.notifications') }}" class="sl-icon-btn sl-header-action" aria-label="Notifications">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
-            <span class="sl-action-badge">{{ ($sellerUiCounts['to_process'] ?? 0) + ($sellerUiCounts['to_prepare'] ?? 0) }}</span>
+            @if(($sellerUiCounts['notifications'] ?? 0) > 0)<span class="sl-action-badge">{{ $sellerUiCounts['notifications'] }}</span>@endif
         </a>
         <a href="{{ route('seller.account') }}" class="sl-header-profile">
             <span class="sl-avatar">{{ $initial }}</span>

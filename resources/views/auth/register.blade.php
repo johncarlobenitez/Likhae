@@ -517,7 +517,7 @@
                 class="register-form"
                 id="registrationForm"
                 novalidate
-                data-address-base="{{ url('/address/philippines') }}"
+                data-address-base="{{ url()->to('/address/philippines', [], false) }}"
             >
 
                 @csrf
@@ -896,7 +896,7 @@
                             <div class="register-field">
                                 <label for="postal_code">Postal Code</label>
                                 <input id="postal_code" name="postal_code" type="text" inputmode="numeric"
-                                    value="{{ old('postal_code') }}" placeholder="e.g. 1870">
+                                    value="{{ old('postal_code') }}" placeholder="Auto-filled after barangay" readonly data-address-postal data-old-value="{{ old('postal_code') }}">
                             </div>
 
                             {{-- LANDMARK --}}
@@ -989,32 +989,13 @@
                                     </option>
 
 
-                                    @foreach([
-                                        'Fashion',
-                                        'Electronics',
-                                        'Home & Living',
-                                        'Beauty & Health',
-                                        'Sports & Outdoors',
-                                        'Toys & Games',
-                                        'Automotive',
-                                        'Books & Stationery',
-                                        'Groceries',
-                                        'Pet Supplies',
-                                        'Shoes & Accessories',
-                                        'Bags',
-                                        'Watches',
-                                        'Appliances',
-                                        'Mobile Devices',
-                                        'Computer Accessories',
-                                        'Office Supplies',
-                                        'Others'
-                                    ] as $category)
+                                    @foreach($sellerLineOfBusinessCategories ?? collect() as $category)
 
                                         <option
-                                            value="{{ $category }}"
-                                            {{ old('line_of_business') === $category ? 'selected' : '' }}
+                                            value="{{ $category->id }}"
+                                            {{ (string) old('line_of_business') === (string) $category->id ? 'selected' : '' }}
                                         >
-                                            {{ $category }}
+                                            {{ $category->name }}
                                         </option>
 
                                     @endforeach

@@ -10,15 +10,49 @@
     $maxCatalogPrice = max(10000, (int) ceil((float) $collection->max(fn($product) => data_get($product, 'price', 0))));
     $maxPrice = min($maxCatalogPrice, max(0, (int) request('max_price', $maxCatalogPrice)));
     $minimumRating = min(5, max(0, (float) request('rating', 0)));
-    $categories = ['all' => 'All Products', 'fashion' => 'Fashion', 'electronics' => 'Electronics', 'home' => 'Home & Living', 'books' => 'Books', 'beauty' => 'Beauty', 'sports' => 'Sports', 'toys' => 'Toys', 'automotive' => 'Automotive'];
-    $categoryKey = function ($product) {
-        $slug = \Illuminate\Support\Str::slug((string) data_get($product, 'category', ''));
-        foreach (['fashion','electronics','home','books','beauty','sports','toys','automotive'] as $key) if (str_contains($slug, $key)) return $key;
-        return in_array($slug, ['bags','accessories'], true) ? 'fashion' : $slug;
-    };
-    $visibleProducts = $collection->filter(function ($product) use ($activeCategory, $query, $maxPrice, $minimumRating, $categoryKey) {
+    $productCategorySlug = fn ($product) => (string) (data_get($product, 'category_slug') ?: \Illuminate\Support\Str::slug((string) data_get($product, 'category', 'uncategorized')));
+    $productParentSlug = fn ($product) => (string) (data_get($product, 'parent_category_slug') ?: $productCategorySlug($product));
+    $matchesCategory = fn ($product) => $activeCategory === 'all'
+        || $productCategorySlug($product) === $activeCategory
+        || $productParentSlug($product) === $activeCategory;
+    $categoryRows = $collection
+        ->groupBy(fn ($product) => $productParentSlug($product))
+        ->map(function ($products, $parentSlug) use ($productCategorySlug) {
+            $first = $products->first();
+            $parentLabel = data_get($first, 'parent_category') ?: data_get($first, 'category', 'Uncategorized');
+            $children = $products
+                ->groupBy(fn ($product) => $productCategorySlug($product))
+                ->map(function ($childProducts, $childSlug) use ($parentSlug) {
+                    $firstChild = $childProducts->first();
+
+                    if ($childSlug === $parentSlug) {
+                        return null;
+                    }
+
+                    return [
+                        'slug' => $childSlug,
+                        'label' => data_get($firstChild, 'category', 'Uncategorized'),
+                        'count' => $childProducts->count(),
+                    ];
+                })
+                ->filter()
+                ->sortBy('label')
+                ->values()
+                ->all();
+
+            return [
+                'slug' => $parentSlug,
+                'label' => $parentLabel,
+                'count' => $products->count(),
+                'children' => $children,
+                'open' => $activeCategory === $parentSlug || collect($children)->contains(fn ($child) => $child['slug'] === $activeCategory),
+            ];
+        })
+        ->sortBy('label')
+        ->values();
+    $visibleProducts = $collection->filter(function ($product) use ($matchesCategory, $query, $maxPrice, $minimumRating) {
         $haystack = mb_strtolower(implode(' ', [data_get($product,'name'), data_get($product,'category'), data_get($product,'seller'), data_get($product,'location')]));
-        return ($activeCategory === 'all' || $categoryKey($product) === $activeCategory)
+        return $matchesCategory($product)
             && ($query === '' || str_contains($haystack, $query))
             && (float) data_get($product, 'price', 0) <= $maxPrice
             && (float) data_get($product, 'rating', 0) >= $minimumRating;
@@ -42,7 +76,7 @@
     <div class="lk-products-layout">
         <aside class="lk-products-sidebar" aria-label="Product filters">
             <form action="{{ route($routeName) }}" method="GET" class="grid gap-3">
-                <div class="lk-filter-card"><div class="lk-filter-heading"><h2>Categories</h2></div><nav class="lk-category-list">@foreach($categories as $key => $label)<a href="{{ $catalogUrl(['category' => $key]) }}" class="lk-category-item {{ $activeCategory === $key ? 'is-active' : '' }}"><span>{{ $label }}</span><small>{{ $key === 'all' ? $collection->count() : $collection->filter(fn($product) => $categoryKey($product) === $key)->count() }}</small></a>@endforeach</nav></div>
+                <div class="lk-filter-card"><div class="lk-filter-heading"><h2>Categories</h2></div><nav class="lk-category-list"><a href="{{ $catalogUrl(['category' => 'all']) }}" class="lk-category-item {{ $activeCategory === 'all' ? 'is-active' : '' }}"><span>All Products</span><small>{{ $collection->count() }}</small></a>@foreach($categoryRows as $category)<details class="lk-category-group" @if($category['open']) open @endif><summary class="lk-category-item {{ $activeCategory === $category['slug'] ? 'is-active' : '' }}"><span>{{ $category['label'] }}</span><small>{{ $category['count'] }}</small></summary><div class="lk-category-sublist"><a href="{{ $catalogUrl(['category' => $category['slug']]) }}" class="lk-category-subitem {{ $activeCategory === $category['slug'] ? 'is-active' : '' }}">All {{ $category['label'] }}</a>@foreach($category['children'] as $child)<a href="{{ $catalogUrl(['category' => $child['slug']]) }}" class="lk-category-subitem {{ $activeCategory === $child['slug'] ? 'is-active' : '' }}"><span>{{ $child['label'] }}</span><small>{{ $child['count'] }}</small></a>@endforeach</div></details>@endforeach</nav></div>
                 <div class="lk-filter-card"><div class="lk-filter-heading"><h2>Price Range</h2></div><input type="range" name="max_price" min="0" max="{{ $maxCatalogPrice }}" step="100" value="{{ $maxPrice }}" class="lk-range-input" oninput="this.nextElementSibling.querySelector('b').textContent=new Intl.NumberFormat('en-PH').format(this.value)"><div class="lk-price-display"><span>&#8369;0</span><span>Up to &#8369;<b>{{ number_format($maxPrice) }}</b></span></div></div>
                 <div class="lk-filter-card"><label class="lk-field-label" for="catalogRating">Minimum rating</label><select id="catalogRating" name="rating" class="lk-filter-select"><option value="0">Any rating</option>@foreach([4.5,4,3] as $rating)<option value="{{ $rating }}" @selected($minimumRating == $rating)>{{ number_format($rating,1) }}&#9733; and above</option>@endforeach</select><button class="lk-btn lk-btn-red lk-btn-full" type="submit">Apply Filters</button><a class="lk-btn lk-btn-light lk-btn-full" href="{{ route($routeName) }}">Clear Filters</a></div>
             </form>

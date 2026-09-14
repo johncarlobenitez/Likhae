@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductReview;
+use App\Models\ProductVariation;
 use App\Models\Refund;
 use App\Models\SellerCampaign;
 use App\Models\SellerProfile;
@@ -16,6 +17,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Models\WorkspaceNotification;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -102,19 +104,26 @@ class SellerController extends Controller
             'mode' => $request->input('mode', 'list'),
             'selectedProduct' => $selected ? (string) $selected->id : $request->input('product'),
             'sellerProducts' => $products->map(fn (Product $product) => $this->productViewData($product)),
-            'categories' => Category::where('status', 'active')->orderBy('name')->get(),
+            'lineOfBusinessCategory' => $this->sellerLineOfBusinessCategory($seller),
+            'categories' => $this->sellerSubcategories($seller),
         ]);
     }
 
     public function storeProduct(Request $request): RedirectResponse
     {
         $seller = $this->seller($request);
-        $validated = $this->validateProduct($request);
+        $validated = $this->validateProduct($request, null, $seller);
 
         $product = new Product();
         $product->seller_id = $seller->id;
         $this->fillProduct($product, $validated, $request);
         $product->save();
+        $this->syncProductVariations($product, $request);
+        $this->syncProductSpecifications($product, $request);
+        $this->storeProductImageIfPresent($request, $seller, $product);
+        if ($product->isDirty('image_path')) {
+            $product->save();
+        }
 
         return redirect()->route('seller.products')
             ->with('status', "{$product->name} was published successfully.");
@@ -124,10 +133,16 @@ class SellerController extends Controller
     {
         $seller = $this->seller($request);
         $this->authorizeProduct($seller, $product);
-        $validated = $this->validateProduct($request, $product);
+        $validated = $this->validateProduct($request, $product, $seller);
 
         $this->fillProduct($product, $validated, $request);
         $product->save();
+        $this->syncProductVariations($product, $request);
+        $this->syncProductSpecifications($product, $request);
+        $this->storeProductImageIfPresent($request, $seller, $product);
+        if ($product->isDirty('image_path')) {
+            $product->save();
+        }
 
         return redirect()->route('seller.products', ['mode' => 'edit', 'product' => $product->id])
             ->with('status', 'Product changes saved.');
@@ -338,8 +353,18 @@ class SellerController extends Controller
     {
         $seller = $this->seller($request);
 
+        $buyerIds = Message::where('sender_id', $seller->id)
+            ->orWhere('recipient_id', $seller->id)
+            ->get()
+            ->flatMap(fn (Message $message) => [$message->sender_id, $message->recipient_id])
+            ->reject(fn ($id) => (int) $id === (int) $seller->id)
+            ->merge(Order::where('seller_id', $seller->id)->pluck('buyer_id'))
+            ->unique()
+            ->values();
+
         $buyers = User::where('role', 'buyer')
             ->where('status', 'active')
+            ->whereIn('id', $buyerIds)
             ->orderBy('name')
             ->get();
 
@@ -387,7 +412,7 @@ class SellerController extends Controller
         ]);
     }
 
-    public function sendMessage(Request $request): RedirectResponse
+    public function sendMessage(Request $request): RedirectResponse|JsonResponse
     {
         $seller = $this->seller($request);
         $validated = $request->validate([
@@ -408,7 +433,7 @@ class SellerController extends Controller
             $orderId = $order->id;
         }
 
-        Message::create([
+        $message = Message::create([
             'sender_id' => $seller->id,
             'recipient_id' => $buyer->id,
             'order_id' => $orderId,
@@ -422,7 +447,69 @@ class SellerController extends Controller
             'body' => "Message from {$seller->name}",
         ]);
 
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $this->messagePayload($message, $seller->id)], 201);
+        }
+
         return redirect()->route('seller.messages', ['buyer' => $buyer->id])->with('status', 'Message sent.');
+    }
+
+    public function messageStream(Request $request): StreamedResponse
+    {
+        $seller = $this->seller($request);
+        $buyerId = (int) $request->query('buyer_id');
+        $buyer = User::whereKey($buyerId)->where('role', 'buyer')->where('status', 'active')->firstOrFail();
+        $hasRelationship = Order::where('seller_id', $seller->id)->where('buyer_id', $buyer->id)->exists()
+            || Message::where(function ($query) use ($seller, $buyer) {
+                $query->where('sender_id', $seller->id)->where('recipient_id', $buyer->id);
+            })->orWhere(function ($query) use ($seller, $buyer) {
+                $query->where('sender_id', $buyer->id)->where('recipient_id', $seller->id);
+            })->exists();
+
+        abort_unless($hasRelationship, 403);
+
+        $lastId = max(0, (int) $request->query('after', 0));
+
+        return response()->stream(function () use ($seller, $buyer, $lastId): void {
+            $after = $lastId;
+            $started = now();
+
+            while (! connection_aborted() && now()->diffInSeconds($started) < 60) {
+                $messages = Message::with('sender')
+                    ->where('id', '>', $after)
+                    ->where(function ($query) use ($seller, $buyer) {
+                        $query->where(function ($q) use ($seller, $buyer) {
+                            $q->where('sender_id', $seller->id)->where('recipient_id', $buyer->id);
+                        })->orWhere(function ($q) use ($seller, $buyer) {
+                            $q->where('sender_id', $buyer->id)->where('recipient_id', $seller->id);
+                        });
+                    })
+                    ->orderBy('id')
+                    ->limit(50)
+                    ->get();
+
+                foreach ($messages as $message) {
+                    $after = max($after, (int) $message->id);
+                    echo "event: message\n";
+                    echo 'data: '.json_encode($this->messagePayload($message, $seller->id))."\n\n";
+                }
+
+                if ($messages->isEmpty()) {
+                    echo "event: heartbeat\n";
+                    echo 'data: '.json_encode(['after' => $after])."\n\n";
+                }
+
+                if (ob_get_level() > 0) {
+                    ob_flush();
+                }
+                flush();
+                sleep(2);
+            }
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache, no-transform',
+            'X-Accel-Buffering' => 'no',
+        ]);
     }
 
     public function reviews(Request $request): View
@@ -649,13 +736,28 @@ class SellerController extends Controller
             'vacation_mode' => ['nullable', 'boolean'],
             'auto_accept_orders' => ['nullable', 'boolean'],
             'store_visibility' => ['nullable', 'boolean'],
+            'avatar' => ['nullable', 'image', 'max:5120'],
+            'banner' => ['nullable', 'image', 'max:8192'],
         ]);
 
         foreach (['vacation_mode', 'auto_accept_orders', 'store_visibility'] as $field) {
             $validated[$field] = $request->boolean($field);
         }
 
-        SellerProfile::updateOrCreate(['seller_id' => $seller->id], $validated);
+        $profile = SellerProfile::firstOrNew(['seller_id' => $seller->id]);
+        $profile->fill(collect($validated)->except(['avatar', 'banner'])->all());
+
+        if ($request->hasFile('avatar')) {
+            $this->deletePublicFile($profile->avatar_path);
+            $profile->avatar_path = $this->storeSellerProfileImage($request, $seller, 'avatar');
+        }
+
+        if ($request->hasFile('banner')) {
+            $this->deletePublicFile($profile->banner_path);
+            $profile->banner_path = $this->storeSellerProfileImage($request, $seller, 'banner');
+        }
+
+        $profile->save();
         if (isset($validated['shop_name'])) {
             $seller->store_name = $validated['shop_name'];
             $seller->save();
@@ -782,7 +884,7 @@ class SellerController extends Controller
 
     private function sellerProductsQuery(User $seller)
     {
-        return Product::with(['category', 'orderItems.order', 'reviews'])
+        return Product::with(['category', 'variations', 'images', 'specifications', 'orderItems.order', 'reviews'])
             ->where('seller_id', $seller->id)
             ->latest();
     }
@@ -817,6 +919,23 @@ class SellerController extends Controller
             'image' => $product->image_path
                 ? (Str::startsWith($product->image_path, ['http://', 'https://']) ? $product->image_path : Storage::url($product->image_path))
                 : null,
+            'variation_rows' => $product->variations
+                ->map(fn (ProductVariation $variation) => [
+                    'name' => $variation->name,
+                    'value' => $variation->value,
+                    'sku' => $variation->sku,
+                    'price' => $variation->price,
+                    'stock' => $variation->stock,
+                ])
+                ->values()
+                ->all(),
+            'specification_rows' => $product->specifications
+                ->map(fn ($specification) => [
+                    'name' => $specification->name,
+                    'value' => $specification->value,
+                ])
+                ->values()
+                ->all(),
         ];
     }
 
@@ -898,17 +1017,57 @@ class SellerController extends Controller
         };
     }
 
-    private function validateProduct(Request $request, ?Product $product = null): array
+    private function validateProduct(Request $request, ?Product $product = null, ?User $seller = null): array
     {
-        return $request->validate([
+        $seller ??= $this->seller($request);
+        $parent = $this->sellerLineOfBusinessCategory($seller);
+
+        abort_unless($parent, 422, 'Your seller account has no registered line of business category.');
+
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:180'],
-            'category_id' => ['nullable', 'exists:categories,id'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'new_subcategory' => ['nullable', 'string', 'max:120'],
             'description' => ['required', 'string', 'max:3000'],
             'price' => ['required', 'numeric', 'min:0'],
             'stock' => ['required', 'integer', 'min:0'],
             'listing_status' => ['nullable', Rule::in(['active', 'draft', 'archived'])],
             'image' => ['nullable', 'image', 'max:5120'],
+            'images' => ['nullable', 'array'],
+            'images.*' => ['nullable', 'image', 'max:5120'],
+            'variation_name' => ['nullable', 'array'],
+            'variation_name.*' => ['nullable', 'string', 'max:80'],
+            'variation_value' => ['nullable', 'array'],
+            'variation_value.*' => ['nullable', 'string', 'max:160'],
+            'variation_sku' => ['nullable', 'array'],
+            'variation_sku.*' => ['nullable', 'string', 'max:80'],
+            'variation_price' => ['nullable', 'array'],
+            'variation_price.*' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
+            'variation_stock' => ['nullable', 'array'],
+            'variation_stock.*' => ['nullable', 'integer', 'min:0', 'max:999999'],
+            'specification_name' => ['nullable', 'array'],
+            'specification_name.*' => ['nullable', 'string', 'max:120'],
+            'specification_value' => ['nullable', 'array'],
+            'specification_value.*' => ['nullable', 'string', 'max:500'],
+            'specifications_text' => ['nullable', 'string', 'max:2000'],
         ]);
+
+        $newSubcategory = trim((string) ($validated['new_subcategory'] ?? ''));
+
+        if ($newSubcategory !== '') {
+            $validated['category_id'] = $this->firstOrCreateSellerSubcategory($seller, $parent, $newSubcategory)->id;
+        }
+
+        abort_if(empty($validated['category_id']), 422, 'Choose a subcategory for this product.');
+
+        $category = Category::whereKey($validated['category_id'])
+            ->where('status', 'active')
+            ->where('parent_id', $parent->id)
+            ->first();
+
+        abort_unless($category, 422, 'The selected subcategory is not allowed for your registered line of business.');
+
+        return $validated;
     }
 
     private function fillProduct(Product $product, array $validated, Request $request): void
@@ -936,11 +1095,246 @@ class SellerController extends Controller
         }
         $product->slug = $slug;
 
-        if ($request->hasFile('image')) {
-            if ($product->image_path && ! Str::startsWith($product->image_path, ['http://', 'https://'])) {
-                Storage::disk('public')->delete($product->image_path);
+    }
+
+    private function sellerLineOfBusinessCategory(User $seller): ?Category
+    {
+        $profile = SellerProfile::with('lineOfBusinessCategory')->where('seller_id', $seller->id)->first();
+
+        if ($profile?->lineOfBusinessCategory) {
+            return $profile->lineOfBusinessCategory;
+        }
+
+        if ($seller->line_of_business) {
+            $category = Category::whereNull('parent_id')
+                ->where('status', 'active')
+                ->where('name', $seller->line_of_business)
+                ->first();
+
+            if ($category) {
+                SellerProfile::updateOrCreate(
+                    ['seller_id' => $seller->id],
+                    ['line_of_business_category_id' => $category->id]
+                );
+
+                return $category;
             }
-            $product->image_path = $request->file('image')->store('seller-products', 'public');
+        }
+
+        return null;
+    }
+
+    private function sellerSubcategories(User $seller): Collection
+    {
+        $parent = $this->sellerLineOfBusinessCategory($seller);
+
+        if (! $parent) {
+            return collect();
+        }
+
+        return Category::where('parent_id', $parent->id)
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function firstOrCreateSellerSubcategory(User $seller, Category $parent, string $name): Category
+    {
+        $normalized = Str::of($name)->squish()->toString();
+        $slug = Str::slug($normalized).'-'.$parent->id;
+
+        abort_if($normalized === '' || ! preg_match('/^[\\pL\\pN][\\pL\\pN\\s&\\-\\/.,()]+$/u', $normalized), 422, 'Enter a valid subcategory name.');
+
+        $existing = Category::where('parent_id', $parent->id)
+            ->get()
+            ->first(fn (Category $category) => Str::of($category->name)->squish()->lower()->toString() === Str::of($normalized)->lower()->toString());
+
+        if ($existing) {
+            return $existing;
+        }
+
+        return Category::create([
+            'parent_id' => $parent->id,
+            'name' => $normalized,
+            'slug' => $slug,
+            'status' => 'active',
+            'source' => 'seller',
+            'created_by_user_id' => $seller->id,
+            'created_by_seller_id' => $seller->id,
+        ]);
+    }
+
+    private function storeProductImageIfPresent(Request $request, User $seller, Product $product): void
+    {
+        $storedPaths = [];
+
+        if ($request->hasFile('image')) {
+            $this->deletePublicFile($product->image_path);
+            $product->image_path = $request->file('image')->storeAs(
+                "sellers/{$seller->id}/products/{$product->id}",
+                $this->uploadFileName($request->file('image'), 'product'),
+                'public'
+            );
+            $storedPaths[] = $product->image_path;
+        }
+
+        foreach ($request->file('images', []) as $index => $image) {
+            if (! $image) {
+                continue;
+            }
+
+            $path = $image->storeAs(
+                "sellers/{$seller->id}/products/{$product->id}",
+                $this->uploadFileName($image, 'product-gallery'),
+                'public'
+            );
+
+            if (! $product->image_path) {
+                $product->image_path = $path;
+            }
+
+            $product->images()->create([
+                'path' => $path,
+                'sort_order' => (int) $product->images()->max('sort_order') + $index + 1,
+            ]);
+
+            $storedPaths[] = $path;
+        }
+
+        if ($product->image_path && ! $product->images()->where('path', $product->image_path)->exists()) {
+            $product->images()->create([
+                'path' => $product->image_path,
+                'sort_order' => 0,
+            ]);
+        }
+    }
+
+    private function syncProductVariations(Product $product, Request $request): void
+    {
+        if (! $request->has('variation_name')) {
+            return;
+        }
+
+        $names = $request->input('variation_name', []);
+        $values = $request->input('variation_value', []);
+        $skus = $request->input('variation_sku', []);
+        $prices = $request->input('variation_price', []);
+        $stocks = $request->input('variation_stock', []);
+        $rows = [];
+
+        foreach ($names as $index => $name) {
+            $name = trim((string) $name);
+            $value = trim((string) ($values[$index] ?? ''));
+
+            if ($name === '' || $value === '') {
+                continue;
+            }
+
+            $rows[] = [
+                'name' => $name,
+                'value' => $value,
+                'sku' => trim((string) ($skus[$index] ?? '')) ?: null,
+                'price' => isset($prices[$index]) && $prices[$index] !== '' ? (float) $prices[$index] : null,
+                'stock' => isset($stocks[$index]) && $stocks[$index] !== '' ? (int) $stocks[$index] : null,
+            ];
+        }
+
+        $product->variations()->delete();
+
+        foreach ($rows as $row) {
+            $product->variations()->create($row);
+        }
+
+        if ($rows !== []) {
+            $product->stock = collect($rows)->sum(fn ($row) => (int) ($row['stock'] ?? 0));
+            $product->save();
+        }
+    }
+
+    private function syncProductSpecifications(Product $product, Request $request): void
+    {
+        if ($request->has('specifications_text')) {
+            $text = trim((string) $request->input('specifications_text', ''));
+            $product->specifications()->delete();
+
+            if ($text === '') {
+                return;
+            }
+
+            foreach (preg_split('/\R+/', $text) as $index => $line) {
+                $line = trim((string) $line);
+
+                if ($line === '') {
+                    continue;
+                }
+
+                if (str_contains($line, ':')) {
+                    [$name, $value] = array_map('trim', explode(':', $line, 2));
+                } else {
+                    $name = 'Detail '.($index + 1);
+                    $value = $line;
+                }
+
+                if ($name === '' || $value === '') {
+                    continue;
+                }
+
+                $product->specifications()->create([
+                    'name' => Str::limit($name, 120, ''),
+                    'value' => Str::limit($value, 500, ''),
+                ]);
+            }
+
+            return;
+        }
+
+        if (! $request->has('specification_name')) {
+            return;
+        }
+
+        $names = $request->input('specification_name', []);
+        $values = $request->input('specification_value', []);
+        $rows = [];
+
+        foreach ($names as $index => $name) {
+            $name = trim((string) $name);
+            $value = trim((string) ($values[$index] ?? ''));
+
+            if ($name === '' || $value === '') {
+                continue;
+            }
+
+            $rows[$name] = ['name' => $name, 'value' => $value];
+        }
+
+        $product->specifications()->delete();
+
+        foreach ($rows as $row) {
+            $product->specifications()->create($row);
+        }
+    }
+
+    private function storeSellerProfileImage(Request $request, User $seller, string $field): string
+    {
+        return $request->file($field)->storeAs(
+            "sellers/{$seller->id}/profile",
+            $this->uploadFileName($request->file($field), $field),
+            'public'
+        );
+    }
+
+    private function uploadFileName($file, string $fallback): string
+    {
+        $name = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) ?: $fallback;
+        $extension = $file->extension() ?: $file->guessExtension() ?: 'jpg';
+
+        return $name.'-'.Str::random(10).'.'.$extension;
+    }
+
+    private function deletePublicFile(?string $path): void
+    {
+        if ($path && ! Str::startsWith($path, ['http://', 'https://'])) {
+            Storage::disk('public')->delete($path);
         }
     }
 
@@ -1038,5 +1432,19 @@ class SellerController extends Controller
             }
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    private function messagePayload(Message $message, int $viewerId): array
+    {
+        return [
+            'id' => $message->id,
+            'sender_id' => $message->sender_id,
+            'recipient_id' => $message->recipient_id,
+            'order_id' => $message->order_id,
+            'body' => $message->body,
+            'from_me' => $message->sender_id === $viewerId,
+            'created_at' => $message->created_at?->toIso8601String(),
+            'time' => $message->created_at?->diffForHumans() ?: 'Just now',
+        ];
     }
 }

@@ -28,6 +28,7 @@ Route::prefix('seller')
         Route::post('/logistics/{order}/pickup', [SellerController::class, 'requestPickup'])->name('logistics.pickup');
 
         Route::get('/messages', [SellerController::class, 'messages'])->name('messages');
+        Route::get('/messages/stream', [SellerController::class, 'messageStream'])->name('messages.stream');
         Route::post('/messages', [SellerController::class, 'sendMessage'])->name('messages.send');
 
         Route::get('/reviews', [SellerController::class, 'reviews'])->name('reviews');

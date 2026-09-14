@@ -136,4 +136,33 @@ class PhilippineAddressApiTest extends TestCase
                 'mun' => 43,
             ]);
     }
+
+    public function test_missing_psgc_token_uses_fallback_instead_of_503(): void
+    {
+        config(['services.psgc.token' => null]);
+
+        Http::fake([
+            'psgc.cloud/api/v2/regions' => Http::response([
+                'data' => [
+                    ['code' => '0400000000', 'name' => 'Region IV-A (CALABARZON)', 'type' => 'Reg'],
+                ],
+            ]),
+        ]);
+
+        $this->getJson('/address/philippines/regions')
+            ->assertOk()
+            ->assertJsonFragment([
+                'code' => '0400000000',
+                'name' => 'Region IV-A (CALABARZON)',
+            ]);
+    }
+
+    public function test_postal_code_is_resolved_from_selected_location(): void
+    {
+        $this->getJson('/address/philippines/postal-code?province=0403400000&municipality=0403429000&province_name=Laguna&municipality_name=City%20of%20San%20Pablo')
+            ->assertOk()
+            ->assertJson([
+                'postal_code' => '4000',
+            ]);
+    }
 }

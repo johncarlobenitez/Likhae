@@ -4,8 +4,8 @@
     $buyer = auth()->user();
     $demoUser = session('demo_user');
 
-    $cartCount = $cartCount ?? session('cart_count', 2);
-    $messageCount = $messageCount ?? session('message_count', 2);
+    $cartCount = $cartCount ?? (int) data_get($buyerUiCounts ?? [], 'cart', 0);
+    $messageCount = $messageCount ?? (int) data_get($buyerUiCounts ?? [], 'messages', 0);
 
     $buyerName = data_get($buyer, 'name')
         ?? data_get($demoUser, 'name')
@@ -17,8 +17,13 @@
         ->map(fn ($word) => mb_strtoupper(mb_substr($word, 0, 1)))
         ->implode('') ?: 'BA';
 
-    $avatar = data_get($buyer, 'profile_photo_url')
+    $profilePhoto = data_get($buyer, 'profile_photo_path')
+        ?? data_get($buyer, 'profile_photo_url')
         ?? data_get($buyer, 'avatar_url');
+
+    $avatar = $profilePhoto
+        ? (\Illuminate\Support\Str::startsWith($profilePhoto, ['http://', 'https://']) ? $profilePhoto : \Illuminate\Support\Facades\Storage::url($profilePhoto))
+        : null;
 
     $orderStatus = request('status', 'all');
     $rewardTab = request('tab', 'vouchers');
@@ -130,9 +135,6 @@
         'profile' => 'Profile',
         'addresses' => 'Addresses',
         'password' => 'Change Password',
-        'privacy' => 'Privacy Settings',
-        'deletion' => 'Account Deletion',
-        'notifications' => 'Notification Settings',
     ];
 @endphp
 
@@ -166,7 +168,7 @@
     .lk-sidebar {
         position: fixed;
         inset: 0 auto 0 0;
-        z-index: 60;
+        z-index: 90;
         display: flex;
         width: var(--buyer-side-width);
         height: 100vh;
@@ -684,7 +686,8 @@
             transform: translateX(-100%);
         }
 
-        .lk-sidebar.is-open {
+        .lk-sidebar.is-open,
+        .lk-sidebar.lk-sidebar-open {
             transform: translateX(0);
         }
 
@@ -1063,10 +1066,9 @@
                 </button>
             </form>
         @else
-            <button
-                type="button"
+            <a
+                href="{{ Route::has('login') ? route('login') : url('/login') }}"
                 class="lk-nav-link lk-logout"
-                data-demo-action="Connect this button to your logout route"
                 data-title="Logout"
             >
                 <span class="lk-nav-icon">
@@ -1078,166 +1080,8 @@
                 <span class="lk-nav-text">
                     Logout
                 </span>
-            </button>
+            </a>
         @endif
 
     </div>
 </aside>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const sidebar =
-        document.querySelector('[data-lk-sidebar]');
-
-    const sidebarToggle =
-        document.querySelector('[data-lk-sidebar-toggle]');
-
-    const themeToggle =
-        document.getElementById('themeToggle');
-
-    const themeBadge =
-        document.getElementById('themeToggleBadge');
-
-    const root =
-        document.documentElement;
-
-
-    function syncThemeBadge() {
-        const dark =
-            root.classList.contains('dark');
-
-        if (!themeBadge) {
-            return;
-        }
-
-        themeBadge.textContent =
-            dark ? 'ON' : 'OFF';
-
-        themeBadge.style.background =
-            dark ? '#A84538' : '#E3E3E2';
-
-        themeBadge.style.color =
-            dark ? '#FFFFFF' : '#494644';
-    }
-
-
-    function toggleSidebar() {
-        if (!sidebar) {
-            return;
-        }
-
-        const collapsed =
-            sidebar.classList.toggle('is-collapsed');
-
-        sidebarToggle?.setAttribute(
-            'aria-expanded',
-            collapsed ? 'false' : 'true'
-        );
-
-        localStorage.setItem(
-            'likhae-buyer-sidebar',
-            collapsed ? 'collapsed' : 'expanded'
-        );
-
-        window.dispatchEvent(
-            new CustomEvent(
-                'likhae:buyer-sidebar',
-                {
-                    detail: {
-                        collapsed: collapsed,
-                        width: collapsed ? 76 : 252
-                    }
-                }
-            )
-        );
-    }
-
-
-    function restoreSidebarState() {
-        if (!sidebar || window.innerWidth < 1024) {
-            return;
-        }
-
-        const collapsed =
-            localStorage.getItem('likhae-buyer-sidebar') === 'collapsed';
-
-        sidebar.classList.toggle(
-            'is-collapsed',
-            collapsed
-        );
-
-        sidebarToggle?.setAttribute(
-            'aria-expanded',
-            collapsed ? 'false' : 'true'
-        );
-    }
-
-
-    sidebarToggle?.addEventListener(
-        'click',
-        toggleSidebar
-    );
-
-
-    document
-        .querySelectorAll('[data-nav-toggle]')
-        .forEach(function (toggle) {
-            toggle.addEventListener(
-                'click',
-                function () {
-                    const submenu =
-                        toggle.parentElement
-                            ?.querySelector('[data-nav-submenu]');
-
-                    if (!submenu) {
-                        return;
-                    }
-
-                    const willOpen =
-                        submenu.hasAttribute('hidden');
-
-                    if (willOpen) {
-                        submenu.removeAttribute('hidden');
-                    } else {
-                        submenu.setAttribute('hidden', '');
-                    }
-
-                    toggle.classList.toggle(
-                        'is-open',
-                        willOpen
-                    );
-
-                    toggle.setAttribute(
-                        'aria-expanded',
-                        willOpen ? 'true' : 'false'
-                    );
-                }
-            );
-        });
-
-
-    themeToggle?.addEventListener(
-        'click',
-        function () {
-            const dark =
-                !root.classList.contains('dark');
-
-            root.classList.toggle(
-                'dark',
-                dark
-            );
-
-            localStorage.setItem(
-                'likhae-theme',
-                dark ? 'dark' : 'light'
-            );
-
-            syncThemeBadge();
-        }
-    );
-
-
-    restoreSidebarState();
-    syncThemeBadge();
-});
-</script>

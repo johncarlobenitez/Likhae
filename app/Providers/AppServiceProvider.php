@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Models\Message;
 use App\Models\Order;
+use App\Models\WorkspaceNotification;
+use App\Support\BuyerMarketplace;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -27,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
                 'completed' => 0,
                 'returns' => 0,
                 'messages' => 0,
+                'notifications' => 0,
             ];
 
             if ($seller?->role === 'seller' && Schema::hasTable('orders')) {
@@ -52,8 +55,31 @@ class AppServiceProvider extends ServiceProvider
                     ->count();
             }
 
+            if ($seller?->role === 'seller' && Schema::hasTable('workspace_notifications')) {
+                $counts['notifications'] = WorkspaceNotification::where('user_id', $seller->id)
+                    ->whereNull('read_at')
+                    ->count();
+            }
+
             $view->with('sellerSidebarCounts', $counts);
             $view->with('sellerUiCounts', $counts);
+        });
+
+        View::composer(['components.buyer.sidebar', 'components.buyer.header'], function ($view) {
+            $buyer = auth()->user();
+            $counts = ['cart' => 0, 'messages' => 0, 'notifications' => 0];
+
+            if (
+                $buyer?->role === 'buyer'
+                && Schema::hasTable('carts')
+                && Schema::hasTable('cart_items')
+                && Schema::hasTable('messages')
+                && Schema::hasTable('workspace_notifications')
+            ) {
+                $counts = BuyerMarketplace::buyerCounts($buyer);
+            }
+
+            $view->with('buyerUiCounts', $counts);
         });
     }
 }

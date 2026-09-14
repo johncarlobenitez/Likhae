@@ -19,7 +19,9 @@
             <img class="-mt-14 h-24 w-24 rounded-2xl border-4 border-white bg-white object-cover shadow-sm" src="{{ data_get($seller, 'avatar') }}" alt="{{ $sellerName }}">
             <div class="min-w-0 flex-1"><span class="text-[10px] font-bold uppercase tracking-widest text-red-800">Verified LIKHAE store</span><h1 class="truncate text-2xl font-bold text-stone-950">{{ $sellerName }}</h1><p class="mt-1 text-xs text-stone-500">{{ data_get($seller, 'location') }} · Joined {{ data_get($seller, 'joined') }}</p></div>
             <div class="flex flex-wrap gap-2">
-                <button type="button" class="lk-btn lk-btn-light" @if($guest) data-auth-required data-auth-message="Sign in to follow this store." @else data-demo-action="Store followed." @endif>+ Follow</button>
+                @if($guest)
+                    <button type="button" class="lk-btn lk-btn-light" data-auth-required data-auth-message="Sign in to follow this store.">+ Follow</button>
+                @endif
                 @if($guest)
                     <button type="button" class="lk-btn lk-btn-red" data-auth-required data-auth-message="Sign in to message this store.">Message Store</button>
                 @else

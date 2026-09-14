@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Category;
+use App\Models\SellerProfile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -49,7 +51,7 @@ class RegistrationController extends Controller
             'contact_number' => ['required', 'string', 'max:30'],
             'birthday' => ['required', 'date', 'before:today'],
             'region' => ['required', 'string', 'max:120'],
-            'postal_code' => ['nullable', 'string', 'max:20'],
+            'postal_code' => ['required', 'string', 'max:20'],
             'landmark' => ['nullable', 'string', 'max:255'],
             'province' => ['required', 'string', 'max:120'],
             'municipality' => ['required', 'string', 'max:120'],
@@ -61,7 +63,7 @@ class RegistrationController extends Controller
             'terms' => ['accepted'],
             'business_name' => [Rule::excludeIf(! in_array($role, ['seller', 'logistics'], true)), 'required', 'string', 'max:255'],
             'store_name' => [Rule::excludeIf($role !== 'seller'), 'nullable', 'string', 'max:255'],
-            'line_of_business' => [Rule::excludeIf($role !== 'seller'), 'required', 'string', 'max:255'],
+            'line_of_business' => [Rule::excludeIf($role !== 'seller'), 'required', 'integer', Rule::exists('categories', 'id')->where(fn ($query) => $query->whereNull('parent_id')->where('status', 'active'))],
             'business_type' => [Rule::excludeIf(! in_array($role, ['seller', 'logistics'], true)), 'nullable', 'string', 'max:100'],
             'dti_sec_number' => [Rule::excludeIf(! in_array($role, ['seller', 'logistics'], true)), 'nullable', 'string', 'max:100'],
             'tin' => [Rule::excludeIf(! in_array($role, ['seller', 'logistics'], true)), 'nullable', 'string', 'max:100'],
@@ -72,9 +74,28 @@ class RegistrationController extends Controller
             'drivers_license' => [Rule::excludeIf($role !== 'courier'), 'required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
         ]);
 
+        $expectedPostalCode = PhilippineAddressController::expectedPostalCodeFor(
+            province: (string) $validated['province'],
+            municipality: (string) $validated['municipality']
+        );
+
+        if ($expectedPostalCode !== null && $validated['postal_code'] !== $expectedPostalCode) {
+            return back()
+                ->withErrors(['postal_code' => 'The postal code does not match the selected Philippine address.'])
+                ->withInput();
+        }
+
         $uploads = ['valid_id', 'business_permit', 'or_cr', 'drivers_license'];
         $attributes = Arr::except($validated, [...$uploads, 'terms']);
         $paths = [];
+        $lineOfBusinessCategoryId = isset($attributes['line_of_business']) ? (int) $attributes['line_of_business'] : null;
+        $lineOfBusinessName = $lineOfBusinessCategoryId
+            ? Category::whereKey($lineOfBusinessCategoryId)->value('name')
+            : null;
+
+        if ($lineOfBusinessName) {
+            $attributes['line_of_business'] = $lineOfBusinessName;
+        }
 
         try {
             foreach ($uploads as $field) {
@@ -83,11 +104,22 @@ class RegistrationController extends Controller
                 }
             }
 
-            DB::transaction(function () use ($attributes, $paths) {
+            DB::transaction(function () use ($attributes, $paths, $lineOfBusinessCategoryId) {
                 $user = new User([...$attributes, ...$paths]);
                 $user->name = trim($attributes['first_name'].' '.$attributes['last_name']);
                 $user->status = 'pending';
                 $user->save();
+
+                if ($user->role === 'seller' && $lineOfBusinessCategoryId) {
+                    SellerProfile::updateOrCreate(
+                        ['seller_id' => $user->id],
+                        [
+                            'line_of_business_category_id' => $lineOfBusinessCategoryId,
+                            'shop_name' => $user->store_name ?: $user->business_name,
+                            'location' => collect([$user->municipality, $user->province])->filter()->implode(', '),
+                        ]
+                    );
+                }
             });
         } catch (\Throwable $exception) {
             Storage::disk('registrations')->delete(array_values($paths));

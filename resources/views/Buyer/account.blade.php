@@ -4,21 +4,26 @@
 @section('active', 'account')
 
 @section('content')
+@if(session('buyer_notice'))<div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-900">{{ session('buyer_notice') }}</div>@endif
+@if($errors->any())<div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-900">{{ $errors->first() }}</div>@endif
 @php
     $user = auth()->user();
 
     $buyerName = data_get($user, 'name', 'Buyer Name');
     $buyerEmail = data_get($user, 'email', 'buyer@example.com');
-    $buyerPhone = data_get($user, 'phone', '');
+    $buyerPhone = data_get($user, 'contact_number', '');
     $buyerBirthday = data_get($user, 'birthday', '');
-    $buyerGender = data_get($user, 'gender', '');
+    $buyerGender = data_get($user, 'sex', '');
 
-    $profilePhoto = data_get($user, 'profile_photo')
+    $profilePhoto = data_get($user, 'profile_photo_path')
+        ?? data_get($user, 'profile_photo')
         ?? data_get($user, 'profile_picture')
         ?? null;
 
     $profilePhotoUrl = $profilePhoto
-        ? asset('storage/' . ltrim($profilePhoto, '/'))
+        ? (\Illuminate\Support\Str::startsWith($profilePhoto, ['http://', 'https://'])
+            ? $profilePhoto
+            : \Illuminate\Support\Facades\Storage::url($profilePhoto))
         : null;
 
     $buyerInitial = strtoupper(mb_substr($buyerName, 0, 1));
@@ -27,9 +32,6 @@
         'profile',
         'addresses',
         'password',
-        'privacy',
-        'deletion',
-        'notifications',
     ];
 
     $requestedTab = request('tab', 'profile');
@@ -50,18 +52,6 @@
         'password' => [
             'label' => 'Change Password',
             'description' => 'Account security',
-        ],
-        'privacy' => [
-            'label' => 'Privacy Settings',
-            'description' => 'Data and visibility',
-        ],
-        'deletion' => [
-            'label' => 'Account Deletion',
-            'description' => 'Close your account',
-        ],
-        'notifications' => [
-            'label' => 'Notification Settings',
-            'description' => 'Alerts and updates',
         ],
     ];
 
@@ -245,13 +235,17 @@
                                         <input
                                             type="file"
                                             name="profile_photo"
+                                            form="buyerProfileForm"
                                             accept="image/png,image/jpeg"
                                             class="sr-only"
                                         >
                                     </label>
 
                                     <button
-                                        type="button"
+                                        type="submit"
+                                        form="buyerProfileForm"
+                                        name="remove_profile_photo"
+                                        value="1"
                                         class="rounded-lg border border-stone-300 bg-white px-3.5 py-2 text-xs font-semibold text-stone-700 transition hover:bg-stone-100"
                                     >
                                         Remove
@@ -260,7 +254,9 @@
                             </div>
                         </div>
 
-                        <form data-account-form>
+                        <form id="buyerProfileForm" method="POST" action="{{ route('buyer.account.profile.update') }}" enctype="multipart/form-data">
+                            @csrf
+                            @method('PUT')
                             <div class="grid gap-5 sm:grid-cols-2">
                                 <div class="sm:col-span-2">
                                     <label for="profile-name" class="mb-1.5 block text-xs font-semibold text-stone-700">
@@ -339,7 +335,7 @@
 
                             <div class="mt-6 flex justify-end border-t border-stone-100 pt-5">
                                 <button
-                                    type="button"
+                                    type="submit"
                                     class="rounded-xl bg-red-900 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-red-950 focus:outline-none focus:ring-4 focus:ring-red-100"
                                 >
                                     Save Changes
@@ -352,93 +348,43 @@
 
             @if ($activeTab === 'addresses')
                 <section aria-labelledby="addresses-heading">
-                    <div class="flex flex-col gap-3 border-b border-stone-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                        <div>
-                            <h2 id="addresses-heading" class="text-base font-semibold text-stone-900">
-                                Delivery Addresses
-                            </h2>
-
-                            <p class="mt-1 text-xs text-stone-500">
-                                Manage the addresses used for your orders.
-                            </p>
-                        </div>
-
-                        <button
-                            type="button"
-                            class="w-fit rounded-xl bg-red-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-red-950"
-                        >
-                            Add New Address
-                        </button>
+                    <div class="border-b border-stone-100 px-5 py-4 sm:px-6">
+                        <h2 id="addresses-heading" class="text-base font-semibold text-stone-900">Delivery Addresses</h2>
+                        <p class="mt-1 text-xs text-stone-500">Saved separately from orders so old orders keep their original shipping snapshot.</p>
                     </div>
-
                     <div class="space-y-4 p-5 sm:p-6">
-                        <article class="rounded-xl border-2 border-red-300 bg-red-50/40 p-4">
-                            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                <div>
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <h3 class="text-sm font-semibold text-stone-900">
-                                            {{ $buyerName }}
-                                        </h3>
-
-                                        <span class="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-red-900">
-                                            Default
-                                        </span>
+                        @forelse(collect($buyerAddresses ?? []) as $address)
+                            <article class="rounded-xl border {{ $address->is_default ? 'border-red-300 bg-red-50/40' : 'border-stone-200' }} p-4">
+                                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                    <div>
+                                        <div class="flex items-center gap-2"><h3 class="text-sm font-semibold text-stone-900">{{ $address->label }} · {{ $address->recipient_name }}</h3>@if($address->is_default)<span class="rounded-full bg-red-100 px-2 py-1 text-[10px] font-semibold text-red-900">Default</span>@endif</div>
+                                        <p class="mt-2 text-xs font-medium text-stone-600">{{ $address->contact_number }}</p>
+                                        <p class="mt-2 text-sm leading-6 text-stone-600">{{ $address->formatted() }}</p>
                                     </div>
-
-                                    <p class="mt-2 text-xs font-medium text-stone-600">
-                                        0912 345 6789
-                                    </p>
-
-                                    <p class="mt-2 max-w-xl text-sm leading-6 text-stone-600">
-                                        123 Sample Street, Barangay Poblacion,
-                                        Santa Cruz, Laguna, 4009
-                                    </p>
+                                    <form method="POST" action="{{ route('buyer.account.addresses.destroy', ['address' => $address->id]) }}">@csrf @method('DELETE')<button type="submit" class="text-xs font-semibold text-red-700">Delete</button></form>
                                 </div>
+                            </article>
+                        @empty
+                            <p class="text-sm text-stone-500">No saved delivery address yet.</p>
+                        @endforelse
 
-                                <div class="flex gap-2">
-                                    <button type="button" class="text-xs font-semibold text-red-800 hover:text-red-900">
-                                        Edit
-                                    </button>
-
-                                    <button type="button" class="text-xs font-semibold text-red-600 hover:text-red-700">
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        </article>
-
-                        <article class="rounded-xl border border-stone-200 p-4">
-                            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                <div>
-                                    <h3 class="text-sm font-semibold text-stone-900">
-                                        {{ $buyerName }}
-                                    </h3>
-
-                                    <p class="mt-2 text-xs font-medium text-stone-600">
-                                        0912 345 6789
-                                    </p>
-
-                                    <p class="mt-2 max-w-xl text-sm leading-6 text-stone-600">
-                                        45 Marketplace Avenue, Barangay Bubukal,
-                                        Santa Cruz, Laguna, 4009
-                                    </p>
-                                </div>
-
-                                <div class="flex flex-wrap gap-3">
-                                    <button type="button" class="text-xs font-semibold text-red-800 hover:text-red-900">
-                                        Set as default
-                                    </button>
-
-                                    <button type="button" class="text-xs font-semibold text-stone-600 hover:text-stone-900">
-                                        Edit
-                                    </button>
-
-                                    <button type="button" class="text-xs font-semibold text-red-600 hover:text-red-700">
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        </article>
+                        <form method="POST" action="{{ route('buyer.account.addresses.store') }}" class="grid gap-4 rounded-xl border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2">
+                            @csrf
+                            <div class="sm:col-span-2"><h3 class="text-sm font-semibold text-stone-900">Add delivery address</h3></div>
+                            <input required name="label" value="{{ old('label','Home') }}" placeholder="Label (Home, Work)" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
+                            <input required name="recipient_name" value="{{ old('recipient_name',$buyerName) }}" placeholder="Recipient name" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
+                            <input required name="contact_number" value="{{ old('contact_number',$buyerPhone) }}" placeholder="Contact number" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
+                            <input name="house_number" value="{{ old('house_number') }}" placeholder="House / unit number" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
+                            <input name="street" value="{{ old('street') }}" placeholder="Street" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
+                            <input name="barangay" value="{{ old('barangay') }}" placeholder="Barangay" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
+                            <input name="municipality" value="{{ old('municipality') }}" placeholder="Municipality / City" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
+                            <input name="province" value="{{ old('province') }}" placeholder="Province" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
+                            <input name="region" value="{{ old('region') }}" placeholder="Region" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
+                            <input name="postal_code" value="{{ old('postal_code') }}" placeholder="Postal code" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
+                            <input name="landmark" value="{{ old('landmark') }}" placeholder="Landmark" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm sm:col-span-2">
+                            <label class="flex items-center gap-2 text-xs font-semibold text-stone-700 sm:col-span-2"><input type="checkbox" name="is_default" value="1"> Set as default address</label>
+                            <div class="sm:col-span-2"><button type="submit" class="rounded-xl bg-red-900 px-5 py-2.5 text-xs font-semibold text-white">Save Address</button></div>
+                        </form>
                     </div>
                 </section>
             @endif
@@ -456,7 +402,9 @@
                     </div>
 
                     <div class="p-5 sm:p-6">
-                        <form class="max-w-xl space-y-5" data-account-form>
+                        <form method="POST" action="{{ route('buyer.account.password.update') }}" class="max-w-xl space-y-5">
+                            @csrf
+                            @method('PUT')
                             <div>
                                 <label for="current-password" class="mb-1.5 block text-xs font-semibold text-stone-700">
                                     Current password
@@ -505,7 +453,7 @@
                             </div>
 
                             <button
-                                type="button"
+                                type="submit"
                                 class="rounded-xl bg-red-900 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-red-950"
                             >
                                 Update Password
@@ -611,7 +559,7 @@
                             </p>
                         </div>
 
-                        <form class="mt-6 max-w-xl space-y-5" data-account-form>
+                        <form class="mt-6 max-w-xl space-y-5">
                             <div>
                                 <label for="deletion-reason" class="mb-1.5 block text-xs font-semibold text-stone-700">
                                     Reason for leaving

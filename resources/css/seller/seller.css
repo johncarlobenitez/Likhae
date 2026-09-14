@@ -651,6 +651,8 @@ a.sl-stat-card:hover {
 .sl-shop-cover { height: 95px; padding: 10px; display: flex; align-items: flex-start; justify-content: space-between; color: #DBCEC1; background: linear-gradient(135deg, var(--sl-navy), #6C4936); font-size: 8px; }
 .sl-shop-cover button { padding: 4px 7px; color: #fff; background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2); border-radius: 7px; font-size: 8px; }
 .sl-shop-logo { position: relative; width: 70px; height: 70px; margin: -35px auto 8px; display: grid; place-items: center; color: #fff; background: var(--sl-blue); border: 4px solid #fff; border-radius: 18px; box-shadow: var(--sl-shadow); font-size: 18px; font-weight: 700; }
+.sl-store-cover { width: 100%; height: 104px; object-fit: cover; display: block; }
+.sl-shop-logo img { width: 100%; height: 100%; object-fit: cover; border-radius: 14px; display: block; }
 .sl-shop-logo button { position: absolute; right: -5px; bottom: -5px; width: 23px; height: 23px; display: grid; place-items: center; color: var(--sl-blue); background: #fff; border: 1px solid var(--sl-border); border-radius: 7px; font-size: 9px; }
 .sl-store-preview h2 { margin: 0; font-size: 15px; }.sl-store-preview > p { margin: 4px 22px 12px; color: var(--sl-muted); font-size: 8px; }
 .sl-store-rating { display: grid; justify-items: center; }.sl-store-rating strong { font-size: 18px; }.sl-store-rating span { color: #C88418; font-size: 9px; letter-spacing: .07em; }.sl-store-rating small { color: var(--sl-muted); font-size: 7px; }

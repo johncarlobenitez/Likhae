@@ -31,6 +31,7 @@ use Illuminate\Notifications\Notifiable;
     'postal_code',
     'landmark',
     'valid_id_path',
+    'profile_photo_path',
     'business_name',
     'store_name',
     'line_of_business',

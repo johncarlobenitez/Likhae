@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\AuthenticationController;
+use App\Http\Controllers\GuestMarketplaceController;
 use App\Http\Controllers\PhilippineAddressController;
 use App\Http\Controllers\RegistrationController;
+use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -28,28 +30,10 @@ require __DIR__.'/rider.php';
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', function () {
-    return view('guest.home');
-})->name('home');
-
-Route::get('/guest-account', function () {
-    return view('guest.products');
-})->name('guest.home');
-
-Route::get('/products', function () {
-    return view('guest.products');
-})->name('products');
-
-Route::get('/products/{slug}', function (string $slug) {
-    $product = collect(view()->shared('buyerProducts', []))
-        ->firstWhere('slug', $slug);
-
-    abort_if(! $product, 404);
-
-    return view('guest.product-details', [
-        'product' => $product,
-    ]);
-})->name('products.show');
+Route::get('/', [GuestMarketplaceController::class, 'home'])->name('home');
+Route::get('/guest-account', [GuestMarketplaceController::class, 'products'])->name('guest.home');
+Route::get('/products', [GuestMarketplaceController::class, 'products'])->name('products');
+Route::get('/products/{slug}', [GuestMarketplaceController::class, 'show'])->name('products.show');
 
 /*
 |--------------------------------------------------------------------------
@@ -83,6 +67,10 @@ Route::post('/login', [AuthenticationController::class, 'store'])->middleware(['
 Route::get('/register', function (Request $request) {
     return view('auth.register', [
         'preselectedRole' => $request->query('role', 'buyer'),
+        'sellerLineOfBusinessCategories' => Category::whereNull('parent_id')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(),
     ]);
 })->middleware('guest')->name('register');
 
@@ -119,6 +107,9 @@ Route::prefix('address/philippines')
 
         Route::get('/municipalities/{municipality}/barangays', [PhilippineAddressController::class, 'barangays'])
             ->name('barangays');
+
+        Route::get('/postal-code', [PhilippineAddressController::class, 'postalCode'])
+            ->name('postal-code');
     });
 
 /*

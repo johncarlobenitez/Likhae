@@ -14,12 +14,11 @@ class Product extends Model
     protected $fillable = [
         'seller_id', 'category_id', 'name', 'slug', 'sku', 'description',
         'price', 'stock', 'status', 'listing_status', 'admin_status', 'image_path',
-        'variants',
     ];
 
     protected function casts(): array
     {
-        return ['price' => 'decimal:2', 'variants' => 'array'];
+        return ['price' => 'decimal:2'];
     }
 
     public function seller(): BelongsTo
@@ -40,5 +39,20 @@ class Product extends Model
     public function reviews(): HasMany
     {
         return $this->hasMany(ProductReview::class);
+    }
+
+    public function variations(): HasMany
+    {
+        return $this->hasMany(ProductVariation::class);
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function specifications(): HasMany
+    {
+        return $this->hasMany(ProductSpecification::class)->orderBy('name');
     }
 }

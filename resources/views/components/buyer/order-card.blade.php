@@ -589,13 +589,12 @@
                     Cancel
                 </button>
 
-                <button
-                    type="button"
+                <a
                     class="lk-btn lk-btn-red"
-                    data-demo-action="Payment window opened for order #{{ $id }}."
+                    href="{{ route('buyer.orders.show', ['id' => $id]) }}"
                 >
                     Pay Now
-                </button>
+                </a>
             @elseif($status === 'to-receive')
                 @if(data_get($order, 'delivered_at'))
                     <form
@@ -612,13 +611,12 @@
                         </button>
                     </form>
                 @else
-                    <button
-                        type="button"
+                    <a
                         class="lk-btn lk-btn-red"
-                        data-demo-action="Shipment tracking opened for order #{{ $id }}."
+                        href="{{ route('buyer.orders.show', ['id' => $id]) }}"
                     >
                         Track Parcel
-                    </button>
+                    </a>
                 @endif
             @elseif($status === 'completed')
                 <a

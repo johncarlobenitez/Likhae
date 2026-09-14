@@ -4,80 +4,30 @@
 @section('active', 'messages')
 
 @php
-    $buyerProducts = collect(view()->shared('buyerProducts', []));
-
-    $sellers = $buyerProducts->map(function ($product) {
-        $sellerValue = data_get($product, 'seller.store_name')
-            ?? data_get($product, 'seller.name')
-            ?? data_get($product, 'seller')
-            ?? 'LIKHAE Seller';
-
-        $name = is_scalar($sellerValue)
-            ? (string) $sellerValue
-            : 'LIKHAE Seller';
-
-        $slug = data_get(
-            $product,
-            'seller_slug',
-            \Illuminate\Support\Str::slug($name)
-        );
-
-        return [
-            'name' => $name,
-            'slug' => $slug,
-            'avatar' => 'https://ui-avatars.com/api/?name=' . urlencode($name) . '&background=561C17&color=fff',
-            'product' => data_get($product, 'name'),
-            'last_message' => 'Hello! Thanks for reaching out. How can we assist you today?',
-            'time' => 'Just now',
-            'unread' => false,
-        ];
-    })->unique('slug')->values();
-
+    $buyerProducts = collect($buyerProducts ?? []);
+    $sellers = collect($conversationRows ?? []);
     $selectedSlug = request('seller');
-
-    if (!$selectedSlug && request('product')) {
-        $selectedProduct = $buyerProducts->firstWhere('slug', request('product'));
-
-        if ($selectedProduct) {
-            $selectedSlug = data_get($selectedProduct, 'seller_slug');
-
-            if (!$selectedSlug) {
-                $sellerName = data_get($selectedProduct, 'seller.store_name')
-                    ?? data_get($selectedProduct, 'seller.name')
-                    ?? data_get($selectedProduct, 'seller')
-                    ?? 'LIKHAE Seller';
-
-                $selectedSlug = \Illuminate\Support\Str::slug((string) $sellerName);
-            }
-        }
+    if (!$selectedSlug && $dbActiveSeller) {
+        $activeName = $dbActiveSeller->store_name ?: $dbActiveSeller->business_name ?: $dbActiveSeller->name;
+        $selectedSlug = \Illuminate\Support\Str::slug($activeName).'-'.$dbActiveSeller->id;
     }
-
-    if (!$selectedSlug && $sellers->isNotEmpty()) {
-        $selectedSlug = $sellers->first()['slug'];
-    }
-
-    $activeSeller = $sellers->firstWhere('slug', $selectedSlug);
-
-    if (!$activeSeller && $selectedSlug) {
-        $fallbackName = ucwords(str_replace('-', ' ', $selectedSlug));
-
+    $activeSeller = $sellers->firstWhere('slug', $selectedSlug) ?: $sellers->first();
+    if (!$activeSeller && $dbActiveSeller) {
+        $activeName = $dbActiveSeller->store_name ?: $dbActiveSeller->business_name ?: $dbActiveSeller->name;
         $activeSeller = [
-            'name' => $fallbackName,
-            'slug' => $selectedSlug,
-            'avatar' => 'https://ui-avatars.com/api/?name=' . urlencode($fallbackName) . '&background=561C17&color=fff',
-            'last_message' => 'Hello! How can we assist you today?',
-            'time' => 'Just now',
-            'unread' => false,
+            'id' => $dbActiveSeller->id,
+            'name' => $activeName,
+            'slug' => \Illuminate\Support\Str::slug($activeName).'-'.$dbActiveSeller->id,
+            'avatar' => 'https://ui-avatars.com/api/?name='.urlencode($activeName).'&background=561C17&color=fff',
+            'last_message' => 'Start a conversation with this seller.',
+            'time' => '',
+            'unread' => 0,
         ];
-
         $sellers->prepend($activeSeller);
+        $selectedSlug = $activeSeller['slug'];
     }
-
-    $refProduct = null;
-
-    if (request('product')) {
-        $refProduct = $buyerProducts->firstWhere('slug', request('product'));
-    }
+    $refProduct = request('product') ? $buyerProducts->firstWhere('slug', request('product')) : null;
+    $chatMessages = collect($chatMessages ?? []);
 @endphp
 
 @push('head')
@@ -723,62 +673,28 @@
                 <div
                     id="chatMessages"
                     class="lk-chat-stream"
+                    data-stream-url="{{ route('buyer.messages.stream', ['seller_id' => $activeSeller['id']]) }}"
+                    data-seller-avatar="{{ $activeSeller['avatar'] }}"
+                    data-seller-name="{{ $activeSeller['name'] }}"
                 >
-                    <div class="lk-chat-day">
-                        <span>Today</span>
-                    </div>
-
-                    <div class="lk-message-row">
-                        <img
-                            class="lk-message-small-avatar"
-                            src="{{ $activeSeller['avatar'] }}"
-                            alt="{{ $activeSeller['name'] }}"
-                        >
-
-                        <div>
-                            <div class="lk-message-bubble">
-                                Hello! Welcome to <strong>{{ $activeSeller['name'] }}</strong>.
-                                Feel free to ask about stock, shipping timelines, or product inquiries.
+                    <div class="lk-chat-day"><span>Conversation</span></div>
+                    @forelse($chatMessages as $message)
+                        @php $fromBuyer = $message->sender_id === auth()->id(); @endphp
+                        <div class="lk-message-row {{ $fromBuyer ? 'is-buyer' : '' }}" data-message-id="{{ $message->id }}">
+                            @unless($fromBuyer)
+                                <img class="lk-message-small-avatar" src="{{ $activeSeller['avatar'] }}" alt="{{ $activeSeller['name'] }}">
+                            @endunless
+                            <div>
+                                <div class="lk-message-bubble">{{ $message->body }}</div>
+                                <span class="lk-message-time">{{ $message->created_at?->diffForHumans() }}</span>
                             </div>
-
-                            <span class="lk-message-time">
-                                Just now
-                            </span>
                         </div>
-                    </div>
-
+                    @empty
+                        <div class="lk-messages-empty">No messages yet. Send the first message to this seller.</div>
+                    @endforelse
                     @if($refProduct)
-                        <div class="lk-message-row is-buyer">
-                            <div class="lk-product-inquiry-card">
-                                <p>
-                                    <strong>Inquiry regarding product:</strong>
-                                </p>
-
-                                <div class="lk-product-inquiry-preview">
-                                    <img
-                                        src="{{ data_get($refProduct, 'image_url') ?? data_get($refProduct, 'image') }}"
-                                        alt="{{ data_get($refProduct, 'name') }}"
-                                    >
-
-                                    <div>
-                                        <strong>
-                                            {{ data_get($refProduct, 'name') }}
-                                        </strong>
-
-                                        <span>
-                                            ₱{{ number_format((float) data_get($refProduct, 'price', 0), 2) }}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <p>
-                                    Hi, is this item currently available for immediate delivery?
-                                </p>
-
-                                <span class="lk-message-time">
-                                    Just now
-                                </span>
-                            </div>
+                        <div class="lk-product-inquiry-card">
+                            <p><strong>Product inquiry:</strong> {{ data_get($refProduct, 'name') }}</p>
                         </div>
                     @endif
                 </div>
@@ -787,9 +703,16 @@
                     id="chatForm"
                     class="lk-chat-form"
                     data-chat-form
+                    method="POST"
+                    action="{{ route('buyer.messages.send') }}"
                 >
+                    @csrf
+                    <input type="hidden" name="recipient_id" value="{{ $activeSeller['id'] }}">
                     <input
                         type="text"
+                        name="body"
+                        required
+                        maxlength="2000"
                         placeholder="Type your message to {{ $activeSeller['name'] }}..."
                         class="lk-chat-input"
                         data-chat-input
@@ -846,49 +769,81 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const form = document.querySelector('[data-chat-form]');
-    const input = document.querySelector('[data-chat-input]');
     const list = document.getElementById('chatMessages');
+    const form = document.getElementById('chatForm');
+    const input = form?.querySelector('[data-chat-input]');
+    if (!list) return;
 
-    if (!form || !input || !list) {
-        return;
-    }
+    const seen = new Set([...list.querySelectorAll('[data-message-id]')].map((row) => row.dataset.messageId));
+    let lastId = Math.max(0, ...[...seen].map((id) => Number(id) || 0));
 
-    form.addEventListener('submit', (event) => {
-        event.preventDefault();
-
-        const message = input.value.trim();
-
-        if (!message) {
-            return;
-        }
+    const scrollBottom = () => { list.scrollTop = list.scrollHeight; };
+    const appendMessage = (message) => {
+        const id = String(message.id || '');
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        lastId = Math.max(lastId, Number(id) || 0);
+        list.querySelector('.lk-messages-empty')?.remove();
 
         const row = document.createElement('div');
-        row.className = 'lk-message-row is-buyer';
+        row.className = `lk-message-row${message.from_me ? ' is-buyer' : ''}`;
+        row.dataset.messageId = id;
 
+        if (!message.from_me) {
+            const avatar = document.createElement('img');
+            avatar.className = 'lk-message-small-avatar';
+            avatar.src = list.dataset.sellerAvatar || '';
+            avatar.alt = list.dataset.sellerName || 'Seller';
+            row.appendChild(avatar);
+        }
+
+        const wrapper = document.createElement('div');
         const bubble = document.createElement('div');
         bubble.className = 'lk-message-bubble';
-
-        const text = document.createTextNode(message);
-        bubble.appendChild(text);
-
+        bubble.textContent = message.body || '';
         const time = document.createElement('span');
         time.className = 'lk-message-time';
-        time.textContent = 'Just now';
-
-        bubble.appendChild(time);
-        row.appendChild(bubble);
+        time.textContent = message.time || 'Just now';
+        wrapper.appendChild(bubble);
+        wrapper.appendChild(time);
+        row.appendChild(wrapper);
         list.appendChild(row);
+        scrollBottom();
+    };
 
-        input.value = '';
-        list.scrollTop = list.scrollHeight;
+    scrollBottom();
 
-        if (window.lkBuyerToast) {
-            window.lkBuyerToast('Message sent to seller.');
+    if (window.EventSource && list.dataset.streamUrl) {
+        const streamUrl = new URL(list.dataset.streamUrl, window.location.origin);
+        streamUrl.searchParams.set('after', String(lastId));
+        const source = new EventSource(streamUrl.toString());
+        source.addEventListener('message', (event) => appendMessage(JSON.parse(event.data)));
+    }
+
+    form?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const body = input?.value.trim();
+        if (!body) return;
+
+        const payload = new FormData(form);
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: payload,
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+
+            if (!response.ok) throw new Error('Message failed');
+            const data = await response.json();
+            appendMessage(data.message);
+            input.value = '';
+        } catch (error) {
+            window.lkBuyerToast?.('Message could not be sent. Please try again.');
         }
     });
-
-    list.scrollTop = list.scrollHeight;
 });
 </script>
 @endsection

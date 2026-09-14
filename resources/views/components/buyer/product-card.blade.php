@@ -70,6 +70,7 @@
     $detailsUrl = $guest
         ? route('products.show', ['slug' => $slug])
         : route('buyer.product-details', ['slug' => $slug]);
+    $hasVariations = collect(data_get($product, 'variations', []))->flatten(1)->isNotEmpty();
 
     $storeUrl = $guest
         ? route('products.show', ['slug' => $slug])
@@ -790,7 +791,7 @@
                 </button>
             @else
                 <a
-                    href="{{ route('buyer.cart', ['add' => $id ?? $slug]) }}"
+                    href="{{ $hasVariations ? $detailsUrl : route('buyer.cart', ['add' => $id ?? $slug]) }}"
                     class="lk-add-cart"
                 >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
