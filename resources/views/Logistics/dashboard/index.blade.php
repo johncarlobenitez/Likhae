@@ -180,6 +180,14 @@
         ],
     ];
 
+    $stats = $logisticsStats ?? $stats;
+    $recentParcels = $logisticsRecentParcels ?? $recentParcels;
+    $areas = $logisticsAreas ?? $areas;
+    $activity = $logisticsActivity ?? $activity;
+    $operations[1]['description'] = ($stats[1]['value'] ?? 0).' parcels waiting';
+    $operations[2]['description'] = ($stats[2]['value'] ?? 0).' awaiting assignment';
+    $operations[3]['description'] = ($stats[3]['value'] ?? 0).' parcels on road';
+
     $iconPaths = [
         'box' => '
             <path d="M21 8 12 3 3 8l9 5 9-5Z"/>

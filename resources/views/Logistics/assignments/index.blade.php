@@ -79,6 +79,10 @@
         ],
     ];
 
+    $stats = $logisticsAssignmentStats ?? $stats;
+    $parcels = $logisticsAssignmentParcels ?? $parcels;
+    $riders = $logisticsAssignmentRiders ?? $riders;
+
 @endphp
 
 <div class="flex w-full flex-col gap-6">
@@ -110,13 +114,13 @@
             </p>
         </div>
 
-        <button type="button" class="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-[11px] font-semibold text-white shadow-sm transition hover:bg-primary-hover">
+        <a href="#assignmentQueue" class="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-[11px] font-semibold text-white shadow-sm transition hover:bg-primary-hover">
             <svg viewBox="0 0 24 24" class="h-4 w-4 fill-none stroke-current stroke-[1.8]">
                 <path d="M12 5v14"></path>
                 <path d="M5 12h14"></path>
             </svg>
             Assign Rider
-        </button>
+        </a>
     </section>
 
     <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -140,7 +144,7 @@
     </section>
 
     <section class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section class="overflow-hidden rounded-xl border border-line bg-surface">
+        <section id="assignmentQueue" class="overflow-hidden rounded-xl border border-line bg-surface">
             <div class="border-b border-line px-5 py-4">
                 <h2 class="text-[13px] font-semibold text-ink">
                     Parcels Waiting for Rider
@@ -151,20 +155,23 @@
                 </p>
             </div>
 
-            @foreach($parcels as $parcel)
+            @forelse($parcels as $parcel)
                 <article class="flex flex-col gap-4 border-b border-line p-5 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <strong class="block text-[11px] font-semibold text-ink">
-                            {{ $parcel['tracking'] }}
-                        </strong>
+                    <div class="flex items-center gap-3">
+                        <img src="{{ $parcel['image'] }}" alt="" class="h-11 w-11 rounded-lg border border-line object-cover">
+                        <div>
+                            <strong class="block text-[11px] font-semibold text-ink">
+                                {{ $parcel['tracking'] }}
+                            </strong>
 
-                        <p class="mt-1 text-[9px] text-muted">
-                            {{ $parcel['buyer'] }}
-                        </p>
+                            <p class="mt-1 text-[9px] text-muted">
+                                {{ $parcel['buyer'] }}
+                            </p>
 
-                        <p class="mt-1 text-[9px] text-muted">
-                            {{ $parcel['destination'] }}
-                        </p>
+                            <p class="mt-1 text-[9px] text-muted">
+                                {{ $parcel['destination'] }}
+                            </p>
+                        </div>
                     </div>
 
                     <div class="flex items-center gap-3">
@@ -172,12 +179,28 @@
                             {{ $parcel['area'] }}
                         </span>
 
-                        <button type="button" class="rounded-lg bg-primary px-4 py-2 text-[8px] font-semibold text-white transition hover:bg-primary-hover">
-                            Assign
-                        </button>
+                        <form method="POST" action="{{ route('logistics.assignments.assign-rider', $parcel['id']) }}" class="flex items-center gap-2">
+                            @csrf
+                            <select name="rider_id" required class="h-8 rounded-lg border border-line bg-surface px-2 text-[8px] text-ink">
+                                <option value="">Select rider</option>
+                                @foreach($riders as $rider)
+                                    <option value="{{ $rider['id'] ?? '' }}">
+                                        {{ $rider['name'] }} - {{ $rider['area'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+
+                            <button type="submit" class="rounded-lg bg-primary px-4 py-2 text-[8px] font-semibold text-white transition hover:bg-primary-hover">
+                                Assign
+                            </button>
+                        </form>
                     </div>
                 </article>
-            @endforeach
+            @empty
+                <div class="p-5 text-[10px] text-muted">
+                    No sorted parcels are waiting for rider assignment.
+                </div>
+            @endforelse
         </section>
 
         <aside class="rounded-xl border border-line bg-surface p-5">
@@ -190,8 +213,8 @@
             </p>
 
             <div class="mt-5 flex flex-col gap-3">
-                @foreach($riders as $rider)
-                    <button type="button" class="flex items-center justify-between rounded-xl border border-line bg-page-secondary p-4 text-left transition hover:border-primary">
+                @forelse($riders as $rider)
+                    <a href="{{ route('logistics.riders.show', $rider['id']) }}" class="flex items-center justify-between rounded-xl border border-line bg-page-secondary p-4 text-left transition hover:border-primary">
                         <div>
                             <strong class="block text-[10px] font-semibold text-ink">
                                 {{ $rider['name'] }}
@@ -205,8 +228,12 @@
                         <span class="text-[8px] font-semibold text-primary">
                             {{ $rider['active'] }} active
                         </span>
-                    </button>
-                @endforeach
+                    </a>
+                @empty
+                    <div class="rounded-xl border border-line bg-page-secondary p-4 text-[9px] text-muted">
+                        No active riders are available.
+                    </div>
+                @endforelse
             </div>
         </aside>
     </section>

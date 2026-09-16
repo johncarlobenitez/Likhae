@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthenticationController;
+use App\Http\Controllers\LogisticsController;
 use App\Http\Middleware\EnsureWorkspaceRole;
 use Illuminate\Support\Facades\Route;
 
@@ -38,9 +39,7 @@ Route::prefix('logistics')
             |--------------------------------------------------------------------------
             */
 
-            Route::get('/dashboard', function () {
-                return view('logistics.dashboard.index');
-            })->name('dashboard')->middleware(['auth', EnsureWorkspaceRole::class.':logistics']);
+            Route::get('/dashboard', [LogisticsController::class, 'dashboard'])->name('dashboard')->middleware(['auth', EnsureWorkspaceRole::class.':logistics']);
 
             /*
             |--------------------------------------------------------------------------
@@ -48,46 +47,19 @@ Route::prefix('logistics')
             |--------------------------------------------------------------------------
             */
 
-            Route::get('/parcels', function () {
+            Route::get('/parcels', [LogisticsController::class, 'parcels'])->name('parcels');
 
-                return view(
-                    'logistics.parcels.index'
-                );
+            Route::get('/parcels/receive', [LogisticsController::class, 'receive'])->name('parcels.receive');
+            Route::post('/parcels/{delivery}/receive', [LogisticsController::class, 'confirmReceived'])->name('parcels.receive.confirm');
 
-            })->name('parcels');
+            Route::get('/parcels/tracking', [LogisticsController::class, 'tracking'])->name('parcels.tracking');
 
-            Route::get('/parcels/receive', function () {
+            Route::get('/scanner', [LogisticsController::class, 'scanner'])->name('scanner');
+            Route::post('/scanner', [LogisticsController::class, 'scan'])->name('scanner.scan');
 
-                return view(
-                    'logistics.parcels.receive'
-                );
+            Route::get('/waybills/{tracking}', [LogisticsController::class, 'waybill'])->name('waybills.show');
 
-            })->name('parcels.receive');
-
-            Route::get('/parcels/tracking', function () {
-
-                return view(
-                    'logistics.tracking.index'
-                );
-
-            })->name('parcels.tracking');
-
-            Route::get('/scanner', fn () => view('logistics.scanner'))->name('scanner');
-
-            Route::get('/waybills/{tracking}', function (string $tracking) {
-                return view('logistics.waybill', ['tracking' => $tracking]);
-            })->name('waybills.show');
-
-            Route::get('/parcels/{id}', function ($id) {
-
-                return view(
-                    'logistics.parcels.show',
-                    [
-                        'id' => $id,
-                    ]
-                );
-
-            })->name('parcels.show');
+            Route::get('/parcels/{delivery}', [LogisticsController::class, 'parcelShow'])->name('parcels.show');
 
             /*
             |--------------------------------------------------------------------------
@@ -95,13 +67,8 @@ Route::prefix('logistics')
             |--------------------------------------------------------------------------
             */
 
-            Route::get('/sorting', function () {
-
-                return view(
-                    'logistics.sorting.index'
-                );
-
-            })->name('sorting');
+            Route::get('/sorting', [LogisticsController::class, 'sorting'])->name('sorting');
+            Route::post('/sorting/{delivery}/sort', [LogisticsController::class, 'markSorted'])->name('sorting.sort');
 
             /*
             |--------------------------------------------------------------------------
@@ -109,24 +76,10 @@ Route::prefix('logistics')
             |--------------------------------------------------------------------------
             */
 
-            Route::get('/assignments', function () {
+            Route::get('/assignments', [LogisticsController::class, 'assignments'])->name('assignments');
+            Route::post('/assignments/{delivery}/assign', [LogisticsController::class, 'assignRider'])->name('assignments.assign-rider');
 
-                return view(
-                    'logistics.assignments.index'
-                );
-
-            })->name('assignments');
-
-            Route::get('/assignments/{id}/assign', function ($id) {
-
-                return view(
-                    'logistics.assignments.assign',
-                    [
-                        'id' => $id,
-                    ]
-                );
-
-            })->name('assignments.assign');
+            Route::get('/assignments/{delivery}/assign', fn () => redirect()->route('logistics.assignments'))->name('assignments.assign');
 
             /*
             |--------------------------------------------------------------------------
@@ -134,13 +87,7 @@ Route::prefix('logistics')
             |--------------------------------------------------------------------------
             */
 
-            Route::get('/riders', function () {
-
-                return view(
-                    'logistics.riders.index'
-                );
-
-            })->name('riders');
+            Route::get('/riders', [LogisticsController::class, 'riders'])->name('riders');
 
             /*
             |--------------------------------------------------------------------------
@@ -148,27 +95,9 @@ Route::prefix('logistics')
             |--------------------------------------------------------------------------
             */
 
-            Route::get('/riders/applications', function () {
+            Route::get('/riders/applications', [LogisticsController::class, 'riderApplications'])->name('riders.applications');
 
-                return view('logistics.riders.application.index');
-
-            })->name('riders.applications');
-
-            Route::get('/riders/applications/{id}', function ($id) {
-
-                $rider = [
-                    'id' => $id,
-                    'name' => 'Juan Dela Cruz',
-                    'status' => session('rider_status', 'Pending Approval'),
-                    'email' => 'juan@email.com',
-                    'contact' => '09175551234',
-                    'vehicle' => 'Motorcycle',
-                    'plate' => 'ABC-1234',
-                ];
-
-                return view('logistics.riders.application.show', compact('rider'));
-
-            })->name('riders.applications.show');
+            Route::get('/riders/applications/{user}', [LogisticsController::class, 'riderShow'])->name('riders.applications.show');
 
             /*
             |--------------------------------------------------------------------------
@@ -176,37 +105,7 @@ Route::prefix('logistics')
             |--------------------------------------------------------------------------
             */
 
-            Route::get('/riders/{id}', function ($id) {
-
-                return view(
-                    'logistics.riders.show',
-                    [
-
-                        'rider' => [
-
-                            'id' => $id,
-
-                            'name' => 'Juan Dela Cruz',
-
-                            'status' => session(
-                                'rider_status',
-                                'Pending Approval'
-                            ),
-
-                            'email' => 'juan@email.com',
-
-                            'contact' => '09175551234',
-
-                            'vehicle' => 'Motorcycle',
-
-                            'plate' => 'ABC-1234',
-
-                        ],
-
-                    ]
-                );
-
-            })->name('riders.show');
+            Route::get('/riders/{user}', [LogisticsController::class, 'riderShow'])->name('riders.show');
 
             /*
             |--------------------------------------------------------------------------
@@ -214,15 +113,7 @@ Route::prefix('logistics')
             |--------------------------------------------------------------------------
             */
 
-            Route::post('/riders/{id}/approve', function ($id) {
-
-                session(['rider_status' => 'Approved']);
-
-                return redirect()
-                    ->route('logistics.riders.applications.show', $id)
-                    ->with('success', 'Rider application approved successfully.');
-
-            })->name('riders.approve');
+            Route::post('/riders/{user}/approve', [LogisticsController::class, 'approveRider'])->name('riders.approve');
 
             /*
             |--------------------------------------------------------------------------
@@ -230,15 +121,7 @@ Route::prefix('logistics')
             |--------------------------------------------------------------------------
             */
 
-            Route::post('/riders/{id}/reject', function ($id) {
-
-                session(['rider_status' => 'Rejected']);
-
-                return redirect()
-                    ->route('logistics.riders.applications.show', $id)
-                    ->with('success', 'Rider application rejected.');
-
-            })->name('riders.reject');
+            Route::post('/riders/{user}/reject', [LogisticsController::class, 'rejectRider'])->name('riders.reject');
 
             /*
             |--------------------------------------------------------------------------

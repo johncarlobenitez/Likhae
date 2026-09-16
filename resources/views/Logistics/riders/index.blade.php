@@ -18,6 +18,9 @@
         ['id' => 3, 'code' => 'Rider 03', 'name' => 'Pedro Reyes', 'area' => 'Area C', 'status' => 'Available', 'parcels' => 2],
         ['id' => 4, 'code' => 'Rider 04', 'name' => 'Carlo Mendoza', 'area' => 'Area D', 'status' => 'Inactive', 'parcels' => 0],
     ];
+
+    $stats = $logisticsRiderStats ?? $stats;
+    $riders = $logisticsRiders ?? $riders;
 @endphp
 
 <div class="flex w-full flex-col gap-6">
@@ -49,9 +52,9 @@
             </p>
         </div>
 
-        <button type="button" class="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-5 text-[9px] font-semibold text-white transition hover:bg-primary/90">
-            + Add Rider
-        </button>
+        <a href="{{ route('logistics.riders.applications') }}" class="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-5 text-[9px] font-semibold text-white transition hover:bg-primary/90">
+            Rider Applications
+        </a>
     </section>
 
     <section class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -70,7 +73,7 @@
         </div>
 
         <div class="divide-y divide-line">
-            @foreach($riders as $rider)
+            @forelse($riders as $rider)
                 <article class="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
                     <div class="flex items-center gap-4">
                         <div class="grid h-10 w-10 place-items-center rounded-full bg-primary-soft text-[10px] font-bold text-primary">
@@ -113,7 +116,11 @@
                         </a>
                     </div>
                 </article>
-            @endforeach
+            @empty
+                <div class="p-5 text-[10px] text-muted">
+                    No rider accounts found.
+                </div>
+            @endforelse
         </div>
     </section>
 

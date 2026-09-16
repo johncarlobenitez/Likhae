@@ -171,6 +171,20 @@ class BuyerMarketplace
 
     public static function buyerStatus(Order $order): string
     {
+        $deliveryStatus = $order->delivery?->status;
+
+        if (in_array($deliveryStatus, ['out_for_delivery', 'delivered'], true)) {
+            return 'to-receive';
+        }
+
+        if ($deliveryStatus === 'delivery_failed') {
+            return 'returns';
+        }
+
+        if (in_array($deliveryStatus, ['requested', 'pickup_accepted', 'picked_up', 'at_sorting_center', 'sorted', 'assigned'], true)) {
+            return 'to-ship';
+        }
+
         return match ($order->status) {
             'cancelled' => 'cancelled',
             'returns', 'disputed' => 'returns',
@@ -207,13 +221,33 @@ class BuyerMarketplace
 
     private static function timeline(Order $order): array
     {
+        $delivery = $order->delivery;
+        $deliveryStatus = $delivery?->status;
+
+        $sellerProcessing = in_array($order->status, ['to_prepare','ready_pickup','shipping','shipped','completed'], true) || $delivery !== null;
+        $readyForPickup = in_array($order->status, ['ready_pickup','shipping','shipped','completed'], true) || in_array($deliveryStatus, ['requested','pickup_accepted','picked_up','at_sorting_center','sorted','assigned','out_for_delivery','delivered'], true);
+        $atSortingCenter = in_array($deliveryStatus, ['at_sorting_center','sorted','assigned','out_for_delivery','delivered'], true);
+        $outForDelivery = in_array($deliveryStatus, ['out_for_delivery','delivered'], true) || in_array($order->status, ['shipping','shipped','completed'], true);
+        $delivered = $deliveryStatus === 'delivered' || $order->status === 'completed';
+
         $steps = [
-            ['label' => 'Order Placed', 'done' => true],
-            ['label' => 'Seller Processing', 'done' => in_array($order->status, ['to_prepare','ready_pickup','shipping','shipped','completed'], true)],
-            ['label' => 'Ready for Pickup', 'done' => in_array($order->status, ['ready_pickup','shipping','shipped','completed'], true)],
-            ['label' => 'Out for Delivery', 'done' => in_array($order->status, ['shipping','shipped','completed'], true)],
-            ['label' => 'Completed', 'done' => $order->status === 'completed'],
+            ['label' => 'Order Placed', 'done' => true, 'time' => $order->created_at],
+            ['label' => 'Seller Processing', 'done' => $sellerProcessing, 'time' => $order->updated_at],
+            ['label' => 'Ready for Pickup', 'done' => $readyForPickup, 'time' => $delivery?->requested_at ?: $delivery?->created_at],
+            ['label' => 'At Sorting Center', 'done' => $atSortingCenter, 'time' => $delivery?->arrived_at_sorting_center_at],
+            ['label' => 'Out for Delivery', 'done' => $outForDelivery, 'time' => $delivery?->delivery_picked_up_at ?: $delivery?->assigned_at],
+            ['label' => 'Delivered', 'done' => $delivered, 'time' => $delivery?->delivered_at],
+            ['label' => 'Completed', 'done' => $order->status === 'completed', 'time' => $order->updated_at],
         ];
-        return collect($steps)->map(fn ($step) => $step + ['time' => $step['done'] ? ($order->updated_at?->format('M d, Y · g:i A') ?: '') : 'Pending'])->all();
+
+        return collect($steps)->map(function ($step) use ($order) {
+            $time = $step['time'] ?: ($step['done'] ? $order->updated_at : null);
+
+            return [
+                'label' => $step['label'],
+                'done' => $step['done'],
+                'time' => $step['done'] ? ($time?->format('M d, Y · g:i A') ?: '') : 'Pending',
+            ];
+        })->all();
     }
 }

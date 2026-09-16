@@ -185,6 +185,9 @@
             <path d="m14 7 5 5-5 5"/>
         ',
     ];
+
+    $parcels = $logisticsParcels ?? $parcels;
+    $overview = $logisticsOverview ?? $overview;
 @endphp
 
 @section('content')

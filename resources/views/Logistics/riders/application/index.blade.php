@@ -115,6 +115,9 @@
             <path d="m17 7-10 10"/>
         ',
     ];
+
+    $riders = $logisticsRiderApplications ?? $riders;
+    $summary = $logisticsRiderSummary ?? $summary;
 @endphp
 
 @section('content')

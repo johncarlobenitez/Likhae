@@ -168,6 +168,21 @@
 
     $parcel = $parcelRecords[$parcelId] ?? $parcelRecords[1001];
 
+    if (!empty($logisticsParcel)) {
+        $parcel = $logisticsParcel;
+    }
+
+    if (empty($parcel['items'])) {
+        $parcel['items'] = [
+            [
+                'name' => 'Order items',
+                'variation' => 'See order details',
+                'quantity' => 1,
+                'price' => $parcel['value'] ?? 0,
+            ],
+        ];
+    }
+
     $statusTone = match($parcel['status_key']) {
         'waiting_sorting' => 'warning',
         'awaiting_rider' => 'maroon',
@@ -311,6 +326,8 @@
         ',
     ];
 @endphp
+
+@section('content')
 
 <style>
     :root {

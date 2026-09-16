@@ -268,8 +268,8 @@ class BuyerController extends Controller
 
     public function received(Request $request, string $id): RedirectResponse
     {
-        $order = $this->buyerOrder($request, $id);
-        abort_unless(in_array($order->status, ['shipping','shipped'], true), 422, 'This order is not ready for receipt confirmation.');
+        $order = $this->buyerOrder($request, $id)->load('delivery');
+        abort_unless($order->delivery?->status === 'delivered' || in_array($order->status, ['shipping','shipped'], true), 422, 'This order is not ready for receipt confirmation.');
         $order->update(['status' => 'completed', 'payment_status' => 'paid']);
         $order->transaction?->update(['status' => 'paid']);
         WorkspaceNotification::create(['user_id'=>$order->seller_id,'type'=>'orders','title'=>'Order completed','body'=>"Buyer confirmed receipt of {$order->order_number}.",'action_url'=>route('seller.orders',['order'=>$order->order_number], false)]);

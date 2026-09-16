@@ -41,6 +41,21 @@
         ],
     ];
 
+    if (!empty($logisticsReceiveParcel)) {
+        $parcel = $logisticsReceiveParcel;
+    }
+
+    if (empty($parcel['items'])) {
+        $parcel['items'] = [
+            [
+                'name' => 'Order items',
+                'variation' => 'See order details',
+                'quantity' => 1,
+                'price' => $parcel['value'] ?? 0,
+            ],
+        ];
+    }
+
     $total = collect($parcel['items'])->sum(
         fn ($item) => $item['price'] * $item['quantity']
     );
@@ -1249,7 +1264,7 @@
                     <input
                         type="text"
                         id="receiveTrackingNumber"
-                        value="{{ $parcel['tracking'] }}"
+                        value="{{ $tracking ?: $parcel['tracking'] }}"
                         placeholder="LH-2026-1001"
                         autocomplete="off"
                     >
@@ -1538,17 +1553,32 @@
             <span id="checklistStatusText">2 of 3 receiving checks completed.</span>
         </div>
 
-        <button
-            type="button"
-            id="confirmReceiveButton"
-            class="rp-btn rp-btn-primary"
-        >
-            Confirm Parcel Received
+        @if(!empty($delivery))
+            <form method="POST" action="{{ route('logistics.parcels.receive.confirm', $delivery) }}">
+                @csrf
 
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-                {!! $icons['arrow'] !!}
-            </svg>
-        </button>
+                <button
+                    type="submit"
+                    id="confirmReceiveButton"
+                    class="rp-btn rp-btn-primary"
+                >
+                    Confirm Parcel Received
+
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        {!! $icons['arrow'] !!}
+                    </svg>
+                </button>
+            </form>
+        @else
+            <button
+                type="button"
+                id="confirmReceiveButton"
+                class="rp-btn rp-btn-primary"
+                disabled
+            >
+                Load Real Parcel First
+            </button>
+        @endif
     </section>
 
 </div>
@@ -1625,21 +1655,10 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        if (
-            tracking.toUpperCase()
-            !== @json($parcel['tracking'])
-        ) {
-            window.alert(
-                'Demo mode: try tracking number {{ $parcel['tracking'] }}.'
-            );
-
-            scannerInput?.focus();
-            return;
-        }
-
-        window.alert(
-            'Parcel {{ $parcel['tracking'] }} loaded successfully.'
-        );
+        window.location.href =
+            @json(route('logistics.parcels.receive'))
+            + '?tracking='
+            + encodeURIComponent(tracking);
     }
 
 
@@ -1711,23 +1730,22 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
 
-    confirmButton?.addEventListener(
-        'click',
-        function () {
+    confirmButton?.closest('form')?.addEventListener(
+        'submit',
+        function (event) {
             const allComplete =
                 checkboxes.every(
                     checkbox => checkbox.checked
                 );
 
             if (!allComplete) {
+                event.preventDefault();
                 window.alert(
                     'Please complete all receiving checklist items before confirming the parcel.'
                 );
 
                 return;
             }
-
-            openModal();
         }
     );
 

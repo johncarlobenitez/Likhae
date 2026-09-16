@@ -1152,7 +1152,7 @@
             <div class="rr-action-buttons">
                 <form
                     method="POST"
-                    action="{{ route('logistics.rider-applications.approve', $rider['id']) }}"
+                    action="{{ route('logistics.riders.approve', $rider['id']) }}"
                 >
                     @csrf
 
@@ -1170,7 +1170,7 @@
 
                 <form
                     method="POST"
-                    action="{{ route('logistics.rider-applications.reject', $rider['id']) }}"
+                    action="{{ route('logistics.riders.reject', $rider['id']) }}"
                 >
                     @csrf
 
