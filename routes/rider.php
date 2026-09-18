@@ -30,6 +30,7 @@ Route::prefix('rider')
         Route::get('/deliveries/{delivery}', [RiderController::class, 'deliveryShow'])->name('deliveries.show');
         Route::post('/deliveries/{delivery}/accept', [RiderController::class, 'acceptDelivery'])->name('deliveries.accept');
         Route::post('/deliveries/{delivery}/pickup-from-sorting', [RiderController::class, 'pickupFromSorting'])->name('deliveries.pickup-sorting');
+        Route::get('/deliveries/{delivery}/delivered', [RiderController::class, 'deliveredActionRedirect'])->name('deliveries.delivered.redirect');
         Route::post('/deliveries/{delivery}/delivered', [RiderController::class, 'markDelivered'])->name('deliveries.delivered');
         Route::post('/deliveries/{delivery}/failed', [RiderController::class, 'markFailed'])->name('deliveries.failed');
         Route::get('/deliveries/{delivery}/tracking', [RiderController::class, 'tracking'])->name('deliveries.tracking');

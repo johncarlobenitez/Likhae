@@ -192,6 +192,15 @@ class RiderController extends Controller
         return redirect()->route('rider.history')->with('status', 'Delivery marked as delivered.');
     }
 
+    public function deliveredActionRedirect(Delivery $delivery): RedirectResponse
+    {
+        $this->authorizeDelivery($delivery);
+
+        return redirect()->route('rider.deliveries.show', $delivery)->withErrors([
+            'delivery' => 'Use the Mark Delivered button to confirm delivery.',
+        ]);
+    }
+
     public function markFailed(Request $request, Delivery $delivery): RedirectResponse
     {
         $this->authorizeDelivery($delivery);

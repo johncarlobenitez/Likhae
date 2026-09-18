@@ -45,7 +45,7 @@
                     @endif
                 @endif
                 @if($parcel['status'] === 'OUT_FOR_DELIVERY')
-                    <form method="POST" action="{{ route('rider.deliveries.delivered', $parcel['id']) }}">@csrf<button class="w-full rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white">Mark Delivered</button></form>
+                    <form method="POST" action="{{ route('rider.deliveries.delivered', $delivery) }}">@csrf<button type="submit" class="w-full rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white">Mark Delivered</button></form>
                     <form method="POST" action="{{ route('rider.deliveries.failed', $parcel['id']) }}" class="grid gap-3">
                         @csrf
                         <textarea name="failure_reason" rows="3" required class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm" placeholder="Reason for failed delivery"></textarea>
