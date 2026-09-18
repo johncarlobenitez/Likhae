@@ -13,6 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Railway and Cloudflare terminate TLS before forwarding to Laravel.
+        $middleware->trustProxies(at: '*');
         $middleware->redirectGuestsTo(fn (Request $request) => route(
             $request->is('logistics/*', 'rider', 'rider/*') ? 'logistics.login' : 'login'
         ));
