@@ -313,8 +313,10 @@
 
     .lk-sidebar-scroll {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
         padding: 4px 8px 14px;
+        overscroll-behavior: contain;
         scrollbar-width: thin;
         scrollbar-color: #D8C2B1 transparent;
     }
@@ -503,8 +505,9 @@
 
     .lk-sidebar-foot {
         display: grid;
+        flex: 0 0 auto;
         gap: 2px;
-        padding: 7px 8px 9px;
+        padding: 7px 8px max(9px, env(safe-area-inset-bottom));
         border-top: 1px solid var(--buyer-line);
         background: var(--buyer-bg);
     }
@@ -683,6 +686,8 @@
         .lk-sidebar,
         .lk-sidebar.is-collapsed {
             width: var(--buyer-side-width);
+            height: 100dvh;
+            max-height: 100dvh;
             transform: translateX(-100%);
         }
 

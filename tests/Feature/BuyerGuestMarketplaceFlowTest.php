@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\ProductReview;
 use App\Models\ProductVariation;
 use App\Models\Refund;
+use App\Models\SellerCampaign;
 use App\Models\User;
 use App\Models\WishlistItem;
 use App\Models\WorkspaceNotification;
@@ -20,6 +21,82 @@ use Tests\TestCase;
 class BuyerGuestMarketplaceFlowTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_checkout_applies_only_a_valid_voucher_created_by_the_product_seller(): void
+    {
+        $category = Category::create(['name' => 'Decor', 'slug' => 'decor', 'status' => 'active']);
+        $seller = User::factory()->create(['role' => 'seller', 'status' => 'active']);
+        $buyer = User::factory()->create(['role' => 'buyer', 'status' => 'active']);
+        $product = Product::create([
+            'seller_id' => $seller->id,
+            'category_id' => $category->id,
+            'name' => 'Woven Basket',
+            'slug' => 'woven-basket',
+            'sku' => 'WB-001',
+            'price' => 500,
+            'stock' => 5,
+            'status' => 'active',
+            'listing_status' => 'active',
+            'admin_status' => 'approved',
+        ]);
+        $cart = Cart::create(['buyer_id' => $buyer->id]);
+        $cartItem = CartItem::create(['cart_id' => $cart->id, 'product_id' => $product->id, 'variant' => 'Standard', 'quantity' => 2]);
+        $voucher = SellerCampaign::create([
+            'seller_id' => $seller->id,
+            'type' => 'voucher',
+            'name' => 'Seller Welcome Voucher',
+            'code' => 'WELCOME10',
+            'discount_type' => 'percent',
+            'discount_value' => 10,
+            'minimum_spend' => 500,
+            'usage_limit' => 10,
+            'status' => 'active',
+        ]);
+        $items = json_encode([['id' => $cartItem->id, 'quantity' => 2]]);
+
+        $this->actingAs($buyer)->post(route('buyer.checkout.post'), [
+            'checkout_source' => 'cart',
+            'items' => $items,
+            'voucher_code' => 'welcome10',
+        ])->assertOk()->assertSee('You save &#8369;100.00.', false);
+
+        $this->actingAs($buyer)->post(route('buyer.order.store'), [
+            'checkout_source' => 'cart',
+            'items' => $items,
+            'voucher_code' => 'NOT-A-SELLER-VOUCHER',
+            'payment_method' => 'cash_on_delivery',
+            'recipient_name' => 'Buyer',
+            'contact_number' => '09170000000',
+            'delivery_address' => 'Manila',
+        ])->assertSessionHasErrors('voucher_code');
+        $this->assertDatabaseCount('orders', 0);
+
+        $checkoutSnapshot = json_encode([[
+            'id' => $cartItem->id,
+            'product_id' => $product->id,
+            'product_variation_id' => null,
+            'variant' => 'Standard',
+            'quantity' => 2,
+        ]]);
+        $cartItem->delete();
+
+        $this->actingAs($buyer)->post(route('buyer.order.store'), [
+            'checkout_source' => 'cart',
+            'items' => $checkoutSnapshot,
+            'voucher_code' => 'WELCOME10',
+            'payment_method' => 'cash_on_delivery',
+            'recipient_name' => 'Buyer',
+            'contact_number' => '09170000000',
+            'delivery_address' => 'Manila',
+        ])->assertRedirect(route('buyer.orders.success'));
+
+        $this->assertDatabaseHas('orders', [
+            'buyer_id' => $buyer->id,
+            'seller_id' => $seller->id,
+            'total_amount' => '900.00',
+        ]);
+        $this->assertSame(1, $voucher->fresh()->uses);
+    }
 
     public function test_guest_preview_hides_restricted_product_data_and_buyer_checkout_creates_seller_orders(): void
     {
@@ -108,6 +185,11 @@ class BuyerGuestMarketplaceFlowTest extends TestCase
             ->assertSee('data-product-id="'.$productA->id.'"', false)
             ->assertSee('Black');
 
+        $this->actingAs($buyer)
+            ->get(route('buyer.products', ['sort' => 'featured']))
+            ->assertOk()
+            ->assertSee('Handcrafted Bag');
+
         $addResponse = $this->actingAs($buyer)
             ->get(route('buyer.cart', ['add' => $productA->slug, 'quantity' => 1]));
 
@@ -186,14 +268,14 @@ class BuyerGuestMarketplaceFlowTest extends TestCase
         $this->actingAs($buyer)->get(route('buyer.orders.show', ['id' => $sellerOrder->order_number]))->assertOk();
 
         $this->actingAs($sellerB)
-            ->patch(route('seller.orders.status', $sellerOrder), ['status' => 'to_prepare'])
+            ->patch(route('seller.orders.status', $sellerOrder), ['status' => 'confirmed'])
             ->assertForbidden();
 
         $this->actingAs($sellerA)
-            ->patch(route('seller.orders.status', $sellerOrder), ['status' => 'to_prepare'])
+            ->patch(route('seller.orders.status', $sellerOrder), ['status' => 'confirmed'])
             ->assertRedirect();
 
-        $this->assertSame('to_prepare', $sellerOrder->fresh()->status);
+        $this->assertSame('confirmed', $sellerOrder->fresh()->status);
         $this->actingAs($buyer)
             ->get(route('buyer.orders.show', ['id' => $sellerOrder->order_number]))
             ->assertOk()
@@ -241,6 +323,11 @@ class BuyerGuestMarketplaceFlowTest extends TestCase
             'seller_id' => $sellerA->id,
             'rating' => 5,
         ]);
+        $this->actingAs($buyer)
+            ->get(route('buyer.product-details', ['slug' => $productA->slug]))
+            ->assertOk()
+            ->assertSee('Excellent quality and fast preparation.')
+            ->assertSee($buyer->name);
         $this->actingAs($sellerA)->get(route('seller.reviews'))->assertOk()->assertSee('Excellent quality');
 
         $this->actingAs($buyer)

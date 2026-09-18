@@ -706,7 +706,7 @@
                         data-place-order
                         @disabled(!$hasItems)
                     >
-                        Place Order
+                        Checkout
 
                         <svg
                             width="16"
@@ -1056,29 +1056,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectedItems = getItems().filter((item) =>
             item.querySelector('[data-cart-select]')?.checked
         );
-        const payment = page.querySelector('input[name="payment_method"]:checked');
-
         if (selectedItems.length === 0) {
             window.lkBuyerToast?.('Select at least one cart item.');
             return;
         }
 
-        if (!payment) {
-            window.lkBuyerToast?.('Choose a payment method before placing the order.');
-            page.querySelector('input[name="payment_method"]')?.focus();
-            return;
-        }
-
         placeOrderButton.disabled = true;
-        placeOrderButton.textContent = 'Placing Order…';
+        placeOrderButton.textContent = 'Opening Checkout...';
 
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = @json(route('buyer.order.store'));
+        form.action = @json(route('buyer.checkout.post', [], false));
 
         const fields = {
             _token: document.querySelector('meta[name="csrf-token"]')?.content || '',
-            payment_method: payment.value,
             items: JSON.stringify(selectedItems.map((item) => ({
                 id: item.dataset.itemId || '',
                 quantity: Number(item.querySelector('[data-cart-quantity]')?.value || 1),

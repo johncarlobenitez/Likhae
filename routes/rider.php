@@ -28,6 +28,7 @@ Route::prefix('rider')
         // DELIVERIES
         Route::get('/deliveries', [RiderController::class, 'deliveries'])->name('deliveries');
         Route::get('/deliveries/{delivery}', [RiderController::class, 'deliveryShow'])->name('deliveries.show');
+        Route::post('/deliveries/{delivery}/accept', [RiderController::class, 'acceptDelivery'])->name('deliveries.accept');
         Route::post('/deliveries/{delivery}/pickup-from-sorting', [RiderController::class, 'pickupFromSorting'])->name('deliveries.pickup-sorting');
         Route::post('/deliveries/{delivery}/delivered', [RiderController::class, 'markDelivered'])->name('deliveries.delivered');
         Route::post('/deliveries/{delivery}/failed', [RiderController::class, 'markFailed'])->name('deliveries.failed');

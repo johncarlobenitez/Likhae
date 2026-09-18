@@ -49,6 +49,9 @@ Route::prefix('logistics')
 
             Route::get('/parcels', [LogisticsController::class, 'parcels'])->name('parcels');
 
+            Route::get('/pickups', [LogisticsController::class, 'pickupRequests'])->name('pickups');
+            Route::post('/pickups/{delivery}/assign', [LogisticsController::class, 'assignPickupRider'])->name('pickups.assign');
+
             Route::get('/parcels/receive', [LogisticsController::class, 'receive'])->name('parcels.receive');
             Route::post('/parcels/{delivery}/receive', [LogisticsController::class, 'confirmReceived'])->name('parcels.receive.confirm');
 
@@ -78,6 +81,7 @@ Route::prefix('logistics')
 
             Route::get('/assignments', [LogisticsController::class, 'assignments'])->name('assignments');
             Route::post('/assignments/{delivery}/assign', [LogisticsController::class, 'assignRider'])->name('assignments.assign-rider');
+            Route::post('/assignments/{delivery}/release', [LogisticsController::class, 'releaseToRider'])->name('assignments.release');
 
             Route::get('/assignments/{delivery}/assign', fn () => redirect()->route('logistics.assignments'))->name('assignments.assign');
 
@@ -129,13 +133,7 @@ Route::prefix('logistics')
             |--------------------------------------------------------------------------
             */
 
-            Route::get('/delivery-areas', function () {
-
-                return view(
-                    'logistics.delivery-areas.index'
-                );
-
-            })->name('delivery-areas');
+            Route::get('/delivery-areas', [LogisticsController::class, 'deliveryAreas'])->name('delivery-areas');
 
             /*
             |--------------------------------------------------------------------------
@@ -143,13 +141,8 @@ Route::prefix('logistics')
             |--------------------------------------------------------------------------
             */
 
-            Route::get('/messages', function () {
-
-                return view(
-                    'logistics.messages.index'
-                );
-
-            })->name('messages');
+            Route::get('/messages', [LogisticsController::class, 'messages'])->name('messages');
+            Route::post('/messages', [LogisticsController::class, 'sendMessage'])->name('messages.send');
 
             /*
             |--------------------------------------------------------------------------
@@ -157,13 +150,7 @@ Route::prefix('logistics')
             |--------------------------------------------------------------------------
             */
 
-            Route::get('/reports', function () {
-
-                return view(
-                    'logistics.reports.index'
-                );
-
-            })->name('reports');
+            Route::get('/reports', [LogisticsController::class, 'reports'])->name('reports');
 
             /*
             |--------------------------------------------------------------------------
@@ -171,13 +158,7 @@ Route::prefix('logistics')
             |--------------------------------------------------------------------------
             */
 
-            Route::get('/profile', function () {
-
-                return view(
-                    'logistics.profile.index'
-                );
-
-            })->name('profile');
+            Route::get('/profile', [LogisticsController::class, 'profile'])->name('profile');
 
             /*
             |--------------------------------------------------------------------------
@@ -185,13 +166,7 @@ Route::prefix('logistics')
             |--------------------------------------------------------------------------
             */
 
-            Route::get('/account', function () {
-
-                return view(
-                    'logistics.profile.index'
-                );
-
-            })->name('account');
+            Route::get('/account', [LogisticsController::class, 'profile'])->name('account');
 
         });
     });

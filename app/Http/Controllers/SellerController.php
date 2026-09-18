@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Delivery;
 use App\Models\Message;
+use App\Models\PlatformSetting;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -62,9 +63,9 @@ class SellerController extends Controller
         ]));
 
         $statusCounts = [
-            'to-process' => $orders->filter(fn (Order $order) => $this->canonicalOrderStatus($order->status) === 'to_process')->count(),
-            'to-prepare' => $orders->filter(fn (Order $order) => $this->canonicalOrderStatus($order->status) === 'to_prepare')->count(),
-            'ready-pickup' => $orders->filter(fn (Order $order) => $this->canonicalOrderStatus($order->status) === 'ready_pickup')->count(),
+            'placed' => $orders->filter(fn (Order $order) => $this->canonicalOrderStatus($order->status) === 'to_process')->count(),
+            'preparing' => $orders->filter(fn (Order $order) => $this->canonicalOrderStatus($order->status) === 'to_prepare')->count(),
+            'ready-for-pickup' => $orders->filter(fn (Order $order) => $this->canonicalOrderStatus($order->status) === 'ready_pickup')->count(),
             'shipping' => $orders->filter(fn (Order $order) => $this->canonicalOrderStatus($order->status) === 'shipping')->count(),
             'completed' => $orders->filter(fn (Order $order) => $this->canonicalOrderStatus($order->status) === 'completed')->count(),
             'returns' => $orders->filter(fn (Order $order) => $this->canonicalOrderStatus($order->status) === 'returns')->count(),
@@ -1020,10 +1021,6 @@ class SellerController extends Controller
     private function validateProduct(Request $request, ?Product $product = null, ?User $seller = null): array
     {
         $seller ??= $this->seller($request);
-        $parent = $this->sellerLineOfBusinessCategory($seller);
-
-        abort_unless($parent, 422, 'Your seller account has no registered line of business category.');
-
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:180'],
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
@@ -1052,10 +1049,32 @@ class SellerController extends Controller
             'specifications_text' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        $parent = $this->sellerLineOfBusinessCategory($seller);
+        $selectedCategory = ! empty($validated['category_id'])
+            ? Category::whereKey($validated['category_id'])->where('status', 'active')->first()
+            : null;
+
+        if (! $parent && $selectedCategory) {
+            $parent = $selectedCategory->parent_id
+                ? Category::whereKey($selectedCategory->parent_id)->where('status', 'active')->first()
+                : $selectedCategory;
+
+            if ($parent) {
+                SellerProfile::updateOrCreate(
+                    ['seller_id' => $seller->id],
+                    ['line_of_business_category_id' => $parent->id]
+                );
+            }
+        }
+
+        abort_unless($parent, 422, 'Your seller account has no registered line of business category.');
+
         $newSubcategory = trim((string) ($validated['new_subcategory'] ?? ''));
 
         if ($newSubcategory !== '') {
             $validated['category_id'] = $this->firstOrCreateSellerSubcategory($seller, $parent, $newSubcategory)->id;
+        } elseif ($selectedCategory && ! $selectedCategory->parent_id && $selectedCategory->id === $parent->id) {
+            $validated['category_id'] = $this->firstOrCreateSellerSubcategory($seller, $parent, 'General')->id;
         }
 
         abort_if(empty($validated['category_id']), 422, 'Choose a subcategory for this product.');
@@ -1384,7 +1403,7 @@ class SellerController extends Controller
 
     private function commissionRate(): float
     {
-        return max(0, (float) config('likhae.seller_commission_rate', 0.07));
+        return PlatformSetting::commissionRate();
     }
 
     private function commissionFor(float $amount): float

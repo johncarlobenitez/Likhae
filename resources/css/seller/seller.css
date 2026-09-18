@@ -86,7 +86,7 @@ img { max-width: 100%; }
 .sl-text-link:hover { text-decoration: underline; }
 
 /* Sidebar */
-.sl-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 100; width: var(--sl-sidebar); display: flex; flex-direction: column; color: var(--sl-muted); background: #ffffff; border-right: 1px solid var(--sl-border); box-shadow: 4px 0 16px rgba(86,28,23,.05); transition: width .22s ease, transform .22s ease; }
+.sl-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 100; width: var(--sl-sidebar); height: 100vh; display: flex; flex-direction: column; overflow: hidden; color: var(--sl-muted); background: #ffffff; border-right: 1px solid var(--sl-border); box-shadow: 4px 0 16px rgba(86,28,23,.05); transition: width .22s ease, transform .22s ease; }
 .sl-sidebar-head { min-height: var(--sl-header); padding: 0 14px; display: flex; align-items: center; gap: 11px; border-bottom: 1px solid var(--sl-border); }
 .sl-sidebar-toggle { color: var(--sl-muted); background: var(--sl-bg); border-color: var(--sl-border); }
 .sl-sidebar-toggle:hover { color: #fff; background: rgba(86,28,23,.2); border-color: rgba(193,151,113,.4); }
@@ -106,7 +106,7 @@ img { max-width: 100%; }
 .sl-seller-copy strong { overflow: hidden; color: var(--sl-navy); font-size: 11px; text-overflow: ellipsis; }
 .sl-seller-copy small { overflow: hidden; color: var(--sl-muted); font-size: 9px; text-overflow: ellipsis; }
 .sl-verified { width: 18px; height: 18px; flex: 0 0 18px; display: grid; place-items: center; color: #fff; background: var(--sl-blue); border-radius: 50%; font-size: 10px; }
-.sl-sidebar-scroll { min-height: 0; padding: 5px 9px 14px; flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--sl-border) transparent; }
+.sl-sidebar-scroll { min-height: 0; padding: 5px 9px 14px; flex: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--sl-border) transparent; }
 .sl-nav-section { margin-top: 13px; }
 .sl-nav-label { min-height: 25px; padding: 0 10px; display: flex; align-items: center; color: var(--sl-faint); font-size: 8px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; white-space: nowrap; }
 .sl-nav-link { width: 100%; min-height: 39px; margin: 2px 0; padding: 0 10px; display: flex; align-items: center; gap: 10px; color: var(--sl-muted); background: transparent; border: 0; border-radius: 9px; text-align: left; transition: .15s ease; }
@@ -124,7 +124,7 @@ img { max-width: 100%; }
 .sl-nav-submenu a { min-height: 31px; padding: 6px 8px 6px 12px; display: flex; align-items: center; justify-content: space-between; color: var(--sl-muted); border-left: 1px solid var(--sl-border); font-size: 10px; transition: .15s ease; }
 .sl-nav-submenu a:hover { color: var(--sl-blue); border-left-color: var(--sl-blue); }
 .sl-nav-submenu a span { min-width: 17px; height: 17px; display: grid; place-items: center; color: #E6C7BE; background: rgba(86,28,23,.2); border-radius: 99px; font-size: 8px; }
-.sl-sidebar-foot { padding: 9px; border-top: 1px solid var(--sl-border); }
+.sl-sidebar-foot { flex: 0 0 auto; padding: 9px 9px max(9px, env(safe-area-inset-bottom)); border-top: 1px solid var(--sl-border); }
 .sl-sidebar-foot form { margin: 0; }
 .sl-logout { color: #B42318; }
 .sl-logout:hover { color: #FCEBE9; background: rgba(185,28,28,.16); }
@@ -690,7 +690,7 @@ a.sl-stat-card:hover {
 }
 
 @media (max-width: 1023px) {
-    .sl-sidebar { width: min(84vw, 270px); transform: translateX(-102%); }.sl-sidebar.is-open { transform: translateX(0); }
+    .sl-sidebar { width: min(84vw, 270px); height: 100dvh; max-height: 100dvh; transform: translateX(-102%); }.sl-sidebar.is-open { transform: translateX(0); }
     .sl-shell, body.sl-sidebar-collapsed .sl-shell { margin-left: 0; } body.sl-sidebar-collapsed .sl-sidebar { width: min(84vw, 270px); }
     body.sl-sidebar-collapsed .likhae-logo { display: inline-flex !important; }
     body.sl-sidebar-collapsed .sl-brand-copy, body.sl-sidebar-collapsed .sl-seller-copy, body.sl-sidebar-collapsed .sl-verified, body.sl-sidebar-collapsed .sl-nav-text, body.sl-sidebar-collapsed .sl-nav-arrow, body.sl-sidebar-collapsed .sl-nav-badge, body.sl-sidebar-collapsed .sl-nav-label { display: initial !important; }

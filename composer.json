@@ -7,8 +7,11 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "endroid/qr-code": "5.1",
         "laravel/framework": "^13.17",
-        "laravel/tinker": "^3.0"
+        "laravel/socialite": "^5.23",
+        "laravel/tinker": "^3.0",
+        "picqer/php-barcode-generator": "3.2"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -24,7 +27,8 @@
             "App\\": "app/",
             "App\\Models\\": [
                 "app/Models/seller/",
-                "app/Models/guest/buyer/"
+                "app/Models/guest/buyer/",
+                "app/Models/admin/"
             ],
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"

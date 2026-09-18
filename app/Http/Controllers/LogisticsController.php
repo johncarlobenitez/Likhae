@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Delivery;
 use App\Models\Message;
+use App\Models\ParcelAssignment;
 use App\Models\User;
 use App\Models\WorkspaceNotification;
+use App\Services\ParcelWorkflow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +17,48 @@ use Illuminate\View\View;
 
 class LogisticsController extends Controller
 {
+    public function __construct(private readonly ParcelWorkflow $workflow) {}
+
+    public function pickupRequests(): View
+    {
+        $deliveries = $this->deliveryQuery()
+            ->whereIn('status', ['awaiting_pickup_assignment', 'pickup_assigned', 'pickup_accepted', 'picked_up'])
+            ->latest()
+            ->get();
+        $riders = $this->riderQuery()->where('status', 'active')->get();
+
+        $pickupRows = $deliveries->map(function (Delivery $delivery) use ($riders) {
+            $seller = $delivery->order?->seller;
+            $ranked = $riders->map(function (User $rider) use ($seller) {
+                $locationScore = ($seller?->barangay && $rider->barangay === $seller->barangay ? 3 : 0)
+                    + ($seller?->municipality && $rider->municipality === $seller->municipality ? 2 : 0)
+                    + ($seller?->province && $rider->province === $seller->province ? 1 : 0);
+                $workload = ParcelAssignment::where('rider_id', $rider->id)->whereIn('status', ['assigned', 'accepted', 'picked_up'])->count();
+                return ['id' => $rider->id, 'name' => $rider->name, 'area' => $rider->municipality ?: 'Area not recorded', 'workload' => $workload, 'score' => $locationScore];
+            })->sortBy([['score', 'desc'], ['workload', 'asc'], ['name', 'asc']])->values();
+
+            return ['parcel' => $this->parcelRow($delivery), 'delivery' => $delivery, 'riders' => $ranked];
+        });
+
+        return view('logistics.pickups.index', compact('pickupRows'));
+    }
+
+    public function assignPickupRider(Request $request, Delivery $delivery): RedirectResponse
+    {
+        $this->authorizeDelivery($delivery);
+        abort_unless($delivery->status === 'awaiting_pickup_assignment', 422, 'This parcel is not awaiting a pickup rider.');
+        $validated = $request->validate(['rider_id' => ['required', 'integer', 'exists:users,id']]);
+        $rider = $this->riderQuery()->whereKey($validated['rider_id'])->where('status', 'active')->firstOrFail();
+
+        DB::transaction(function () use ($delivery, $rider, $request) {
+            $this->workflow->assign($delivery, $rider, 'seller_pickup', $request->user());
+            $this->workflow->transition($delivery, 'pickup_assigned', $request->user(), "Pickup assigned to {$rider->name}.", ['pickup_rider_id' => $rider->id, 'pickup_assigned_at' => now()]);
+            WorkspaceNotification::create(['user_id' => $rider->id, 'type' => 'pickup', 'title' => 'New seller pickup', 'body' => "Parcel {$delivery->tracking_number} has been assigned to you.", 'action_url' => route('rider.pickups.show', $delivery)]);
+        });
+
+        return back()->with('status', "Pickup assigned to {$rider->name}.");
+    }
+
     public function dashboard(Request $request): View
     {
         $deliveries = $this->deliveryQuery()->latest()->get();
@@ -133,9 +177,9 @@ class LogisticsController extends Controller
         ]);
     }
 
-    public function scanner(): View
+    public function scanner(): RedirectResponse
     {
-        return view('logistics.scanner');
+        return redirect()->route('logistics.parcels.receive');
     }
 
     public function scan(Request $request): RedirectResponse
@@ -173,19 +217,23 @@ class LogisticsController extends Controller
     public function confirmReceived(Request $request, Delivery $delivery): RedirectResponse
     {
         $this->authorizeDelivery($delivery);
+        $validated = $request->validate(['tracking' => ['required', 'string', 'max:120']]);
+        abort_unless(hash_equals((string) $delivery->tracking_number, trim($validated['tracking'])), 422, 'The scanned tracking number does not match this parcel.');
+
+        if ($delivery->status === 'at_sorting_center') {
+            return redirect()->route('logistics.parcels.receive', ['tracking' => $delivery->tracking_number])->with('status', 'This parcel has already been received.');
+        }
 
         DB::transaction(function () use ($request, $delivery) {
             $delivery = Delivery::whereKey($delivery->id)->lockForUpdate()->firstOrFail();
 
-            abort_unless(
-                in_array($delivery->status, ['requested', 'pickup_accepted', 'picked_up', 'received', 'scanned'], true),
-                422,
-                'Only incoming or picked-up parcels can be received at the sorting center.'
-            );
+            $allowed = $delivery->handover_method === 'seller_dropoff' ? ['awaiting_dropoff'] : ['picked_up'];
+            abort_unless(in_array($delivery->status, $allowed, true), 422, 'The parcel is not ready to be received by this sorting center.');
 
-            $delivery->status = 'at_sorting_center';
-            $delivery->arrived_at_sorting_center_at = $delivery->arrived_at_sorting_center_at ?: now();
-            $delivery->save();
+            $assignment = $delivery->assignments()->where('assignment_type', 'seller_pickup')->first();
+            if ($assignment) $assignment->update(['status' => 'completed', 'completed_at' => now()]);
+            $this->workflow->scan($delivery, 'sorting_center_received', $request->user(), $assignment);
+            $delivery = $this->workflow->transition($delivery, 'at_sorting_center', $request->user(), 'Parcel scanned and received by logistics.', ['arrived_at_sorting_center_at' => now(), 'received_at' => now(), 'received_by' => $request->user()->id]);
 
             $delivery->order()->update(['status' => 'shipping']);
 
@@ -215,7 +263,7 @@ class LogisticsController extends Controller
         return view('logistics.riders.application.index', compact('logisticsRiderApplications', 'logisticsRiderSummary'));
     }
 
-    public function sorting(): View
+    public function sorting(Request $request): View
     {
         $deliveries = $this->deliveryQuery()
             ->whereIn('status', ['received', 'scanned', 'at_sorting_center'])
@@ -230,19 +278,26 @@ class LogisticsController extends Controller
             ['label' => 'Unassigned Area', 'value' => $deliveries->filter(fn (Delivery $delivery) => blank($delivery->order?->buyer?->municipality))->count(), 'class' => 'bg-primary-soft text-primary'],
         ];
 
-        return view('logistics.sorting.index', compact('logisticsParcels', 'logisticsOverview'));
+        $tracking = trim((string) $request->query('tracking', ''));
+        $selectedDelivery = $tracking === '' ? null : $deliveries->first(fn (Delivery $delivery) => $delivery->tracking_number === $tracking || $delivery->order?->order_number === $tracking);
+
+        return view('logistics.sorting.index', compact('logisticsParcels', 'logisticsOverview', 'tracking', 'selectedDelivery'));
     }
 
     public function markSorted(Request $request, Delivery $delivery): RedirectResponse
     {
         $this->authorizeDelivery($delivery);
+        $validated = $request->validate(['tracking' => ['required', 'string', 'max:120']]);
+        abort_unless(hash_equals((string) $delivery->tracking_number, trim($validated['tracking'])), 422, 'The scanned tracking number does not match this parcel.');
 
         abort_unless(in_array($delivery->status, ['received', 'scanned', 'at_sorting_center'], true), 422, 'Only parcels received at the sorting center can be sorted.');
 
         DB::transaction(function () use ($delivery) {
             $delivery = Delivery::whereKey($delivery->id)->lockForUpdate()->firstOrFail();
-            $delivery->status = 'sorted';
-            $delivery->save();
+            $buyer = $delivery->order?->buyer;
+            $area = collect([$buyer?->barangay, $buyer?->municipality, $buyer?->province])->filter()->implode(', ');
+            $this->workflow->scan($delivery, 'sorting_scan', request()->user());
+            $delivery = $this->workflow->transition($delivery, 'sorted', request()->user(), 'Parcel sorted by delivery destination.', ['sorted_at' => now(), 'delivery_area' => $area ?: null]);
 
             WorkspaceNotification::create([
                 'user_id' => $delivery->order->seller_id,
@@ -256,7 +311,7 @@ class LogisticsController extends Controller
         return back()->with('status', 'Parcel marked as sorted and ready for rider assignment.');
     }
 
-    public function assignments(): View
+    public function assignments(Request $request): View
     {
         $waiting = $this->deliveryQuery()
             ->whereIn('status', ['sorted', 'awaiting_rider'])
@@ -278,10 +333,18 @@ class LogisticsController extends Controller
             'id' => $rider->id,
             'name' => $rider->name,
             'area' => $rider->municipality ?: 'Unassigned',
-            'active' => Delivery::where('rider_id', $rider->id)->whereIn('status', ['assigned', 'out_for_delivery'])->count(),
+            'active' => ParcelAssignment::where('rider_id', $rider->id)->where('assignment_type', 'final_delivery')->whereIn('status', ['assigned', 'accepted', 'picked_up'])->count(),
         ])->values()->all();
 
-        return view('logistics.assignments.index', compact('logisticsAssignmentStats', 'logisticsAssignmentParcels', 'logisticsAssignmentRiders'));
+        $tracking = trim((string) $request->query('tracking', ''));
+        $releaseDelivery = $tracking === '' ? null : $this->deliveryQuery()
+            ->where('status', 'assigned_to_rider')
+            ->where(fn ($query) => $query->where('tracking_number', $tracking)->orWhereHas('order', fn ($order) => $order->where('order_number', $tracking)))
+            ->first();
+        $releaseAssignment = $releaseDelivery?->assignments->firstWhere('assignment_type', 'final_delivery');
+        $releaseAuthorized = $releaseDelivery?->scanEvents()->where('scan_type', 'delivery_release_scan')->exists() ?? false;
+
+        return view('logistics.assignments.index', compact('logisticsAssignmentStats', 'logisticsAssignmentParcels', 'logisticsAssignmentRiders', 'tracking', 'releaseDelivery', 'releaseAssignment', 'releaseAuthorized'));
     }
 
     public function assignRider(Request $request, Delivery $delivery): RedirectResponse
@@ -298,10 +361,8 @@ class LogisticsController extends Controller
 
         DB::transaction(function () use ($delivery, $rider) {
             $delivery = Delivery::whereKey($delivery->id)->lockForUpdate()->firstOrFail();
-            $delivery->rider_id = $rider->id;
-            $delivery->status = 'assigned';
-            $delivery->assigned_at = now();
-            $delivery->save();
+            $this->workflow->assign($delivery, $rider, 'final_delivery', request()->user());
+            $delivery = $this->workflow->transition($delivery, 'assigned_to_rider', request()->user(), "Final delivery assigned to {$rider->name}.", ['rider_id' => $rider->id, 'assigned_at' => now()]);
 
             WorkspaceNotification::create([
                 'user_id' => $rider->id,
@@ -313,6 +374,29 @@ class LogisticsController extends Controller
         });
 
         return back()->with('status', "Parcel assigned to {$rider->name}.");
+    }
+
+    public function releaseToRider(Request $request, Delivery $delivery): RedirectResponse
+    {
+        $this->authorizeDelivery($delivery);
+        $validated = $request->validate(['tracking' => ['required', 'string', 'max:120']]);
+        abort_unless(hash_equals((string) $delivery->tracking_number, trim($validated['tracking'])), 422, 'The scanned tracking number does not match this parcel.');
+        abort_unless($delivery->status === 'assigned_to_rider', 422, 'Only parcels assigned to a final-delivery rider can be released.');
+        $assignment = $delivery->assignments()->where('assignment_type', 'final_delivery')->first();
+        abort_unless($assignment, 422, 'This parcel has no final-delivery assignment.');
+        if ($assignment->status === 'assigned') {
+            return redirect()->route('logistics.assignments', ['tracking' => $delivery->tracking_number])
+                ->withErrors(['release' => 'The assigned rider must accept the delivery assignment before Logistics can authorize release.']);
+        }
+        abort_unless($assignment->status === 'accepted', 422, 'This final-delivery assignment is not eligible for release.');
+
+        if ($delivery->scanEvents()->where('scan_type', 'delivery_release_scan')->where('assignment_id', $assignment->id)->exists()) {
+            return redirect()->route('logistics.assignments', ['tracking' => $delivery->tracking_number])->with('status', 'This parcel was already authorized for release.');
+        }
+
+        $this->workflow->scan($delivery, 'delivery_release_scan', $request->user(), $assignment);
+
+        return redirect()->route('logistics.assignments', ['tracking' => $delivery->tracking_number])->with('status', 'Parcel verified and authorized for release to '.$assignment->rider->name.'.');
     }
 
     public function riders(): View
@@ -334,6 +418,112 @@ class LogisticsController extends Controller
         ];
 
         return view('logistics.riders.index', compact('logisticsRiders', 'logisticsRiderStats'));
+    }
+
+    public function deliveryAreas(): View
+    {
+        $deliveries = $this->deliveryQuery()->latest()->get();
+        $riders = $this->riderQuery()->latest()->get();
+        $areas = $deliveries
+            ->map(function (Delivery $delivery) use ($riders) {
+                $destination = $delivery->address ?: $delivery->order?->shipping_address ?: $this->addressFor($delivery->order?->buyer);
+                $municipality = $delivery->order?->buyer?->municipality ?: $this->destinationPart($destination, 1) ?: 'Unassigned';
+                $province = $delivery->order?->buyer?->province ?: $this->destinationPart($destination, 2) ?: 'Not recorded';
+
+                return [
+                    'province' => $province,
+                    'municipality' => $municipality,
+                    'barangay' => $delivery->order?->buyer?->barangay ?: 'Not recorded',
+                    'status' => $municipality === 'Unassigned' ? 'Needs address review' : 'Active',
+                    'riders' => $riders->where('municipality', $municipality)->where('status', 'active')->count(),
+                    'parcels' => 1,
+                ];
+            })
+            ->groupBy(fn (array $area) => $area['province'].'|'.$area['municipality'].'|'.$area['barangay'])
+            ->map(function ($group) {
+                $first = $group->first();
+                $first['parcels'] = $group->sum('parcels');
+
+                return $first;
+            })
+            ->values();
+
+        return view('logistics.delivery-areas.index', [
+            'areas' => $areas,
+            'areaStats' => [
+                'total' => $areas->count(),
+                'active' => $areas->where('status', 'Active')->count(),
+                'riders' => $riders->where('status', 'active')->count(),
+                'unassigned' => $areas->where('municipality', 'Unassigned')->count(),
+            ],
+        ]);
+    }
+
+    public function messages(Request $request): View
+    {
+        $user = $request->user();
+        $contacts = User::whereIn('role', ['seller', 'buyer', 'rider', 'courier'])
+            ->where('status', 'active')
+            ->whereKeyNot($user->id)
+            ->orderBy('name')
+            ->get();
+        $selected = $request->integer('contact') ? $contacts->firstWhere('id', $request->integer('contact')) : $contacts->first();
+        $messages = $selected
+            ? Message::with('sender')
+                ->where(function ($query) use ($user, $selected) {
+                    $query->where('sender_id', $user->id)->where('recipient_id', $selected->id);
+                })
+                ->orWhere(function ($query) use ($user, $selected) {
+                    $query->where('sender_id', $selected->id)->where('recipient_id', $user->id);
+                })
+                ->orderBy('created_at')
+                ->get()
+            : collect();
+
+        return view('logistics.messages.index', compact('contacts', 'selected', 'messages'));
+    }
+
+    public function reports(Request $request): View
+    {
+        $deliveries = $this->deliveryQuery()->latest()->get();
+        $delivered = $deliveries->where('status', 'delivered')->count();
+        $failed = $deliveries->where('status', 'delivery_failed')->count();
+        $total = max($deliveries->count(), 1);
+
+        return view('logistics.reports.index', [
+            'summaryCards' => [
+                ['label' => 'Parcels Received', 'value' => $deliveries->whereIn('status', ['at_sorting_center', 'sorted', 'assigned', 'out_for_delivery', 'delivered'])->count(), 'change' => 'From delivery records', 'tone' => 'primary', 'icon' => 'package'],
+                ['label' => 'Delivered', 'value' => $delivered, 'change' => round(($delivered / $total) * 100, 1).'% success', 'tone' => 'success', 'icon' => 'check'],
+                ['label' => 'Out for Delivery', 'value' => $deliveries->where('status', 'out_for_delivery')->count(), 'change' => 'Active now', 'tone' => 'primary', 'icon' => 'truck'],
+                ['label' => 'Failed Delivery', 'value' => $failed, 'change' => 'Recorded failures', 'tone' => 'warning', 'icon' => 'alert'],
+            ],
+            'parcelSummary' => $deliveries->groupBy(fn (Delivery $delivery) => $delivery->updated_at?->format('M d, Y') ?: 'No date')->map(fn ($group, $date) => [
+                $date,
+                $group->whereIn('status', ['at_sorting_center', 'sorted', 'assigned', 'out_for_delivery', 'delivered'])->count(),
+                $group->whereIn('status', ['sorted', 'assigned', 'out_for_delivery', 'delivered'])->count(),
+                $group->where('status', 'out_for_delivery')->count(),
+                $group->where('status', 'delivered')->count(),
+                $group->where('status', 'delivery_failed')->count(),
+            ])->values()->take(10),
+            'deliveryOverview' => $deliveries->groupBy(fn (Delivery $delivery) => $delivery->updated_at?->format('M d') ?: 'No date')->map(fn ($group, $date) => ['label' => $date, 'value' => $group->count()])->values()->take(7),
+            'successRate' => round(($delivered / $total) * 100, 1),
+            'pendingCount' => $deliveries->whereNotIn('status', ['delivered', 'delivery_failed'])->count(),
+            'riders' => $this->riderQuery()->where('status', 'active')->get()->map(fn (User $rider) => [
+                $rider->name,
+                $rider->municipality ?: 'Unassigned',
+                Delivery::where('rider_id', $rider->id)->count(),
+                Delivery::where('rider_id', $rider->id)->where('status', 'delivered')->count(),
+                'No rating data',
+                '',
+            ]),
+            'areas' => $this->areaRows($deliveries),
+            'codTotal' => $deliveries->filter(fn (Delivery $delivery) => $delivery->order?->payment_method === 'cod')->sum(fn (Delivery $delivery) => (float) $delivery->order?->total_amount),
+        ]);
+    }
+
+    public function profile(Request $request): View
+    {
+        return view('logistics.profile.index', ['accountUser' => $request->user()]);
     }
 
     public function riderShow(User $user): View
@@ -391,29 +581,15 @@ class LogisticsController extends Controller
             'recipient_id' => ['required', 'exists:users,id'],
             'body' => ['required', 'string', 'max:2000'],
         ]);
-        $recipient = User::whereKey($validated['recipient_id'])->whereIn('role', ['courier', 'seller'])->where('status', 'active')->firstOrFail();
+        $recipient = User::whereKey($validated['recipient_id'])->whereIn('role', ['courier', 'rider', 'seller', 'buyer'])->where('status', 'active')->firstOrFail();
         Message::create(['sender_id' => $sender->id, 'recipient_id' => $recipient->id, 'body' => $validated['body']]);
-        WorkspaceNotification::create(['user_id' => $recipient->id, 'type' => 'message', 'title' => 'New logistics message', 'body' => "Message from {$sender->name}", 'action_url' => $recipient->role === 'seller' ? route('seller.messages') : route('courier.messages')]);
+        $url = match ($recipient->role) {
+            'seller' => route('seller.messages'),
+            'buyer' => route('buyer.messages'),
+            default => route('rider.dashboard'),
+        };
+        WorkspaceNotification::create(['user_id' => $recipient->id, 'type' => 'message', 'title' => 'New logistics message', 'body' => "Message from {$sender->name}", 'action_url' => $url]);
         return back()->with('status', "Message sent to {$recipient->name}.");
-    }
-
-    public function updateParcel(Request $request, Delivery $delivery): RedirectResponse
-    {
-        $validated = $request->validate([
-            'status' => ['required', 'in:received,scanned,sorted,assigned,out_for_delivery,delivered,failed'],
-            'area' => ['nullable', 'string', 'max:120'],
-            'rider_id' => ['nullable', 'exists:users,id'],
-        ]);
-
-        $delivery->update([
-            'status' => $validated['status'],
-            'area' => $validated['area'] ?? $delivery->area,
-            'rider_id' => $validated['rider_id'] ?? $delivery->rider_id,
-            'assigned_at' => $validated['status'] === 'assigned' ? now() : $delivery->assigned_at,
-            'delivered_at' => $validated['status'] === 'delivered' ? now() : $delivery->delivered_at,
-        ]);
-
-        return back()->with('status', "Parcel {$delivery->parcel_code} updated.");
     }
 
     public function updateRider(Request $request, User $user): RedirectResponse
@@ -443,7 +619,7 @@ class LogisticsController extends Controller
 
     private function deliveryQuery()
     {
-        return Delivery::query()->with(['order.buyer', 'order.seller', 'rider']);
+        return Delivery::query()->with(['order.buyer', 'order.seller', 'rider', 'pickupRider', 'assignments.rider', 'statusHistory']);
     }
 
     private function riderQuery()
@@ -454,6 +630,7 @@ class LogisticsController extends Controller
     private function authorizeDelivery(Delivery $delivery): void
     {
         abort_unless($delivery->order()->exists(), 404);
+        abort_unless($delivery->logistics_center_id === null || $delivery->logistics_center_id === $this->currentCenterId(), 403);
     }
 
     private function reviewRider(Request $request, User $user, string $status): RedirectResponse
@@ -508,8 +685,8 @@ class LogisticsController extends Controller
             'status_key' => $statusKey,
             'status_type' => $this->statusTone($statusKey),
             'condition' => 'Not recorded',
-            'received_from' => $delivery->rider ? 'Courier Transfer' : 'Seller / Drop-off',
-            'received_at' => $delivery->updated_at?->format('F d, Y g:i A') ?? 'Pending',
+            'received_from' => $delivery->handover_method === 'seller_dropoff' ? 'Seller drop-off' : ($delivery->pickupRider?->name ?: 'Pickup rider pending'),
+            'received_at' => $delivery->received_at?->format('F d, Y g:i A') ?? 'Pending',
             'notes' => $delivery->pickup_note ?: 'No logistics notes recorded.',
             'items' => $items,
             'image' => $firstImage,

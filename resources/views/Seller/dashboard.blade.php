@@ -15,14 +15,14 @@
         <div>
             <span class="sl-eyebrow">{{ now()->format('l, F j') }}</span>
             <h2>Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }}, {{ $firstName }}.</h2>
-            <p>Your live store data shows <strong>{{ $orderStatusCounts['to-process'] }} new orders</strong> and <strong>{{ $stats['inventory_alerts'] }} inventory alerts</strong> that may need attention.</p>
+            <p>Your live store data shows <strong>{{ $orderStatusCounts['placed'] }} new orders</strong> and <strong>{{ $stats['inventory_alerts'] }} inventory alerts</strong> that may need attention.</p>
         </div>
         <div class="sl-welcome-actions">
             <a href="{{ route('seller.products', ['mode' => 'add']) }}" class="sl-btn sl-btn-white">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
                 Add Product
             </a>
-            <a href="{{ route('seller.orders', ['status' => 'to-process']) }}" class="sl-btn sl-btn-blue-soft">Process Orders</a>
+            <a href="{{ route('seller.orders', ['status' => 'placed']) }}" class="sl-btn sl-btn-blue-soft">Process Orders</a>
         </div>
     </section>
 
@@ -62,9 +62,9 @@
             <div class="sl-donut-wrap">
                 <div class="sl-donut" aria-label="{{ $activeOrders }} orders"><span><strong>{{ $activeOrders }}</strong><small>Orders</small></span></div>
                 <div class="sl-chart-legend">
-                    <a href="{{ route('seller.orders', ['status' => 'to-process']) }}"><i class="is-blue"></i><span>To Process</span><strong>{{ $orderStatusCounts['to-process'] }}</strong></a>
-                    <a href="{{ route('seller.orders', ['status' => 'to-prepare']) }}"><i class="is-indigo"></i><span>To Prepare</span><strong>{{ $orderStatusCounts['to-prepare'] }}</strong></a>
-                    <a href="{{ route('seller.orders', ['status' => 'ready-pickup']) }}"><i class="is-slate"></i><span>Ready Pickup</span><strong>{{ $orderStatusCounts['ready-pickup'] }}</strong></a>
+                    <a href="{{ route('seller.orders', ['status' => 'placed']) }}"><i class="is-blue"></i><span>Placed</span><strong>{{ $orderStatusCounts['placed'] }}</strong></a>
+                    <a href="{{ route('seller.orders', ['status' => 'preparing']) }}"><i class="is-indigo"></i><span>Preparing</span><strong>{{ $orderStatusCounts['preparing'] }}</strong></a>
+                    <a href="{{ route('seller.orders', ['status' => 'ready-for-pickup']) }}"><i class="is-slate"></i><span>Ready Pickup</span><strong>{{ $orderStatusCounts['ready-for-pickup'] }}</strong></a>
                     <a href="{{ route('seller.orders', ['status' => 'shipping']) }}"><i class="is-light"></i><span>In Transit</span><strong>{{ $orderStatusCounts['shipping'] }}</strong></a>
                 </div>
             </div>

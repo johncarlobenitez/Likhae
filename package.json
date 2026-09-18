@@ -17,5 +17,8 @@
     },
     "optionalDependencies": {
         "@laravel/multiplex": "0.4.2"
+    },
+    "dependencies": {
+        "@zxing/browser": "^0.2.1"
     }
 }

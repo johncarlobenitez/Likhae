@@ -40,9 +40,15 @@ class WorkspaceRoleTest extends TestCase
 
     public function test_each_role_can_access_its_own_workspace(): void
     {
-        $this->actingAs(User::factory()->create(['role' => 'logistics', 'status' => 'active']))
+        $logistics = User::factory()->create(['role' => 'logistics', 'status' => 'active']);
+        $this->actingAs($logistics)
             ->get('/logistics/dashboard')
-            ->assertOk();
+            ->assertOk()
+            ->assertDontSee('Barcode Scanner');
+
+        $this->actingAs($logistics)
+            ->get('/logistics/scanner')
+            ->assertRedirect(route('logistics.parcels.receive'));
 
         $this->actingAs(User::factory()->create(['role' => 'courier', 'status' => 'active']))
             ->get('/rider/dashboard')

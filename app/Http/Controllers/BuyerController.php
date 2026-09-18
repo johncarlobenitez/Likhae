@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Models\WishlistItem;
 use App\Models\WorkspaceNotification;
 use App\Support\BuyerMarketplace;
+use App\Services\ParcelWorkflow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,6 +29,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -61,6 +63,9 @@ class BuyerController extends Controller
         if ($request->filled('add')) {
             $product = $this->findPurchasableProduct((string) $request->input('add'));
             $variation = $this->variationFromRequest($request, $product);
+            if (! $variation && $product->variations()->exists() && ! $request->filled('variant') && ! $request->filled('color') && ! $request->filled('size')) {
+                $variation = $product->variations()->orderBy('id')->first();
+            }
             $variant = $variation ? $this->variationLabel($variation) : $this->variantFromRequest($request);
             $quantity = max(1, (int) $request->input('quantity', 1));
             $this->putInCart($request->user()->id, $product, $variant, $quantity, $variation);
@@ -97,7 +102,7 @@ class BuyerController extends Controller
         $this->authorizeCartItem($request, $item);
         $quantity = (int) $request->validate(['quantity' => ['required','integer','min:1']])['quantity'];
         $available = $item->variation
-            ? (int) $item->variation->stock
+            ? $this->availableVariationStock($item->product, $item->variation)
             : max(0, (int) $item->product->stock - (int) CartItem::where('cart_id', $item->cart_id)->where('product_id', $item->product_id)->whereNull('product_variation_id')->whereKeyNot($item->id)->sum('quantity'));
         abort_if($quantity > $available, 422, 'Requested quantity exceeds available stock for this option.');
         $item->update(['quantity' => $quantity]);
@@ -113,10 +118,55 @@ class BuyerController extends Controller
 
     public function checkout(Request $request): View|RedirectResponse
     {
-        $items = $this->cartRows($request->user()->id);
-        if ($items->isEmpty()) return redirect()->route('buyer.cart')->with('buyer_notice', 'Your cart is empty.');
+        $source = $request->filled('buy') || $request->input('checkout_source') === 'direct' ? 'direct' : 'cart';
+        $checkoutItems = $request->input('items');
+
+        if ($source === 'direct') {
+            $product = $this->findPurchasableProduct((string) $request->input('buy'));
+            $variation = $this->variationFromRequest($request, $product);
+            if (! $variation && $product->variations()->exists() && ! $request->filled('variant') && ! $request->filled('color') && ! $request->filled('size')) {
+                $variation = $product->variations()->orderBy('id')->first();
+            }
+            $variant = $variation ? $this->variationLabel($variation) : $this->variantFromRequest($request);
+            $quantity = max(1, (int) $request->input('quantity', 1));
+            $checkoutItems = json_encode([[
+                'product_id' => $product->id,
+                'product_variation_id' => $variation?->id,
+                'variant' => $variant,
+                'quantity' => $quantity,
+            ]]);
+            $items = $this->directCheckoutRows($checkoutItems);
+        } else {
+            $selectedRows = $this->selectedCartRows($checkoutItems);
+            $items = $this->cartRows($request->user()->id)
+                ->when($selectedRows !== [], fn ($rows) => $rows->whereIn('id', array_keys($selectedRows)))
+                ->map(function ($item) use ($selectedRows) {
+                    if (isset($selectedRows[$item['id']])) $item['quantity'] = $selectedRows[$item['id']];
+                    return $item;
+                })
+                ->values();
+            $checkoutItems = json_encode($items->map(fn ($item) => [
+                'id' => $item['cart_item_id'],
+                'product_id' => $item['product_id'],
+                'product_variation_id' => $item['product_variation_id'],
+                'variant' => $item['variant'],
+                'quantity' => $item['quantity'],
+            ])->values()->all());
+        }
+
+        if ($items->isEmpty()) return redirect()->route('buyer.cart')->with('buyer_notice', 'Select at least one item before checkout.');
+        $voucherCode = Str::upper(trim((string) $request->input('voucher_code', '')));
+        $voucher = null;
+        $voucherError = null;
+        if ($voucherCode !== '') {
+            try {
+                $voucher = $this->resolveVoucher($voucherCode, $this->checkoutSellerSubtotals($items));
+            } catch (ValidationException $exception) {
+                $voucherError = collect($exception->errors())->flatten()->first();
+            }
+        }
         $defaultAddress = BuyerAddress::where('buyer_id', $request->user()->id)->orderByDesc('is_default')->latest()->first();
-        return view('Buyer.checkout', compact('items', 'defaultAddress'));
+        return view('Buyer.checkout', compact('items', 'defaultAddress', 'source', 'checkoutItems', 'voucherCode', 'voucher', 'voucherError'));
     }
 
     public function storeOrder(Request $request): RedirectResponse
@@ -127,22 +177,43 @@ class BuyerController extends Controller
             'contact_number' => ['nullable','string','max:40'],
             'delivery_address' => ['nullable','string','max:1000'],
             'items' => ['nullable','string'],
+            'checkout_source' => ['nullable', Rule::in(['cart','direct'])],
+            'voucher_code' => ['nullable','string','max:40'],
         ]);
 
         $buyer = $request->user();
-        $cart = $this->buyerCart($buyer->id);
-        $selectionProvided = isset($validated['items']) && trim((string) $validated['items']) !== '';
-        $selectedRows = $this->selectedCartRows($validated['items'] ?? null);
-        abort_if($selectionProvided && $selectedRows === [], 422, 'Select at least one valid cart item.');
-        $selectedIds = array_keys($selectedRows);
-        $cartItems = CartItem::with(['product', 'variation'])->where('cart_id', $cart->id)
-            ->when($selectedIds !== [], fn ($q) => $q->whereIn('id', $selectedIds))->get();
-        if ($selectedRows !== []) {
-            $cartItems->each(function (CartItem $item) use ($selectedRows) {
-                if (isset($selectedRows[$item->id])) $item->quantity = $selectedRows[$item->id];
-            });
+        $checkoutSource = $validated['checkout_source'] ?? 'cart';
+        $cartItemIdsToDelete = collect();
+
+        if ($checkoutSource === 'direct') {
+            $cartItems = $this->directOrderItems($validated['items'] ?? null);
+        } else {
+            $cart = $this->buyerCart($buyer->id);
+            $selectionProvided = isset($validated['items']) && trim((string) $validated['items']) !== '';
+            $selectedRows = $this->selectedCartRows($validated['items'] ?? null);
+            if ($selectionProvided && $selectedRows === []) {
+                return redirect()->route('buyer.cart')->with('buyer_notice', 'Select at least one valid cart item.');
+            }
+            $selectedIds = array_keys($selectedRows);
+            $cartItems = CartItem::with(['product', 'variation'])->where('cart_id', $cart->id)
+                ->when($selectedIds !== [], fn ($q) => $q->whereIn('id', $selectedIds))->get();
+            if ($selectedRows !== []) {
+                $cartItems->each(function (CartItem $item) use ($selectedRows) {
+                    if (isset($selectedRows[$item->id])) $item->quantity = $selectedRows[$item->id];
+                });
+            }
+            $cartItemIdsToDelete = $cartItems->pluck('id');
+
+            if ($selectionProvided && $cartItems->count() !== count($selectedRows)) {
+                $snapshotItems = $this->directOrderItems($validated['items'] ?? null);
+                if ($snapshotItems->count() === count($selectedRows)) {
+                    $cartItems = $snapshotItems;
+                }
+            }
         }
-        abort_if($cartItems->isEmpty(), 422, 'Select at least one cart item.');
+        if ($cartItems->isEmpty()) {
+            return redirect()->route('buyer.cart')->with('buyer_notice', 'Your selected items are no longer available. Please select them again.');
+        }
 
         $address = trim((string) ($validated['delivery_address'] ?? ''));
         if ($address === '') {
@@ -159,8 +230,16 @@ class BuyerController extends Controller
             $address,
         ])->filter()->implode("\n");
 
-        $orders = DB::transaction(function () use ($cartItems, $buyer, $validated, $shippingSnapshot) {
+        $orders = DB::transaction(function () use ($cartItems, $cartItemIdsToDelete, $buyer, $validated, $shippingSnapshot) {
             $created = collect();
+            $voucher = null;
+            $voucherCode = Str::upper(trim((string) ($validated['voucher_code'] ?? '')));
+            if ($voucherCode !== '') {
+                $sellerSubtotals = $cartItems->groupBy(fn ($item) => $item->product->seller_id)->map(fn ($rows) => (float) $rows->sum(function ($item) {
+                    return (float) ($item->variation?->price ?? $item->product->price) * $item->quantity;
+                }));
+                $voucher = $this->resolveVoucher($voucherCode, $sellerSubtotals, true);
+            }
             foreach ($cartItems->groupBy(fn ($item) => $item->product->seller_id) as $sellerId => $sellerItems) {
                 $locked = Product::whereIn('id', $sellerItems->pluck('product_id')->unique())->lockForUpdate()->get()->keyBy('id');
                 $lockedVariations = ProductVariation::whereIn('id', $sellerItems->pluck('product_variation_id')->filter()->unique())->lockForUpdate()->get()->keyBy('id');
@@ -174,7 +253,7 @@ class BuyerController extends Controller
                     $variation = $lockedVariations->get((int) $variationId);
                     $product = $variation ? $locked->get($variation->product_id) : null;
                     $required = (int) $rows->sum('quantity');
-                    abort_if(! $variation || ! $product || $variation->stock < $required, 422, ($product?->name ?: 'A product').' no longer has enough stock for the selected option.');
+                    abort_if(! $variation || ! $product || $this->availableVariationStock($product, $variation) < $required, 422, ($product?->name ?: 'A product').' no longer has enough stock for the selected option.');
                     $this->guardPurchasable($product);
                 }
 
@@ -182,14 +261,18 @@ class BuyerController extends Controller
                     $variation = $item->product_variation_id ? $lockedVariations->get($item->product_variation_id) : null;
                     return (float) ($variation?->price ?? $locked[$item->product_id]->price) * $item->quantity;
                 });
+                $discount = $voucher && (int) $voucher['campaign']->seller_id === (int) $sellerId
+                    ? $this->voucherDiscount($voucher['campaign'], $subtotal)
+                    : 0.0;
+                $orderTotal = max(0, round($subtotal - $discount, 2));
                 $order = Order::create([
                     'order_number' => $this->orderNumber(),
                     'buyer_id' => $buyer->id,
                     'seller_id' => (int) $sellerId,
-                    'total_amount' => $subtotal,
+                    'total_amount' => $orderTotal,
                     'payment_method' => $validated['payment_method'],
                     'payment_status' => 'pending',
-                    'status' => 'to_process',
+                    'status' => 'placed',
                     'shipping_address' => $shippingSnapshot,
                 ]);
 
@@ -207,7 +290,7 @@ class BuyerController extends Controller
                         'unit_price' => $unitPrice,
                         'subtotal' => $lineTotal,
                     ]);
-                    if ($cartItem->product_variation_id) {
+                    if ($cartItem->product_variation_id && $variation && $variation->stock !== null) {
                         $lockedVariations[$cartItem->product_variation_id]->decrement('stock', $cartItem->quantity);
                     }
                     $product->decrement('stock', $cartItem->quantity);
@@ -217,7 +300,7 @@ class BuyerController extends Controller
                     'transaction_number' => $this->transactionNumber(),
                     'order_id' => $order->id,
                     'buyer_id' => $buyer->id,
-                    'amount' => $subtotal,
+                    'amount' => $orderTotal,
                     'method' => $validated['payment_method'],
                     'status' => 'pending',
                 ]);
@@ -230,7 +313,8 @@ class BuyerController extends Controller
                 ]);
                 $created->push($order);
             }
-            CartItem::whereIn('id', $cartItems->pluck('id'))->delete();
+            if ($voucher) $voucher['campaign']->increment('uses');
+            if ($cartItemIdsToDelete->isNotEmpty()) CartItem::whereIn('id', $cartItemIdsToDelete)->delete();
             return $created;
         }, 3);
 
@@ -239,7 +323,7 @@ class BuyerController extends Controller
 
     public function orders(Request $request, string $mode = 'index', ?string $id = null): View
     {
-        $orders = Order::with(['items.product','seller','buyer','delivery'])->where('buyer_id', $request->user()->id)->latest()->get();
+        $orders = Order::with(['items.product','seller','buyer','delivery.statusHistory'])->where('buyer_id', $request->user()->id)->latest()->get();
         if ($id !== null && in_array($mode, ['show', 'return', 'review'], true)) {
             abort_unless($orders->contains(fn (Order $order) => $order->order_number === $id || (string) $order->id === (string) $id), 404);
         }
@@ -255,7 +339,7 @@ class BuyerController extends Controller
     {
         $validated = $request->validate(['order_id' => ['required','string'], 'reason' => ['required','string','max:255'], 'note' => ['nullable','string','max:1000']]);
         $order = $this->buyerOrder($request, $validated['order_id']);
-        abort_unless(in_array($order->status, ['pending','to_process'], true), 422, 'This order can no longer be cancelled.');
+        abort_unless(in_array($order->status, ['pending','to_process','placed','confirmed','preparing'], true), 422, 'This order can no longer be cancelled.');
         DB::transaction(function () use ($order) {
             $order->load('items.product');
             foreach ($order->items as $item) if ($item->product_id) Product::whereKey($item->product_id)->increment('stock', $item->quantity);
@@ -269,11 +353,20 @@ class BuyerController extends Controller
     public function received(Request $request, string $id): RedirectResponse
     {
         $order = $this->buyerOrder($request, $id)->load('delivery');
-        abort_unless($order->delivery?->status === 'delivered' || in_array($order->status, ['shipping','shipped'], true), 422, 'This order is not ready for receipt confirmation.');
-        $order->update(['status' => 'completed', 'payment_status' => 'paid']);
-        $order->transaction?->update(['status' => 'paid']);
-        WorkspaceNotification::create(['user_id'=>$order->seller_id,'type'=>'orders','title'=>'Order completed','body'=>"Buyer confirmed receipt of {$order->order_number}.",'action_url'=>route('seller.orders',['order'=>$order->order_number], false)]);
-        return redirect()->route('buyer.orders.show', ['id' => $order->order_number])->with('buyer_notice', 'Order received and completed.');
+        if ($order->status === 'completed') {
+            return redirect()->route('buyer.orders.show', ['id' => $order->order_number])->with('buyer_notice', 'This order was already completed.');
+        }
+        abort_unless($order->delivery?->status === 'delivered', 422, 'This order is not ready for receipt confirmation.');
+
+        DB::transaction(function () use ($order, $request) {
+            $order->update(['status' => 'completed', 'payment_status' => 'paid']);
+            $order->transaction?->update(['status' => 'paid']);
+            app(ParcelWorkflow::class)->transition($order->delivery, 'completed', $request->user(), 'Buyer confirmed the parcel was received.');
+            WorkspaceNotification::create(['user_id'=>$order->seller_id,'type'=>'orders','title'=>'Order completed','body'=>"Buyer confirmed receipt of {$order->order_number}.",'action_url'=>route('seller.orders',['order'=>$order->order_number], false)]);
+        }, 3);
+
+        return redirect()->route('buyer.orders.review', ['id' => $order->order_number])
+            ->with('buyer_notice', 'Order received and completed. You can now review the product.');
     }
 
     public function review(Request $request, string $id): RedirectResponse
@@ -581,13 +674,61 @@ class BuyerController extends Controller
     private function marketplaceProducts(): Collection { return $this->marketplaceQuery()->latest()->get()->map(fn(Product $p)=>BuyerMarketplace::product($p)); }
     private function marketplaceQuery() { return Product::query()->with(['seller','category.parent','variations','images','specifications','reviews.buyer','orderItems.order'])->where('stock','>',0)->where(fn($q)=>$q->where('listing_status','active')->orWhere(fn($x)=>$x->whereNull('listing_status')->where('status','active')))->where(fn($q)=>$q->whereNull('admin_status')->orWhere('admin_status','approved'))->whereHas('seller',fn($q)=>$q->where('role','seller')->where('status','active'))->whereNotExists(function($q){ $q->selectRaw('1')->from('seller_profiles')->whereColumn('seller_profiles.seller_id','products.seller_id')->where(function($p){ $p->where('seller_profiles.store_visibility',false)->orWhere('seller_profiles.vacation_mode',true); }); }); }
     private function buyerCart(int $buyerId): Cart { return Cart::firstOrCreate(['buyer_id'=>$buyerId]); }
-    private function cartRows(int $buyerId): Collection { $cart=$this->buyerCart($buyerId); return CartItem::with(['variation','product.seller','product.category','product.variations','product.images','product.specifications'])->where('cart_id',$cart->id)->get()->filter(fn($i)=>$i->product)->map(function($i){ $p=BuyerMarketplace::product($i->product); $price=(float)($i->variation?->price ?? $i->product->price); return $p+['cart_item_id'=>$i->id,'id'=>$i->id,'product_id'=>$i->product_id,'quantity'=>(int)$i->quantity,'variant'=>$i->variant,'price'=>$price,'old_price'=>$price,'stock'=>$i->variation ? (int)$i->variation->stock : (int)$i->product->stock]; }); }
-    private function putInCart(int $buyerId, Product $product, string $variant, int $quantity, ?ProductVariation $variation = null): void { $this->guardPurchasable($product); abort_if(! $variation && $product->variations()->exists(),422,'Choose a product option before adding this item to cart.'); $cart=$this->buyerCart($buyerId); $variant=trim($variant) ?: 'Standard'; abort_if($variation && $variation->product_id !== $product->id,422,'Selected product option is invalid.'); $lookup=['cart_id'=>$cart->id,'product_id'=>$product->id,'product_variation_id'=>$variation?->id]; if(! $variation) $lookup['variant']=$variant; $item=CartItem::firstOrNew($lookup); $available=$variation ? (int)$variation->stock : max(0,(int)$product->stock-(int)CartItem::where('cart_id',$cart->id)->where('product_id',$product->id)->whereNull('product_variation_id')->where('variant','!=',$variant)->sum('quantity')); $new=min($available,($item->exists?(int)$item->quantity:0)+$quantity); abort_if($new<1,422,'Product is out of stock for the selected option.'); $item->variant=$variant; $item->quantity=$new; $item->save(); }
+    private function cartRows(int $buyerId): Collection { $cart=$this->buyerCart($buyerId); return CartItem::with(['variation','product.seller','product.category','product.variations','product.images','product.specifications'])->where('cart_id',$cart->id)->get()->filter(fn($i)=>$i->product)->map(function($i){ $p=BuyerMarketplace::product($i->product); $price=(float)($i->variation?->price ?? $i->product->price); return $p+['cart_item_id'=>$i->id,'id'=>$i->id,'product_id'=>$i->product_id,'product_variation_id'=>$i->product_variation_id,'quantity'=>(int)$i->quantity,'variant'=>$i->variant,'price'=>$price,'old_price'=>$price,'stock'=>$i->variation ? (int)$i->variation->stock : (int)$i->product->stock]; }); }
+    private function directCheckoutRows(?string $json): Collection { return $this->directOrderItems($json)->map(function(CartItem $i){ $p=BuyerMarketplace::product($i->product); $price=(float)($i->variation?->price ?? $i->product->price); return $p+['id'=>'direct-'.$i->product_id.'-'.($i->product_variation_id ?: 'standard'),'product_id'=>$i->product_id,'quantity'=>(int)$i->quantity,'variant'=>$i->variant,'price'=>$price,'old_price'=>$price,'stock'=>$i->variation ? (int)$i->variation->stock : (int)$i->product->stock]; }); }
+    private function directOrderItems(?string $json): Collection { $rows=json_decode((string)$json,true); if(!is_array($rows))return collect(); $productIds=collect($rows)->pluck('product_id')->filter(fn($id)=>ctype_digit((string)$id))->map(fn($id)=>(int)$id)->unique(); $variationIds=collect($rows)->pluck('product_variation_id')->filter(fn($id)=>ctype_digit((string)$id))->map(fn($id)=>(int)$id)->unique(); $products=$this->marketplaceQuery()->whereIn('products.id',$productIds)->get()->keyBy('id'); $variations=ProductVariation::whereIn('id',$variationIds)->get()->keyBy('id'); return collect($rows)->map(function($row) use ($products,$variations){ $product=$products->get((int)($row['product_id']??0)); if(!$product)return null; $variationId=(int)($row['product_variation_id']??0); $variation=$variationId ? $variations->get($variationId) : null; if($variation && $variation->product_id !== $product->id)return null; $variant=$variation ? $this->variationLabel($variation) : (trim((string)($row['variant']??'')) ?: 'Standard'); $quantity=max(1,(int)($row['quantity']??1)); $available=$variation ? $this->availableVariationStock($product,$variation) : (int)$product->stock; if($available < $quantity)return null; $item=new CartItem(['product_id'=>$product->id,'product_variation_id'=>$variation?->id,'variant'=>$variant,'quantity'=>$quantity]); $item->setRelation('product',$product); $item->setRelation('variation',$variation); return $item; })->filter()->values(); }
+
+    private function checkoutSellerSubtotals(Collection $items): Collection
+    {
+        return $items->groupBy(fn ($item) => (int) data_get($item, 'seller_id'))
+            ->map(fn ($rows) => (float) $rows->sum(fn ($item) => (float) data_get($item, 'price', 0) * max(1, (int) data_get($item, 'quantity', 1))));
+    }
+
+    private function resolveVoucher(string $code, Collection $sellerSubtotals, bool $lock = false): array
+    {
+        $query = SellerCampaign::with('seller')
+            ->where('type', 'voucher')
+            ->whereIn('seller_id', $sellerSubtotals->keys()->filter())
+            ->whereRaw('LOWER(code) = ?', [Str::lower($code)]);
+        if ($lock) $query->lockForUpdate();
+        $campaigns = $query->get();
+
+        $campaign = $campaigns->first(function (SellerCampaign $candidate) use ($sellerSubtotals) {
+            $subtotal = (float) $sellerSubtotals->get($candidate->seller_id, 0);
+            return $candidate->status === 'active'
+                && (! $candidate->starts_at || $candidate->starts_at->lte(now()))
+                && (! $candidate->ends_at || $candidate->ends_at->gte(now()))
+                && (! $candidate->usage_limit || $candidate->uses < $candidate->usage_limit)
+                && $subtotal >= (float) $candidate->minimum_spend;
+        });
+
+        if (! $campaign) {
+            throw ValidationException::withMessages(['voucher_code' => 'This voucher is invalid, expired, fully used, or does not meet the seller minimum spend.']);
+        }
+
+        $sellerSubtotal = (float) $sellerSubtotals->get($campaign->seller_id, 0);
+        return [
+            'campaign' => $campaign,
+            'discount' => $this->voucherDiscount($campaign, $sellerSubtotal),
+            'seller_subtotal' => $sellerSubtotal,
+        ];
+    }
+
+    private function voucherDiscount(SellerCampaign $campaign, float $subtotal): float
+    {
+        $discount = $campaign->discount_type === 'percent'
+            ? $subtotal * ((float) $campaign->discount_value / 100)
+            : (float) $campaign->discount_value;
+
+        return round(min($subtotal, max(0, $discount)), 2);
+    }
+    private function putInCart(int $buyerId, Product $product, string $variant, int $quantity, ?ProductVariation $variation = null): void { $this->guardPurchasable($product); abort_if(! $variation && $product->variations()->exists(),422,'Choose a product option before adding this item to cart.'); $cart=$this->buyerCart($buyerId); $variant=trim($variant) ?: 'Standard'; abort_if($variation && $variation->product_id !== $product->id,422,'Selected product option is invalid.'); $lookup=['cart_id'=>$cart->id,'product_id'=>$product->id,'product_variation_id'=>$variation?->id]; if(! $variation) $lookup['variant']=$variant; $item=CartItem::firstOrNew($lookup); $available=$variation ? $this->availableVariationStock($product,$variation) : max(0,(int)$product->stock-(int)CartItem::where('cart_id',$cart->id)->where('product_id',$product->id)->whereNull('product_variation_id')->where('variant','!=',$variant)->sum('quantity')); $new=min($available,($item->exists?(int)$item->quantity:0)+$quantity); abort_if($new<1,422,'Product is out of stock for the selected option.'); $item->variant=$variant; $item->quantity=$new; $item->save(); }
     private function findPurchasableProduct(string $id): Product { $q=$this->marketplaceQuery(); return ctype_digit($id)?$q->whereKey((int)$id)->firstOrFail():$q->where('slug',$id)->firstOrFail(); }
     private function guardPurchasable(Product $product): void { $profile=SellerProfile::where('seller_id',$product->seller_id)->first(); abort_if($product->stock<1 || !in_array($product->listing_status ?: $product->status,['active'],true) || ($product->admin_status && $product->admin_status!=='approved') || $profile?->store_visibility===false || $profile?->vacation_mode===true,422,'This product is not currently available for ordering.'); }
     private function variantFromRequest(Request $r): string { return trim(implode(' / ',array_filter([(string)$r->input('color'),(string)$r->input('size'),(string)$r->input('variant')]))) ?: 'Standard'; }
     private function variationFromRequest(Request $request, Product $product): ?ProductVariation { $id=$request->input('product_variation_id'); if(! $id) return null; $variation=ProductVariation::where('product_id',$product->id)->whereKey((int)$id)->first(); abort_unless($variation,422,'Selected product option is invalid.'); return $variation; }
     private function variationLabel(ProductVariation $variation): string { return trim($variation->name.': '.$variation->value) ?: 'Standard'; }
+    private function availableVariationStock(Product $product, ProductVariation $variation): int { return $variation->stock === null ? (int) $product->stock : (int) $variation->stock; }
     private function selectedCartRows(?string $json): array { if(!$json)return []; $rows=json_decode($json,true); if(!is_array($rows))return []; $out=[]; foreach($rows as $row){ $id=(string)($row['id']??''); if(!ctype_digit($id))continue; $out[(int)$id]=max(1,(int)($row['quantity']??1)); } return $out; }
     private function authorizeCartItem(Request $request, CartItem $item): void { abort_unless($item->cart?->buyer_id === $request->user()->id,403); }
     private function buyerOrder(Request $request,string $id): Order { return Order::with('transaction')->where('buyer_id',$request->user()->id)->where(function($q) use ($id){ $q->where('order_number',$id); if(ctype_digit($id)) $q->orWhere('id',(int)$id); })->firstOrFail(); }

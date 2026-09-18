@@ -19,6 +19,23 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+
+        View::composer(['components.admin.sidebar', 'components.admin.header'], function ($view) {
+            $admin = auth()->user();
+            $counts = ['messages' => 0, 'notifications' => 0];
+
+            if ($admin?->role === 'admin') {
+                if (Schema::hasTable('messages')) {
+                    $counts['messages'] = Message::where('recipient_id', $admin->id)->whereNull('read_at')->count();
+                }
+                if (Schema::hasTable('workspace_notifications')) {
+                    $counts['notifications'] = WorkspaceNotification::where('user_id', $admin->id)->whereNull('read_at')->count();
+                }
+            }
+
+            $view->with('adminUiCounts', $counts);
+        });
+
         View::composer(['components.seller.sidebar', 'components.seller.header'], function ($view) {
             $seller = auth()->user();
             $counts = [

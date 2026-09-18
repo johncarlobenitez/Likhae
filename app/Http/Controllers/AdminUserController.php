@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\AdminAuditLog;
+use App\Models\WorkspaceNotification;
 use App\Models\UserStatusChange;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -102,6 +104,22 @@ class AdminUserController extends Controller
             UserStatusChange::create([
                 'user_id' => $account->id, 'changed_by' => $request->user()->id,
                 'previous_status' => $previousStatus, 'status' => $status, 'reason' => $validated['reason'],
+            ]);
+
+            WorkspaceNotification::create([
+                'user_id' => $account->id,
+                'type' => 'system',
+                'title' => $status === 'active' ? 'Account reactivated' : 'Account suspended',
+                'body' => $validated['reason'],
+            ]);
+
+            AdminAuditLog::create([
+                'actor_id' => $request->user()->id,
+                'action' => 'user.'.$status,
+                'target_type' => 'User',
+                'target_id' => $account->id,
+                'description' => $validated['reason'],
+                'ip_address' => $request->ip(),
             ]);
         });
 

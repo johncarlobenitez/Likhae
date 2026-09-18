@@ -17,6 +17,7 @@ class PhilippineAddressApiTest extends TestCase
         config([
             'services.psgc.token' => 'fake-token',
             'services.psgc.version' => 'Q2_2024',
+            'services.psgc.local_first' => false,
         ]);
     }
 
@@ -157,9 +158,46 @@ class PhilippineAddressApiTest extends TestCase
             ]);
     }
 
+    public function test_local_address_data_is_used_when_both_remote_providers_are_unavailable(): void
+    {
+        Http::fake(fn () => Http::response(['message' => 'Service unavailable'], 503));
+
+        $this->getJson('/address/philippines/regions')
+            ->assertOk()
+            ->assertJsonFragment([
+                'code' => '0400000000',
+                'name' => 'Region IV-A (CALABARZON)',
+            ]);
+    }
+
+    public function test_production_local_first_mode_does_not_require_an_http_provider(): void
+    {
+        config(['services.psgc.local_first' => true]);
+        Http::preventStrayRequests();
+
+        $this->getJson('/address/philippines/regions')
+            ->assertOk()
+            ->assertJsonFragment(['code' => '0400000000']);
+        $this->getJson('/address/philippines/regions/0400000000/provinces')
+            ->assertOk()
+            ->assertJsonFragment(['code' => '0403400000', 'name' => 'Laguna']);
+        $municipalities = $this->getJson('/address/philippines/provinces/0403400000/municipalities')
+            ->assertOk()
+            ->json();
+        $this->assertContains(
+            ['code' => '0403424000', 'name' => 'City of San Pablo', 'prv' => 34, 'mun' => 24, 'level' => 'City'],
+            $municipalities
+        );
+        $this->getJson('/address/philippines/municipalities/0403424000/barangays')
+            ->assertOk()
+            ->assertJsonFragment(['code' => '0403424001', 'name' => 'Bagong Bayan II-A']);
+
+        Http::assertNothingSent();
+    }
+
     public function test_postal_code_is_resolved_from_selected_location(): void
     {
-        $this->getJson('/address/philippines/postal-code?province=0403400000&municipality=0403429000&province_name=Laguna&municipality_name=City%20of%20San%20Pablo')
+        $this->getJson('/address/philippines/postal-code?province=0403400000&municipality=0403424000&province_name=Laguna&municipality_name=City%20of%20San%20Pablo')
             ->assertOk()
             ->assertJson([
                 'postal_code' => '4000',

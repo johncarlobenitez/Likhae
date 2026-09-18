@@ -154,10 +154,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const productPurchaseUrl = (scope, button, buyNow) => {
         const variation = selectedVariation(scope);
         const quantity = one('[data-quantity-input]', scope)?.value || 1;
-        const query = new URLSearchParams({ add: button.dataset.productSlug, variant: variation?.value || '', quantity });
+        const query = new URLSearchParams({ [buyNow ? 'buy' : 'add']: button.dataset.productSlug, variant: variation?.value || '', quantity });
         if (variation?.id) query.set('product_variation_id', variation.id);
-        if (buyNow) query.set('checkout', '1');
-        return `/buyer/cart?${query}`;
+        return `/buyer/${buyNow ? 'checkout' : 'cart'}?${query}`;
     };
 
     all('[data-test-add-cart], [data-test-buy-now]').forEach((button) => button.addEventListener('click', (event) => {

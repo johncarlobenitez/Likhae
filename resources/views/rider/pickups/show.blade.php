@@ -28,18 +28,28 @@
         <article class="rounded-3xl border border-line bg-surface p-8">
             <h2 class="text-lg font-bold text-ink">Pickup Actions</h2>
             <div class="mt-5 grid gap-3">
-                @if($pickup['status'] === 'REQUESTED')
+                @if($pickup['status'] === 'PICKUP_ASSIGNED')
                     <form method="POST" action="{{ route('rider.pickups.accept', $pickup['id']) }}">@csrf<button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Accept Pickup</button></form>
                 @endif
                 @if($pickup['status'] === 'PICKUP_ACCEPTED')
-                    <form method="POST" action="{{ route('rider.pickups.confirm', $pickup['id']) }}">@csrf<button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Scan / Confirm Parcel Pickup</button></form>
+                    @if($verified)
+                        <div class="border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800">Parcel Verified: {{ $delivery->tracking_number }}</div>
+                        <form method="POST" action="{{ route('rider.pickups.confirm', $pickup['id']) }}">@csrf<input type="hidden" name="tracking" value="{{ $delivery->tracking_number }}"><button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Confirm Parcel Collected</button></form>
+                    @else
+                        <p class="text-sm text-muted">Scan and verify the seller's waybill below before confirming collection.</p>
+                    @endif
                 @endif
                 @if($pickup['status'] === 'PICKED_UP')
-                    <form method="POST" action="{{ route('rider.pickups.sorting-center', $pickup['id']) }}">@csrf<button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Deliver To Sorting Center</button></form>
+                    <form method="POST" action="{{ route('rider.pickups.sorting-center', $pickup['id']) }}">@csrf<button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Report Arrival At Sorting Center</button></form>
                 @endif
                 <a href="{{ route('rider.pickups') }}" class="rounded-xl border border-line px-5 py-3 text-center text-sm font-semibold text-ink">Back To Pickups</a>
             </div>
         </article>
     </section>
+
+    @if($pickup['status'] === 'PICKUP_ACCEPTED')
+        <x-parcel-scanner :action="route('rider.pickups.show', $delivery)" :tracking="request('tracking', '')" title="Scan Parcel At Seller" description="The tracking code must match this pickup assignment. Scanning alone does not mark the parcel picked up." button="Verify Parcel" />
+        @if(request()->filled('tracking') && !$verified)<div class="border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">The scanned tracking number does not match this pickup assignment.</div>@endif
+    @endif
 </div>
 @endsection

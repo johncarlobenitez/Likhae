@@ -76,17 +76,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.setTimeout(() => toast.remove(), 3200);
     };
 
-    all('[data-demo-action]').forEach((button) => {
-        button.addEventListener('click', () => showToast(button.dataset.demoAction));
-    });
-
-    all('[data-demo-form]').forEach((form) => {
-        form.addEventListener('submit', (event) => {
-            event.preventDefault();
-            showToast(form.dataset.successMessage || 'Changes saved for this frontend preview.');
-        });
-    });
-
     const dialog = one('[data-confirm-dialog]');
     let pendingAction = null;
     all('[data-confirm-action]').forEach((button) => {

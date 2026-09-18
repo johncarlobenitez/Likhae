@@ -45,12 +45,6 @@
                     <div class="flex flex-wrap items-center gap-3">
                         <span class="rounded-full bg-primary-soft px-4 py-2 text-xs font-semibold text-primary">{{ $delivery['status_label'] }}</span>
                         <a href="{{ route('rider.deliveries.show', $delivery['id']) }}" class="rounded-xl border border-line px-5 py-3 text-sm font-semibold text-ink hover:bg-page-secondary">View</a>
-                        @if($delivery['status'] === 'ASSIGNED')
-                            <form method="POST" action="{{ route('rider.deliveries.pickup-sorting', $delivery['id']) }}">
-                                @csrf
-                                <button class="rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Pickup From Sorting</button>
-                            </form>
-                        @endif
                     </div>
                 </article>
             @empty

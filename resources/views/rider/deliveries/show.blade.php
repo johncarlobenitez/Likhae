@@ -31,8 +31,18 @@
         <article class="rounded-3xl border border-line bg-surface p-8">
             <h2 class="text-lg font-bold text-ink">Delivery Actions</h2>
             <div class="mt-5 grid gap-3">
-                @if($parcel['status'] === 'ASSIGNED')
-                    <form method="POST" action="{{ route('rider.deliveries.pickup-sorting', $parcel['id']) }}">@csrf<button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Pickup From Sorting Center</button></form>
+                @if($parcel['status'] === 'ASSIGNED_TO_RIDER')
+                    @php $finalAssignment = $delivery->assignments->firstWhere('assignment_type', 'final_delivery'); @endphp
+                    @if($finalAssignment?->status === 'assigned')
+                        <form method="POST" action="{{ route('rider.deliveries.accept', $delivery) }}">@csrf<button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Accept Delivery Assignment</button></form>
+                    @elseif(!$released)
+                        <div class="border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">Waiting for Logistics to scan and authorize parcel release.</div>
+                    @elseif($verified)
+                        <div class="border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800">Parcel and final assignment verified.</div>
+                        <form method="POST" action="{{ route('rider.deliveries.pickup-sorting', $parcel['id']) }}">@csrf<input type="hidden" name="tracking" value="{{ $delivery->tracking_number }}"><button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Confirm Collection From Logistics</button></form>
+                    @else
+                        <p class="text-sm text-muted">Logistics authorized release. Scan the parcel below to confirm your final-delivery assignment.</p>
+                    @endif
                 @endif
                 @if($parcel['status'] === 'OUT_FOR_DELIVERY')
                     <form method="POST" action="{{ route('rider.deliveries.delivered', $parcel['id']) }}">@csrf<button class="w-full rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white">Mark Delivered</button></form>
@@ -47,5 +57,10 @@
             </div>
         </article>
     </section>
+
+    @if($parcel['status'] === 'ASSIGNED_TO_RIDER' && $released && $finalAssignment?->status === 'accepted')
+        <x-parcel-scanner :action="route('rider.deliveries.show', $delivery)" :tracking="request('tracking', '')" title="Scan Parcel At Logistics" description="Verify this is your assigned final-delivery parcel before collecting it." button="Verify Parcel" />
+        @if(request()->filled('tracking') && !$verified)<div class="border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">The scanned tracking number does not match this delivery assignment.</div>@endif
+    @endif
 </div>
 @endsection

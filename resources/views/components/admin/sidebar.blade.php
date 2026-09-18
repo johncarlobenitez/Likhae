@@ -20,8 +20,8 @@
     $avatar = data_get($admin, 'profile_photo_url')
         ?? data_get($admin, 'avatar_url');
 
-    $notificationCount = $notificationCount
-        ?? session('admin_notification_count', 0);
+    $adminUiCounts = $adminUiCounts ?? ['messages' => 0, 'notifications' => 0];
+    $notificationCount = $notificationCount ?? ($adminUiCounts['notifications'] ?? 0);
 
     $icons = [
         'dashboard' => '
@@ -166,7 +166,7 @@
                 ],
                 [
                     'key' => 'complaints',
-                    'label' => 'Complaints & Disputes',
+                    'label' => 'Refunds & Disputes',
                     'route' => 'admin.complaints',
                     'icon' => 'complaints',
                     'active' => [

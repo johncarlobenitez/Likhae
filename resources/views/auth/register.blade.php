@@ -577,7 +577,7 @@
                                     id="first_name"
                                     name="first_name"
                                     type="text"
-                                    value="{{ old('first_name') }}"
+                                    value="{{ old('first_name', data_get($googleBuyerRegistration ?? null, 'first_name')) }}"
                                     placeholder="Juan"
                                     autocomplete="given-name"
                                     required
@@ -618,7 +618,7 @@
                                     id="last_name"
                                     name="last_name"
                                     type="text"
-                                    value="{{ old('last_name') }}"
+                                    value="{{ old('last_name', data_get($googleBuyerRegistration ?? null, 'last_name')) }}"
                                     placeholder="Dela Cruz"
                                     autocomplete="family-name"
                                     required
@@ -763,7 +763,8 @@
                                     id="email"
                                     name="email"
                                     type="email"
-                                    value="{{ old('email') }}"
+                                    value="{{ old('email', data_get($googleBuyerRegistration ?? null, 'email')) }}"
+                                    @if(!empty($googleBuyerRegistration)) readonly @endif
                                     placeholder="juan@email.com"
                                     autocomplete="email"
                                     required
@@ -849,7 +850,8 @@
                             {{-- REGION --}}
                             <div class="register-field register-field--full">
                                 <label for="region">Region <span>*</span></label>
-                                <select id="region" name="region" required data-address-region data-old-value="{{ old('region') }}">
+                                <input type="hidden" name="region_code" value="{{ old('region_code') }}" data-address-region-code>
+                                <select id="region" name="region" required data-address-region data-old-value="{{ old('region') }}" data-old-code="{{ old('region_code') }}">
                                     <option value="">Loading regions…</option>
                                 </select>
                             </div>
@@ -857,7 +859,8 @@
                             {{-- PROVINCE --}}
                             <div class="register-field">
                                 <label for="province">Province <span>*</span></label>
-                                <select id="province" name="province" required disabled data-address-province data-old-value="{{ old('province') }}">
+                                <input type="hidden" name="province_code" value="{{ old('province_code') }}" data-address-province-code>
+                                <select id="province" name="province" required disabled data-address-province data-old-value="{{ old('province') }}" data-old-code="{{ old('province_code') }}">
                                     <option value="">Select province</option>
                                 </select>
                             </div>
@@ -865,7 +868,8 @@
                             {{-- MUNICIPALITY --}}
                             <div class="register-field">
                                 <label for="municipality">Municipality / City <span>*</span></label>
-                                <select id="municipality" name="municipality" required disabled data-address-municipality data-old-value="{{ old('municipality') }}">
+                                <input type="hidden" name="municipality_code" value="{{ old('municipality_code') }}" data-address-municipality-code>
+                                <select id="municipality" name="municipality" required disabled data-address-municipality data-old-value="{{ old('municipality') }}" data-old-code="{{ old('municipality_code') }}">
                                     <option value="">Select municipality / city</option>
                                 </select>
                             </div>
@@ -873,7 +877,8 @@
                             {{-- BARANGAY --}}
                             <div class="register-field">
                                 <label for="barangay">Barangay <span>*</span></label>
-                                <select id="barangay" name="barangay" required disabled data-address-barangay data-old-value="{{ old('barangay') }}">
+                                <input type="hidden" name="barangay_code" value="{{ old('barangay_code') }}" data-address-barangay-code>
+                                <select id="barangay" name="barangay" required disabled data-address-barangay data-old-value="{{ old('barangay') }}" data-old-code="{{ old('barangay_code') }}">
                                     <option value="">Select barangay</option>
                                 </select>
                             </div>

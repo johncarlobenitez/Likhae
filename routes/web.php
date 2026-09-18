@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthenticationController;
 use App\Http\Controllers\GuestMarketplaceController;
+use App\Http\Controllers\GoogleAuthenticationController;
 use App\Http\Controllers\PhilippineAddressController;
 use App\Http\Controllers\RegistrationController;
 use App\Models\Category;
@@ -64,15 +65,7 @@ Route::post('/login', [AuthenticationController::class, 'store'])->middleware(['
 |
 */
 
-Route::get('/register', function (Request $request) {
-    return view('auth.register', [
-        'preselectedRole' => $request->query('role', 'buyer'),
-        'sellerLineOfBusinessCategories' => Category::whereNull('parent_id')
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->get(),
-    ]);
-})->middleware('guest')->name('register');
+Route::get('/register', [RegistrationController::class, 'create'])->middleware('guest')->name('register');
 
 Route::get('/registration/pending', function (Request $request) {
     return view('auth.pending', ['accountType' => $request->query('type', 'LIKHAE')]);
@@ -120,18 +113,10 @@ Route::prefix('address/philippines')
 
 Route::post('/logout', [AuthenticationController::class, 'destroy'])->name('logout');
 
-/*
-|--------------------------------------------------------------------------
-| Social Login Placeholder
-|--------------------------------------------------------------------------
-*/
-
-Route::get('/auth/google', function () {
-    return back()->with(
-        'status',
-        'Google login is not available yet.'
-    );
-})->name('google.placeholder');
+Route::get('/auth/google', [GoogleAuthenticationController::class, 'redirect'])
+    ->middleware('guest')->name('google.redirect');
+Route::get('/auth/google/callback', [GoogleAuthenticationController::class, 'callback'])
+    ->middleware('guest')->name('google.callback');
 
 /*
 |--------------------------------------------------------------------------

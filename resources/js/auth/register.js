@@ -1361,9 +1361,9 @@ document.addEventListener('DOMContentLoaded', () => {
             '[data-address-region]'
         );
 
-    const oldRegion =
-        region?.dataset.oldValue
-        ?? '';
+    const oldRegion = region?.dataset.oldValue ?? '';
+    const oldRegionCode = region?.dataset.oldCode ?? '';
+    const regionCode = document.querySelector('[data-address-region-code]');
 
     const province =
         document.querySelector(
@@ -1387,17 +1387,17 @@ document.addEventListener('DOMContentLoaded', () => {
             '[data-address-postal]'
         );
 
-    const oldProvince =
-        province?.dataset.oldValue
-        ?? '';
+    const oldProvince = province?.dataset.oldValue ?? '';
+    const oldProvinceCode = province?.dataset.oldCode ?? '';
+    const provinceCode = document.querySelector('[data-address-province-code]');
 
-    const oldMunicipality =
-        municipality?.dataset.oldValue
-        ?? '';
+    const oldMunicipality = municipality?.dataset.oldValue ?? '';
+    const oldMunicipalityCode = municipality?.dataset.oldCode ?? '';
+    const municipalityCode = document.querySelector('[data-address-municipality-code]');
 
-    const oldBarangay =
-        barangay?.dataset.oldValue
-        ?? '';
+    const oldBarangay = barangay?.dataset.oldValue ?? '';
+    const oldBarangayCode = barangay?.dataset.oldCode ?? '';
+    const barangayCode = document.querySelector('[data-address-barangay-code]');
 
     const oldPostalCode =
         postalCode?.dataset.oldValue
@@ -1501,28 +1501,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     );
 
 
-                const value =
-                    record.code
-                    ??
-                    record.id
-                    ??
-                    record.value
-                    ??
-                    record.name;
+                const code = record.code ?? record.id ?? record.value ?? '';
+                const label = record.name ?? record.label ?? record.description ?? code;
 
-
-                const label =
-                    record.name
-                    ??
-                    record.label
-                    ??
-                    record.description
-                    ??
-                    value;
-
-
-                option.value =
-                    value;
+                option.value = label;
+                option.dataset.code = code;
 
 
                 option.textContent =
@@ -1641,20 +1624,20 @@ document.addEventListener('DOMContentLoaded', () => {
         'change',
         async () => {
 
-            resetSelect(
-                province,
-                'Select province'
-            );
+            resetSelect(province, 'Select province');
+            if (regionCode) regionCode.value = region.selectedOptions[0]?.dataset.code ?? '';
+            if (provinceCode) provinceCode.value = '';
+            if (municipalityCode) municipalityCode.value = '';
+            if (barangayCode) barangayCode.value = '';
 
-            resetSelect(
-                municipality,
-                'Select municipality / city'
-            );
+            resetSelect(municipality, 'Select municipality / city');
+            if (provinceCode) provinceCode.value = province.selectedOptions[0]?.dataset.code ?? '';
+            if (municipalityCode) municipalityCode.value = '';
+            if (barangayCode) barangayCode.value = '';
 
-            resetSelect(
-                barangay,
-                'Select barangay'
-            );
+            resetSelect(barangay, 'Select barangay');
+            if (municipalityCode) municipalityCode.value = municipality.selectedOptions[0]?.dataset.code ?? '';
+            if (barangayCode) barangayCode.value = '';
 
             resetPostalCode();
 
@@ -1672,7 +1655,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await fetchAddressJson(
                     'provinces',
                     `${form.dataset.addressBase}/regions/${encodeURIComponent(
-                        region.value
+                        region.selectedOptions[0]?.dataset.code || region.value
                     )}/provinces`
                 );
                 const records = Array.isArray(result)
@@ -1688,6 +1671,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (oldProvince) {
                     province.value = oldProvince;
+                    if (provinceCode) provinceCode.value = oldProvinceCode || province.selectedOptions[0]?.dataset.code || '';
                     province.dispatchEvent(new Event('change'));
                 }
 
@@ -1718,6 +1702,10 @@ document.addEventListener('DOMContentLoaded', () => {
         'change',
         async () => {
 
+            if (provinceCode) provinceCode.value = province.selectedOptions[0]?.dataset.code ?? '';
+            if (municipalityCode) municipalityCode.value = '';
+            if (barangayCode) barangayCode.value = '';
+
             resetSelect(
                 municipality,
                 'Select municipality / city'
@@ -1746,10 +1734,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     municipality.innerHTML =
                         '<option value="">Select municipality / city</option>';
 
-                    const cityOption = new Option(
-                        selectedProvince.textContent,
-                        selectedProvince.value
-                    );
+                    const cityOption = new Option(selectedProvince.textContent, selectedProvince.value);
+                    cityOption.dataset.code = selectedProvince.dataset.code ?? '';
 
                     cityOption.dataset.prv =
                         selectedProvince.dataset.prv ?? '';
@@ -1772,9 +1758,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     await fetchAddressJson(
                         'municipalities',
                         `${form.dataset.addressBase}/provinces/${encodeURIComponent(
-                            province.value
+                            province.selectedOptions[0]?.dataset.code || province.value
                         )}/municipalities?prv=${encodeURIComponent(
                             province.selectedOptions[0]?.dataset.prv
+                            || province.selectedOptions[0]?.dataset.code
                             || province.value
                         )}`
                     );
@@ -1807,6 +1794,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (oldMunicipality) {
                     municipality.value = oldMunicipality;
+                    if (municipalityCode) municipalityCode.value = oldMunicipalityCode || municipality.selectedOptions[0]?.dataset.code || '';
                     municipality.dispatchEvent(new Event('change'));
                 }
 
@@ -1838,6 +1826,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'change',
         async () => {
 
+            if (municipalityCode) municipalityCode.value = municipality.selectedOptions[0]?.dataset.code ?? '';
+            if (barangayCode) barangayCode.value = '';
+
             resetSelect(
                 barangay,
                 'Select barangay'
@@ -1861,7 +1852,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     await fetchAddressJson(
                         'barangays',
                         `${form.dataset.addressBase}/municipalities/${encodeURIComponent(
-                            municipality.value
+                            municipality.selectedOptions[0]?.dataset.code || municipality.value
                         )}/barangays?mun=${encodeURIComponent(
                             municipality.selectedOptions[0]?.dataset.mun
                             || municipality.value
@@ -1900,6 +1891,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (oldBarangay) {
                     barangay.value = oldBarangay;
+                    if (barangayCode) barangayCode.value = oldBarangayCode || barangay.selectedOptions[0]?.dataset.code || '';
                     barangay.dispatchEvent(new Event('change'));
                 }
 
@@ -1925,6 +1917,7 @@ document.addEventListener('DOMContentLoaded', () => {
         async () => {
 
             resetPostalCode();
+            if (barangayCode) barangayCode.value = barangay.selectedOptions[0]?.dataset.code ?? '';
 
             if (!barangay.value || !municipality.value || !province.value) {
                 return;
@@ -1936,12 +1929,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const params =
                     new URLSearchParams({
-                        province:
-                            province.value,
-                        municipality:
-                            municipality.value,
-                        barangay:
-                            barangay.value,
+                        province: provinceCode?.value || province.selectedOptions[0]?.dataset.code || '',
+                        municipality: municipalityCode?.value || municipality.selectedOptions[0]?.dataset.code || '',
+                        barangay: barangayCode?.value || barangay.selectedOptions[0]?.dataset.code || '',
                         province_name:
                             selectedLabel(province),
                         municipality_name:
@@ -1983,6 +1973,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadRegions().then(() => {
         if (oldRegion) {
             region.value = oldRegion;
+            if (regionCode) regionCode.value = oldRegionCode || region.selectedOptions[0]?.dataset.code || '';
             region.dispatchEvent(new Event('change'));
         }
 

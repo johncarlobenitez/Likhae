@@ -17,7 +17,7 @@
         || $productParentSlug($product) === $activeCategory;
     $categoryRows = $collection
         ->groupBy(fn ($product) => $productParentSlug($product))
-        ->map(function ($products, $parentSlug) use ($productCategorySlug) {
+        ->map(function ($products, $parentSlug) use ($productCategorySlug, $activeCategory) {
             $first = $products->first();
             $parentLabel = data_get($first, 'parent_category') ?: data_get($first, 'category', 'Uncategorized');
             $children = $products

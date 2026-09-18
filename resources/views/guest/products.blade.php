@@ -41,6 +41,21 @@
             scroll-snap-align: start;
             white-space: nowrap;
         }
+
+        .lk-guest-products-page .lk-category-group {
+            flex: 0 0 210px;
+            scroll-snap-align: start;
+        }
+
+        .lk-guest-products-page .lk-category-group .lk-guest-category-item {
+            width: 100%;
+        }
+
+        .lk-guest-products-page .lk-category-sublist {
+            margin: 6px 0 0;
+            padding-left: 0;
+            border-left: 0;
+        }
     }
 
     @media (max-width: 560px) {
