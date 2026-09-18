@@ -216,16 +216,27 @@ class SellerController extends Controller
         $seller = $this->seller($request);
         $this->authorizeOrder($seller, $order);
         $validated = $request->validate([
-            'status' => ['required', Rule::in(['to_process', 'to_prepare', 'ready_pickup', 'shipping', 'completed', 'cancelled', 'returns'])],
+            'status' => ['required', Rule::in([
+                'placed', 'confirmed', 'preparing', 'ready_for_pickup',
+                'to_process', 'to_prepare', 'ready_pickup',
+                'shipping', 'completed', 'cancelled', 'returns',
+            ])],
         ]);
 
-        $currentStatus = $this->canonicalOrderStatus($order->status);
-        $targetStatus = $this->canonicalOrderStatus($validated['status']);
+        $workflowStatus = fn (?string $status) => match ($status) {
+            'pending', 'to_process' => 'placed',
+            'to_prepare' => 'preparing',
+            'ready_pickup' => 'ready_for_pickup',
+            default => $status,
+        };
+        $currentStatus = $workflowStatus($order->status);
+        $targetStatus = $workflowStatus($validated['status']);
 
         $allowed = [
-            'to_process' => ['to_prepare', 'cancelled'],
-            'to_prepare' => ['ready_pickup', 'cancelled'],
-            'ready_pickup' => ['shipping', 'cancelled'],
+            'placed' => ['confirmed', 'cancelled'],
+            'confirmed' => ['preparing', 'cancelled'],
+            'preparing' => ['ready_for_pickup', 'cancelled'],
+            'ready_for_pickup' => ['shipping', 'cancelled'],
             'shipping' => ['completed', 'returns'],
             'completed' => ['returns'],
             'returns' => ['completed'],
@@ -324,22 +335,26 @@ class SellerController extends Controller
         abort_unless(in_array($this->canonicalOrderStatus($order->status), ['ready_pickup', 'shipping'], true), 422, 'The order must be prepared before requesting pickup.');
 
         $validated = $request->validate([
-            'provider' => ['required', 'string', 'max:80'],
-            'pickup_date' => ['required', 'date'],
-            'pickup_window' => ['required', 'string', 'max:80'],
+            'handover_method' => ['required', Rule::in(['logistics_pickup', 'seller_dropoff'])],
+            'pickup_date' => ['nullable', 'required_if:handover_method,logistics_pickup', 'date'],
+            'pickup_window' => ['nullable', 'required_if:handover_method,logistics_pickup', 'string', 'max:80'],
             'pickup_note' => ['nullable', 'string', 'max:1000'],
         ]);
+        $isPickup = $validated['handover_method'] === 'logistics_pickup';
 
         $delivery = Delivery::updateOrCreate(
             ['order_id' => $order->id],
             [
                 'address' => $order->shipping_address ?: 'Buyer delivery address',
-                'provider' => $validated['provider'],
+                'provider' => 'LIKHAE Logistics',
                 'tracking_number' => optional($order->delivery)->tracking_number ?: 'LH-'.now()->format('Ymd').'-'.str_pad((string) $order->id, 5, '0', STR_PAD_LEFT),
-                'pickup_window' => Carbon::parse($validated['pickup_date'])->format('M d, Y').' · '.$validated['pickup_window'],
+                'handover_method' => $validated['handover_method'],
+                'pickup_window' => $isPickup
+                    ? Carbon::parse($validated['pickup_date'])->format('M d, Y').' - '.$validated['pickup_window']
+                    : null,
                 'pickup_note' => $validated['pickup_note'] ?? null,
                 'requested_at' => now(),
-                'status' => 'requested',
+                'status' => $isPickup ? 'awaiting_pickup_assignment' : 'awaiting_dropoff',
             ]
         );
 
@@ -347,7 +362,9 @@ class SellerController extends Controller
         $order->save();
 
         return redirect()->route('seller.logistics', ['view' => 'tracking', 'order' => $order->order_number])
-            ->with('status', "Pickup requested with {$delivery->provider}.");
+            ->with('status', $isPickup
+                ? 'Logistics pickup requested. The parcel is waiting for rider assignment.'
+                : 'Seller drop-off selected. Bring the parcel to the logistics center.');
     }
 
     public function messages(Request $request): View
