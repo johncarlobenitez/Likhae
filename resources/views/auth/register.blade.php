@@ -223,6 +223,7 @@
                     role="radiogroup"
                     aria-label="Account type"
                 >
+                    <style>.account-type-option:not([data-account-type="buyer"]){display:none!important}.account-type-toggle{grid-template-columns:1fr!important}</style>
 
                     {{-- BUYER --}}
                     <button
@@ -521,14 +522,6 @@
             >
 
                 @csrf
-
-
-                <input
-                    type="hidden"
-                    name="account_type"
-                    id="accountType"
-                    value="{{ old('account_type', ($preselectedRole ?? 'buyer') === 'courier' ? 'rider' : ($preselectedRole ?? 'buyer')) }}"
-                >
 
 
                 {{-- =================================================

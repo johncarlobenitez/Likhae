@@ -6,24 +6,35 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'seller_id', 'category_id', 'name', 'slug', 'sku', 'description',
-        'price', 'stock', 'status', 'listing_status', 'admin_status', 'image_path',
+        'seller_id', 'category_id', 'name', 'slug', 'description', 'min_price_minor', 'is_active',
     ];
 
     protected function casts(): array
     {
-        return ['price' => 'decimal:2'];
+        return ['is_active' => 'boolean'];
     }
 
     public function seller(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'seller_id');
+        return $this->belongsTo(Seller::class, 'seller_id');
+    }
+
+    public function scopeVisible(Builder $query): Builder
+    {
+        return $query->where('is_active', true)
+            ->whereHas('seller', fn (Builder $seller) => $seller->where('status', 'approved'))
+            ->whereHas('seller.owner', fn (Builder $owner) => $owner->where('status', 'active'))
+            ->whereHas('category', fn (Builder $category) => $category->where('is_active', true)
+                ->whereHas('parent', fn (Builder $parent) => $parent->where('is_active', true)))
+            ->whereHas('variants', fn (Builder $variant) => $variant->where('is_active', true)->where('stock', '>', 0));
     }
 
     public function category(): BelongsTo
@@ -41,9 +52,9 @@ class Product extends Model
         return $this->hasMany(ProductReview::class);
     }
 
-    public function variations(): HasMany
+    public function variants(): HasMany
     {
-        return $this->hasMany(ProductVariation::class);
+        return $this->hasMany(ProductVariant::class);
     }
 
     public function images(): HasMany

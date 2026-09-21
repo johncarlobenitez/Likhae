@@ -23,7 +23,7 @@
         ['Vehicle Type', $user->vehicle_type ?? 'Not recorded'],
         ['Plate Number', $user->plate_number ?? 'Not recorded'],
         ['Account Status', \Illuminate\Support\Str::headline($user->status ?? 'active')],
-        ['Role', \Illuminate\Support\Str::headline($user->role ?? 'rider')],
+        ['Role', \Illuminate\Support\Str::headline($user->primary_role ?? 'rider')],
     ];
 @endphp
 
@@ -49,7 +49,7 @@
                         {{ \Illuminate\Support\Str::headline($user->status ?? 'active') }}
                     </span>
                     <span class="rounded-full bg-primary-soft px-3 py-1 text-[8px] font-semibold text-primary">
-                        {{ \Illuminate\Support\Str::headline($user->role ?? 'rider') }}
+                        {{ \Illuminate\Support\Str::headline($user->primary_role ?? 'rider') }}
                     </span>
                 </div>
             </div>

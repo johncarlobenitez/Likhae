@@ -12,9 +12,10 @@ class Category extends Model
     use HasFactory;
 
     protected $fillable = [
-        'parent_id', 'name', 'slug', 'description', 'status',
-        'created_by_user_id', 'created_by_seller_id', 'source',
+        'parent_id', 'name', 'slug', 'description', 'position', 'is_active',
     ];
+
+    protected function casts(): array { return ['is_active' => 'boolean']; }
 
     public function parent(): BelongsTo
     {

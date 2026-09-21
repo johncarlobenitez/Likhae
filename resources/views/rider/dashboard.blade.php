@@ -26,7 +26,7 @@
     <section class="overflow-hidden rounded-3xl border border-line bg-surface">
         <div class="border-b border-line px-8 py-6">
             <h2 class="text-lg font-bold text-ink">Recent Parcels</h2>
-            <p class="mt-2 text-xs text-muted">Latest records from the deliveries table.</p>
+            <p class="mt-2 text-xs text-muted">Latest parcels assigned to your rider account.</p>
         </div>
 
         <div class="divide-y divide-line">
@@ -42,12 +42,7 @@
                     </div>
                     <div class="flex flex-wrap items-center gap-3">
                         <span class="rounded-full bg-primary-soft px-4 py-2 text-xs font-semibold text-primary">{{ $parcel['status_label'] }}</span>
-                        @php
-                            $dashboardParcelRoute = in_array($parcel['status'], ['REQUESTED', 'PICKUP_ACCEPTED', 'PICKED_UP'], true)
-                                ? route('rider.pickups.show', $parcel['id'])
-                                : route('rider.deliveries.show', $parcel['id']);
-                        @endphp
-                        <a href="{{ $dashboardParcelRoute }}" class="rounded-xl border border-line px-5 py-3 text-sm font-semibold text-ink hover:bg-page-secondary">View</a>
+                        <a href="{{ route('rider.shipments', ['tracking' => $parcel['tracking']]) }}" class="rounded-xl border border-line px-5 py-3 text-sm font-semibold text-ink hover:bg-page-secondary">View</a>
                     </div>
                 </article>
             @empty

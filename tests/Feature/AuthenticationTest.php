@@ -61,4 +61,13 @@ class AuthenticationTest extends TestCase
         $this->post('/login', ['email' => $admin->email, 'password' => 'password'])->assertRedirectToRoute('admin.dashboard');
         $this->assertAuthenticatedAs($admin);
     }
+
+    public function test_approved_courier_role_logs_out_to_the_logistics_portal(): void
+    {
+        $courier = User::factory()->create(['role' => 'buyer', 'status' => 'active']);
+        $courier->grant('logistics');
+
+        $this->actingAs($courier)->post('/logout')->assertRedirectToRoute('logistics.login');
+        $this->assertGuest();
+    }
 }

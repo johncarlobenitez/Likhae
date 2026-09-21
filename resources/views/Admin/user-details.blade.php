@@ -6,10 +6,11 @@
 
 @section('content')
 @php
-    $applicationType = match ($user->role) {
-        'seller' => 'sellers', 'logistics' => 'logistics', 'rider', 'courier' => 'riders', default => 'buyers',
-    };
-    $publicAccount = in_array($user->role, \App\Models\User::PUBLIC_ROLES, true);
+    $managedAccount = in_array($user->primary_role, \App\Models\User::MANAGED_ROLES, true);
+    $address = $user->addresses->firstWhere('is_default', true) ?? $user->addresses->first();
+    $shop = $user->sellers->first();
+    $provider = $user->logisticsProvider;
+    $rider = $user->rider;
 @endphp
 <div class="ad-page">
     <div class="ad-page-head">
@@ -25,63 +26,42 @@
         <header class="ad-card-head"><h2>Account information</h2><span class="ad-status is-{{ $user->status }}">{{ $user->status === 'pending' ? 'Pending approval' : ucfirst($user->status) }}</span></header>
         <div class="ad-card-body">
             <dl class="ad-application-meta">
-                <div><dt>Role</dt><dd>{{ in_array($user->role, ['rider', 'courier']) ? 'Rider' : ucfirst($user->role) }}</dd></div>
+                <div><dt>Role</dt><dd>{{ in_array($user->primary_role, ['rider', 'courier']) ? 'Rider' : ucfirst($user->primary_role) }}</dd></div>
                 <div><dt>Registered</dt><dd>{{ $user->created_at->format('M d, Y H:i') }}</dd></div>
                 <div><dt>Contact number</dt><dd>{{ $user->contact_number ?: 'Not provided' }}</dd></div>
                 <div><dt>Birthday</dt><dd>{{ $user->birthday?->format('M d, Y') ?? 'Not provided' }}</dd></div>
                 <div><dt>Sex</dt><dd>{{ $user->sex ? ucfirst(str_replace('_', ' ', $user->sex)) : 'Not provided' }}</dd></div>
-                <div><dt>Street address</dt><dd>{{ trim($user->house_number.' '.$user->street) ?: 'Not provided' }}</dd></div>
-                <div><dt>Barangay</dt><dd>{{ $user->barangay ?: 'Not provided' }}</dd></div>
-                <div><dt>Municipality / City</dt><dd>{{ $user->municipality ?: 'Not provided' }}</dd></div>
-                <div><dt>Province</dt><dd>{{ $user->province ?: 'Not provided' }}</dd></div>
-                <div><dt>Region</dt><dd>{{ $user->region ?: 'Not provided' }}</dd></div>
-                <div><dt>Postal code</dt><dd>{{ $user->postal_code ?: 'Not provided' }}</dd></div>
-                <div><dt>Landmark</dt><dd>{{ $user->landmark ?: 'Not provided' }}</dd></div>
+                <div><dt>Street address</dt><dd>{{ $address?->line1 ?: 'Not provided' }}</dd></div>
+                <div><dt>Barangay</dt><dd>{{ $address?->barangay ?: 'Not provided' }}</dd></div>
+                <div><dt>Municipality / City</dt><dd>{{ $address?->city ?: 'Not provided' }}</dd></div>
+                <div><dt>Province</dt><dd>{{ $address?->province ?: 'Not provided' }}</dd></div>
+                <div><dt>Region</dt><dd>{{ $address?->region ?: 'Not provided' }}</dd></div>
+                <div><dt>Postal code</dt><dd>{{ $address?->postal_code ?: 'Not provided' }}</dd></div>
+                <div><dt>Landmark</dt><dd>{{ $address?->landmark ?: 'Not provided' }}</dd></div>
             </dl>
-            @if(in_array($user->role, ['seller', 'logistics']))
+            @if(in_array($user->primary_role, ['seller', 'logistics']))
                 <h3>Business details</h3>
                 <dl class="ad-application-meta">
-                    @foreach(['business_name' => 'Business name', 'store_name' => 'Store name', 'line_of_business' => 'Line of business', 'business_type' => 'Business type', 'dti_sec_number' => 'DTI / SEC number', 'tin' => 'TIN'] as $field => $label)
-                        <div><dt>{{ $label }}</dt><dd>{{ $user->getAttribute($field) ?: 'Not provided' }}</dd></div>
-                    @endforeach
+                    <div><dt>Business name</dt><dd>{{ $shop?->name ?? $provider?->name ?? 'Not provided' }}</dd></div>
+                    <div><dt>Business type</dt><dd>{{ data_get($shop?->settings, 'business_type', 'Not provided') }}</dd></div>
+                    <div><dt>DTI / SEC number</dt><dd>{{ data_get($shop?->settings, 'dti_sec_number', 'Not provided') }}</dd></div>
+                    <div><dt>TIN</dt><dd>{{ data_get($shop?->settings, 'tin', 'Not provided') }}</dd></div>
                 </dl>
             @endif
-            @if(in_array($user->role, ['courier', 'rider']))
+            @if(in_array($user->primary_role, ['courier', 'rider']))
                 <h3>Vehicle details</h3>
                 <dl class="ad-application-meta">
-                    <div><dt>Vehicle type</dt><dd>{{ $user->vehicle_type ? ucfirst($user->vehicle_type) : 'Not provided' }}</dd></div>
-                    <div><dt>Plate number</dt><dd>{{ $user->plate_number ?: 'Not provided' }}</dd></div>
+                    <div><dt>Vehicle type</dt><dd>{{ $rider?->vehicle_type ? ucfirst($rider->vehicle_type) : 'Not provided' }}</dd></div>
+                    <div><dt>Plate number</dt><dd>{{ $rider?->plate_no ?: 'Not provided' }}</dd></div>
                 </dl>
             @endif
         </div>
     </section>
 
-    @if($publicAccount)
-        <section class="ad-card">
-            <header class="ad-card-head"><h2>Registration review</h2></header>
-            <div class="ad-card-body">
-                @if($user->reviewed_at)
-                    <p>Reviewed by {{ $user->reviewer?->name ?? 'Administrator' }} on {{ $user->reviewed_at->format('M d, Y H:i') }}.</p>
-                @elseif($user->status === 'pending')
-                    <p>This application is waiting for administrator approval.</p>
-                @else
-                    <p>No registration review details were recorded for this account.</p>
-                @endif
-                @if($user->rejection_reason)<p>Rejection reason: {{ $user->rejection_reason }}</p>@endif
-                <div class="ad-inline-actions">
-                    @foreach(['valid_id' => 'Valid ID', 'business_permit' => 'Business permit', 'or_cr' => 'Vehicle OR / CR', 'drivers_license' => "Driver's license"] as $document => $label)
-                        @if($user->getAttribute($document.'_path'))<a class="ad-btn ad-btn-secondary ad-btn-sm" href="{{ route('admin.registrations.document', [$user, $document]) }}">Download {{ $label }}</a>@endif
-                    @endforeach
-                    @if($user->status === 'pending')<a class="ad-btn ad-btn-primary" href="{{ route('admin.registrations', ['type' => $applicationType]) }}">Review application</a>@endif
-                </div>
-            </div>
-        </section>
-    @endif
-
     <section class="ad-card" id="account-access">
         <header class="ad-card-head"><h2>Account access</h2></header>
         <div class="ad-card-body">
-            @if($publicAccount && in_array($user->status, ['active', 'suspended']))
+            @if($managedAccount && in_array($user->status, ['active', 'suspended']))
                 @php($suspended = $user->status === 'suspended')
                 <p>{{ $suspended ? 'Reactivate this account to let the user sign in again.' : 'Suspending this account blocks sign-in and access to its workspace.' }}</p>
                 <form method="POST" action="{{ route($suspended ? 'admin.users.reactivate' : 'admin.users.suspend', $user) }}" onsubmit="return confirm('Apply this account access change?')">
@@ -92,7 +72,7 @@
                     </label>
                     <button class="ad-btn {{ $suspended ? 'ad-btn-primary' : 'ad-btn-danger-soft' }}" type="submit">{{ $suspended ? 'Reactivate account' : 'Suspend account' }}</button>
                 </form>
-            @elseif($user->role === 'admin')
+            @elseif($user->primary_role === 'admin')
                 <p>Administrator access cannot be changed from the user directory.</p>
             @else
                 <p>This account has not been approved. Access changes are available after registration approval.</p>
@@ -107,7 +87,7 @@
                 <thead><tr><th>Date</th><th>Change</th><th>Administrator</th><th>Reason</th></tr></thead>
                 <tbody>
                     @forelse($changes as $change)
-                        <tr><td>{{ $change->created_at->format('M d, Y H:i') }}</td><td>{{ ucfirst($change->previous_status) }} → {{ ucfirst($change->status) }}</td><td>{{ $change->administrator?->name ?? 'Administrator' }}</td><td>{{ $change->reason }}</td></tr>
+                        <tr><td>{{ $change->created_at->format('M d, Y H:i') }}</td><td>{{ ucfirst(data_get($change->metadata, 'before.status')) }} to {{ ucfirst(data_get($change->metadata, 'after.status')) }}</td><td>{{ $change->actor?->name ?? 'Administrator' }}</td><td>{{ $change->description }}</td></tr>
                     @empty
                         <tr><td colspan="4">No access changes recorded.</td></tr>
                     @endforelse

@@ -34,14 +34,14 @@ class AuthenticationController extends Controller
             'email' => $email,
             'password' => $credentials['password'],
         ], function (User $user) use ($request): bool {
-            if ($user->status !== 'active') {
+            if ($user->isSuspended() || $user->status !== 'active') {
                 throw ValidationException::withMessages(['email' => $user->inactiveMessage()]);
             }
 
             $portal = $request->routeIs('logistics.login.store');
             $roles = $portal ? ['logistics', 'rider', 'courier'] : ['admin', 'buyer', 'seller'];
 
-            if (! in_array($user->role, $roles, true)) {
+            if (! collect($roles)->contains(fn (string $role) => $user->hasRole($role))) {
                 throw ValidationException::withMessages([
                     'email' => $portal
                         ? 'Use the Marketplace Login page for this account.'
@@ -60,12 +60,17 @@ class AuthenticationController extends Controller
         $request->session()->regenerate();
         $request->session()->forget('demo_user');
 
+        if ($request->routeIs('logistics.login.store')) {
+            return redirect()->route($request->user()->hasRole('logistics') ? 'logistics.dashboard' : 'rider.dashboard');
+        }
+
         return redirect()->route($request->user()->workspaceRoute());
     }
 
     public function destroy(Request $request): RedirectResponse
     {
-        $portal = in_array($request->user()?->role, ['logistics', 'rider', 'courier'], true);
+        $portal = (bool) $request->user()
+            && ($request->user()->hasRole('logistics') || $request->user()->hasRole('rider'));
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

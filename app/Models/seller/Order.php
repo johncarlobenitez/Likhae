@@ -6,20 +6,19 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Order extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'order_number', 'buyer_id', 'seller_id', 'total_amount',
-        'payment_method', 'payment_status', 'status', 'shipping_address',
+        'reference', 'buyer_id', 'total_minor', 'payment_method', 'payment_status', 'shipping_address_snapshot',
     ];
 
     protected function casts(): array
     {
-        return ['total_amount' => 'decimal:2'];
+        return ['shipping_address_snapshot' => 'array'];
     }
 
     public function buyer(): BelongsTo
@@ -27,28 +26,18 @@ class Order extends Model
         return $this->belongsTo(User::class, 'buyer_id');
     }
 
-    public function seller(): BelongsTo
+    public function items(): HasManyThrough
     {
-        return $this->belongsTo(User::class, 'seller_id');
+        return $this->hasManyThrough(OrderItem::class, SellerOrder::class);
     }
 
-    public function items(): HasMany
+    public function sellerOrders(): HasMany
     {
-        return $this->hasMany(OrderItem::class);
+        return $this->hasMany(SellerOrder::class);
     }
 
-    public function transaction(): HasOne
+    public function payments(): HasMany
     {
-        return $this->hasOne(Transaction::class);
-    }
-
-    public function delivery(): HasOne
-    {
-        return $this->hasOne(Delivery::class);
-    }
-
-    public function refunds(): HasMany
-    {
-        return $this->hasMany(Refund::class);
+        return $this->hasMany(Payment::class);
     }
 }

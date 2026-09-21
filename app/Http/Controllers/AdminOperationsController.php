@@ -9,10 +9,13 @@ use App\Models\AdminPreference;
 use App\Models\Category;
 use App\Models\Message;
 use App\Models\Order;
+use App\Models\Payment;
+use App\Models\SellerOrder;
 use App\Models\PlatformSetting;
 use App\Models\Product;
-use App\Models\Refund;
-use App\Models\Transaction;
+use App\Models\ReturnRequest;
+use App\Models\Seller;
+use App\Services\LedgerService;
 use App\Models\User;
 use App\Models\WorkspaceNotification;
 use Illuminate\Http\RedirectResponse;
@@ -30,36 +33,30 @@ class AdminOperationsController extends Controller
     {
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:100'],
-            'admin_status' => ['nullable', Rule::in(['approved', 'flagged'])],
-            'listing_status' => ['nullable', Rule::in(['active', 'inactive', 'archived'])],
+            'visibility' => ['nullable', Rule::in(['active', 'inactive'])],
         ]);
 
-        $query = Product::with(['seller', 'category'])->withCount('orderItems');
+        $query = Product::with(['seller', 'category', 'variants'])->withCount('orderItems');
         if ($search = trim((string) ($filters['q'] ?? ''))) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('sku', 'like', "%{$search}%")
+                    ->orWhereHas('variants', fn ($variant) => $variant->where('sku', 'like', "%{$search}%"))
                     ->orWhereHas('seller', fn ($seller) => $seller->where('name', 'like', "%{$search}%"));
             });
         }
-        if (! empty($filters['admin_status'])) {
-            $query->where('admin_status', $filters['admin_status']);
-        }
-        if (! empty($filters['listing_status'])) {
-            $query->where('listing_status', $filters['listing_status']);
-        }
+        if (! empty($filters['visibility'])) $query->where('is_active', $filters['visibility'] === 'active');
 
         $productRecords = $query->latest()->paginate(20)->withQueryString();
         $categoryRecords = Category::whereNull('parent_id')->withCount([
             'products',
-            'products as active_products_count' => fn ($q) => $q->where('listing_status', 'active'),
+            'products as active_products_count' => fn ($q) => $q->where('is_active', true),
         ])->orderBy('name')->get();
-        $flaggedRecords = Product::with('seller')->where('admin_status', 'flagged')->latest()->take(50)->get();
+        $flaggedRecords = collect();
         $stats = [
             'total' => Product::count(),
-            'active' => Product::where('listing_status', 'active')->count(),
-            'flagged' => Product::where('admin_status', 'flagged')->count(),
-            'archived' => Product::where('listing_status', 'archived')->count(),
+            'active' => Product::where('is_active', true)->count(),
+            'flagged' => 0,
+            'archived' => Product::where('is_active', false)->count(),
         ];
 
         return view('Admin.products', compact('productRecords', 'categoryRecords', 'flaggedRecords', 'stats'));
@@ -68,16 +65,14 @@ class AdminOperationsController extends Controller
     public function moderateProduct(Request $request, Product $product): RedirectResponse
     {
         $validated = $request->validate([
-            'action' => ['required', Rule::in(['approve', 'flag', 'archive', 'restore'])],
+            'action' => ['required', Rule::in(['archive', 'restore'])],
             'reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $before = ['admin_status' => $product->admin_status, 'listing_status' => $product->listing_status];
+        $before = ['is_active' => $product->is_active];
         match ($validated['action']) {
-            'approve' => $product->forceFill(['admin_status' => 'approved'])->save(),
-            'flag' => $product->forceFill(['admin_status' => 'flagged'])->save(),
-            'archive' => $product->forceFill(['listing_status' => 'archived', 'status' => 'inactive'])->save(),
-            'restore' => $product->forceFill(['listing_status' => 'active', 'status' => 'active'])->save(),
+            'archive' => $product->update(['is_active' => false]),
+            'restore' => $product->update(['is_active' => true]),
         };
 
         $this->audit($request, 'product.'.$validated['action'], $product, $validated['reason'] ?? null, ['before' => $before]);
@@ -124,9 +119,9 @@ class AdminOperationsController extends Controller
         return response()->streamDownload(function (): void {
             $out = fopen('php://output', 'w');
             fputcsv($out, ['ID', 'SKU', 'Product', 'Seller', 'Category', 'Price', 'Stock', 'Listing Status', 'Admin Status', 'Created']);
-            Product::with(['seller', 'category'])->orderBy('id')->chunkById(500, function ($products) use ($out): void {
+            Product::with(['seller', 'category', 'variants'])->orderBy('id')->chunkById(500, function ($products) use ($out): void {
                 foreach ($products as $product) {
-                    fputcsv($out, [$product->id, $product->sku, $product->name, $product->seller?->name, $product->category?->name, $product->price, $product->stock, $product->listing_status, $product->admin_status, $product->created_at]);
+                    fputcsv($out, [$product->id, $product->variants->pluck('sku')->filter()->join(', '), $product->name, $product->seller?->name, $product->category?->name, $product->min_price_minor / 100, $product->variants->sum('stock'), $product->is_active ? 'Active' : 'Inactive', '', $product->created_at]);
                 }
             });
             fclose($out);
@@ -136,13 +131,13 @@ class AdminOperationsController extends Controller
     public function compliance(Request $request): View
     {
         $sellerProductCounts = Product::selectRaw('seller_id, COUNT(*) AS total')->groupBy('seller_id')->pluck('total', 'seller_id');
-        $sellerRecords = User::where('role', 'seller')->latest()->paginate(20)->withQueryString();
-        $flaggedProducts = Product::with(['seller', 'category'])->where('admin_status', 'flagged')->latest()->take(50)->get();
+        $sellerRecords = Seller::with('owner')->latest()->paginate(20)->withQueryString();
+        $flaggedProducts = collect();
         $complianceStats = [
-            'active' => User::where('role', 'seller')->where('status', 'active')->count(),
-            'pending' => User::where('role', 'seller')->where('status', 'pending')->count(),
-            'flagged' => Product::where('admin_status', 'flagged')->count(),
-            'suspended' => User::where('role', 'seller')->where('status', 'suspended')->count(),
+            'active' => Seller::where('status', 'approved')->count(),
+            'pending' => Seller::where('status', 'pending')->count(),
+            'flagged' => 0,
+            'suspended' => Seller::where('status', 'suspended')->count(),
         ];
 
         return view('Admin.compliance', compact('sellerRecords', 'flaggedProducts', 'sellerProductCounts', 'complianceStats'));
@@ -151,32 +146,35 @@ class AdminOperationsController extends Controller
     public function complaints(Request $request): View
     {
         $filters = $request->validate(['status' => ['nullable', 'string', 'max:30'], 'q' => ['nullable', 'string', 'max:100']]);
-        $query = Refund::with(['order.buyer', 'order.seller', 'buyer']);
+        $query = ReturnRequest::with(['sellerOrder.order.buyer', 'sellerOrder.seller', 'buyer']);
         if (! empty($filters['status'])) $query->where('status', $filters['status']);
         if ($search = trim((string) ($filters['q'] ?? ''))) {
             $query->where(function ($q) use ($search) {
-                $q->where('refund_number', 'like', "%{$search}%")
-                    ->orWhereHas('order', fn ($order) => $order->where('order_number', 'like', "%{$search}%"));
+                $q->where('reason', 'like', "%{$search}%")
+                    ->orWhereHas('sellerOrder.order', fn ($order) => $order->where('reference', 'like', "%{$search}%"));
             });
         }
         $refundRecords = $query->latest()->paginate(20)->withQueryString();
         $refundStats = [
-            'open' => Refund::whereIn('status', ['open', 'processing'])->count(),
-            'pending_amount' => (float) Refund::whereIn('status', ['open', 'processing'])->sum('amount'),
-            'resolved_week' => Refund::whereIn('status', ['completed', 'rejected'])->where('updated_at', '>=', now()->startOfWeek())->count(),
-            'total' => Refund::count(),
+            'open' => ReturnRequest::whereIn('status', ['requested', 'approved', 'disputed'])->count(),
+            'pending_amount' => ReturnRequest::whereIn('status', ['requested', 'approved', 'disputed'])->with('sellerOrder')->get()->sum(fn ($return) => $return->sellerOrder->subtotal_minor) / 100,
+            'resolved_week' => ReturnRequest::whereIn('status', ['refunded', 'rejected'])->where('updated_at', '>=', now()->startOfWeek())->count(),
+            'total' => ReturnRequest::count(),
         ];
 
         return view('Admin.complaints', compact('refundRecords', 'refundStats'));
     }
 
-    public function updateRefund(Request $request, Refund $refund): RedirectResponse
+    public function updateRefund(Request $request, ReturnRequest $refund, LedgerService $ledger): RedirectResponse
     {
-        $validated = $request->validate(['status' => ['required', Rule::in(['open', 'processing', 'completed', 'rejected'])]]);
-        $refund->status = $validated['status'];
-        $refund->resolved_at = in_array($validated['status'], ['completed', 'rejected'], true) ? now() : null;
-        $refund->save();
-        $this->audit($request, 'refund.'.$validated['status'], $refund, $refund->refund_number);
+        $validated = $request->validate(['status' => ['required', Rule::in(['refunded', 'rejected'])], 'admin_decision' => ['required', 'string', 'max:2000']]);
+        if ($validated['status'] === 'refunded') {
+            $refund->update(['admin_decision' => $validated['admin_decision'], 'resolved_by' => $request->user()->id]);
+            $ledger->refund($refund, $request->user());
+        } else {
+            $refund->update(['status' => 'rejected', 'admin_decision' => $validated['admin_decision'], 'resolved_by' => $request->user()->id]);
+        }
+        $this->audit($request, 'return.'.$validated['status'], $refund, (string) $refund->id);
 
         return back()->with('success', 'Refund status updated.');
     }
@@ -185,20 +183,20 @@ class AdminOperationsController extends Controller
     {
         $filters = $request->validate(['status' => ['nullable', 'string', 'max:30'], 'q' => ['nullable', 'string', 'max:100']]);
         $rate = PlatformSetting::commissionRate();
-        $transactionQuery = Transaction::with(['order.seller', 'buyer']);
+        $transactionQuery = Payment::with(['order.buyer', 'order.sellerOrders.seller']);
         if (! empty($filters['status'])) $transactionQuery->where('status', $filters['status']);
         if ($search = trim((string) ($filters['q'] ?? ''))) {
             $transactionQuery->where(function ($q) use ($search) {
-                $q->where('transaction_number', 'like', "%{$search}%")
-                    ->orWhereHas('order', fn ($order) => $order->where('order_number', 'like', "%{$search}%"));
+                $q->where('provider_ref', 'like', "%{$search}%")
+                    ->orWhereHas('order', fn ($order) => $order->where('reference', 'like', "%{$search}%"));
             });
         }
         $transactionRecords = $transactionQuery->latest()->paginate(20)->withQueryString();
-        $gross = (float) Transaction::whereIn('status', ['paid', 'completed'])->sum('amount');
-        $commission = round($gross * $rate, 2);
-        $pendingSettlement = (float) Transaction::whereIn('status', ['processing', 'pending'])->sum('amount');
-        $pendingCount = Transaction::whereIn('status', ['processing', 'pending'])->count();
-        $exampleTransaction = Transaction::with('order.seller')->latest()->first();
+        $gross = Payment::whereIn('status', ['paid', 'completed'])->sum('amount_minor') / 100;
+        $commission = SellerOrder::where('status', 'completed')->sum('commission_minor') / 100;
+        $pendingSettlement = Payment::where('status', 'pending')->sum('amount_minor') / 100;
+        $pendingCount = Payment::where('status', 'pending')->count();
+        $exampleTransaction = Payment::with('order')->latest()->first();
 
         return view('Admin.finance', compact('transactionRecords', 'rate', 'gross', 'commission', 'pendingSettlement', 'pendingCount', 'exampleTransaction') + ['net' => $gross - $commission]);
     }
@@ -210,10 +208,11 @@ class AdminOperationsController extends Controller
         return response()->streamDownload(function () use ($rate): void {
             $out = fopen('php://output', 'w');
             fputcsv($out, ['Transaction', 'Order', 'Buyer', 'Seller', 'Amount', 'Commission', 'Net', 'Method', 'Status', 'Date']);
-            Transaction::with(['order.seller', 'buyer'])->orderBy('id')->chunkById(500, function ($rows) use ($out, $rate): void {
+            Payment::with(['order.buyer', 'order.sellerOrders'])->orderBy('id')->chunkById(500, function ($rows) use ($out, $rate): void {
                 foreach ($rows as $row) {
-                    $commission = round((float) $row->amount * $rate, 2);
-                    fputcsv($out, [$row->transaction_number, $row->order?->order_number, $row->buyer?->name, $row->order?->seller?->name, $row->amount, $commission, (float) $row->amount - $commission, $row->method, $row->status, $row->created_at]);
+                    $amount = $row->amount_minor / 100;
+                    $commission = $row->order?->sellerOrders?->sum('commission_minor') / 100;
+                    fputcsv($out, [$row->provider_ref ?: 'PAY-'.$row->id, $row->order?->reference, $row->order?->buyer?->name, $row->order?->sellerOrders?->pluck('seller.name')->filter()->join(', '), $amount, $commission, $amount - $commission, $row->method, $row->status, $row->created_at]);
                 }
             });
             fclose($out);
@@ -228,13 +227,13 @@ class AdminOperationsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
         $query = $this->reportOrderQuery($filters);
-        $orderRecords = (clone $query)->with(['buyer', 'seller', 'transaction'])->latest()->paginate(20)->withQueryString();
-        $gross = (float) (clone $query)->where('status', '!=', 'cancelled')->sum('total_amount');
+        $orderRecords = (clone $query)->with(['order.buyer', 'order.payments', 'seller'])->latest()->paginate(20)->withQueryString();
+        $gross = (clone $query)->whereNotIn('status', ['cancelled', 'refunded'])->sum(DB::raw('subtotal_minor + shipping_fee_minor')) / 100;
 
         return view('Admin.reports', [
             'orderRecords' => $orderRecords,
             'gross' => $gross,
-            'commission' => round($gross * PlatformSetting::commissionRate(), 2),
+            'commission' => (clone $query)->whereNotIn('status', ['cancelled', 'refunded'])->sum('commission_minor') / 100,
             'completed' => (clone $query)->where('status', 'completed')->count(),
             'cancelled' => (clone $query)->where('status', 'cancelled')->count(),
             'recentExports' => collect(),
@@ -249,14 +248,15 @@ class AdminOperationsController extends Controller
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
-        $query = $this->reportOrderQuery($filters)->with(['buyer', 'seller', 'transaction']);
+        $query = $this->reportOrderQuery($filters)->with(['order.buyer', 'order.payments', 'seller']);
         $this->audit($request, 'reports.exported', null, 'Admin exported the orders report.', $filters);
         return response()->streamDownload(function () use ($query): void {
             $out = fopen('php://output', 'w');
             fputcsv($out, ['Order', 'Buyer', 'Seller', 'Amount', 'Payment Method', 'Payment Status', 'Order Status', 'Transaction', 'Created']);
             $query->orderBy('id')->chunkById(500, function ($orders) use ($out): void {
                 foreach ($orders as $order) {
-                    fputcsv($out, [$order->order_number, $order->buyer?->name, $order->seller?->name, $order->total_amount, $order->payment_method, $order->payment_status, $order->status, $order->transaction?->transaction_number, $order->created_at]);
+                    $payment = $order->order?->payments?->sortByDesc('id')->first();
+                    fputcsv($out, [$order->order?->reference.'-'.$order->id, $order->order?->buyer?->name, $order->seller?->name, ($order->subtotal_minor + $order->shipping_fee_minor) / 100, $order->order?->payment_method, $payment?->status, $order->status, $payment?->provider_ref ?: 'PAY-'.$payment?->id, $order->created_at]);
                 }
             });
             fclose($out);
@@ -289,10 +289,10 @@ class AdminOperationsController extends Controller
         }
 
         $messageRecipients = User::query()
-            ->whereIn('role', User::PUBLIC_ROLES)
+            ->anyRole(User::MANAGED_ROLES)
             ->where('status', 'active')
             ->orderBy('name')
-            ->get(['id', 'name', 'email', 'role']);
+            ->get(['id', 'name', 'email']);
 
         if (! $selectedPartner && $request->filled('partner')) {
             $selectedPartner = $messageRecipients->firstWhere('id', $selectedPartnerId);
@@ -341,9 +341,11 @@ class AdminOperationsController extends Controller
     public function settings(Request $request): View
     {
         $settings = [
-            'marketplace_name' => PlatformSetting::valueOf('marketplace_name', config('app.name', 'LIKHAE')),
+            'platform_name' => PlatformSetting::valueOf('platform_name', config('app.name', 'LIKHAE')),
             'support_email' => PlatformSetting::valueOf('support_email', ''),
-            'seller_commission_rate' => PlatformSetting::commissionRate(),
+            'default_commission_bps' => PlatformSetting::commissionBps(),
+            'cod_limit_minor' => (int) PlatformSetting::valueOf('cod_limit_minor', 500000),
+            'return_window_days' => (int) PlatformSetting::valueOf('return_window_days', 7),
             'registration_enabled' => (bool) PlatformSetting::valueOf('registration_enabled', true),
             'automated_product_risk_signals' => (bool) PlatformSetting::valueOf('automated_product_risk_signals', true),
         ];
@@ -355,16 +357,20 @@ class AdminOperationsController extends Controller
     public function updateSettings(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'marketplace_name' => ['required', 'string', 'max:120'],
+            'platform_name' => ['required', 'string', 'max:120'],
             'support_email' => ['nullable', 'email', 'max:255'],
-            'seller_commission_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'default_commission_bps' => ['required', 'integer', 'min:0', 'max:10000'],
+            'cod_limit_minor' => ['required', 'integer', 'min:0'],
+            'return_window_days' => ['required', 'integer', 'min:1', 'max:365'],
             'registration_enabled' => ['nullable', 'boolean'],
             'automated_product_risk_signals' => ['nullable', 'boolean'],
         ]);
         DB::transaction(function () use ($validated, $request): void {
-            PlatformSetting::put('marketplace_name', $validated['marketplace_name'], 'string', $request->user()->id);
+            PlatformSetting::put('platform_name', $validated['platform_name'], 'string', $request->user()->id);
             PlatformSetting::put('support_email', $validated['support_email'] ?? '', 'string', $request->user()->id);
-            PlatformSetting::put('seller_commission_rate', ((float) $validated['seller_commission_rate']) / 100, 'float', $request->user()->id);
+            PlatformSetting::put('default_commission_bps', $validated['default_commission_bps'], 'integer', $request->user()->id);
+            PlatformSetting::put('cod_limit_minor', $validated['cod_limit_minor'], 'integer', $request->user()->id);
+            PlatformSetting::put('return_window_days', $validated['return_window_days'], 'integer', $request->user()->id);
             PlatformSetting::put('registration_enabled', $request->boolean('registration_enabled'), 'boolean', $request->user()->id);
             PlatformSetting::put('automated_product_risk_signals', $request->boolean('automated_product_risk_signals'), 'boolean', $request->user()->id);
         });
@@ -464,7 +470,7 @@ class AdminOperationsController extends Controller
 
     private function reportOrderQuery(array $filters)
     {
-        $query = Order::query();
+        $query = SellerOrder::query();
         if (! empty($filters['status'])) $query->where('status', $filters['status']);
         if (! empty($filters['date_from'])) $query->whereDate('created_at', '>=', $filters['date_from']);
         if (! empty($filters['date_to'])) $query->whereDate('created_at', '<=', $filters['date_to']);

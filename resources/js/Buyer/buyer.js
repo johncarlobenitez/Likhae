@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const variation = selectedVariation(scope);
         const quantity = one('[data-quantity-input]', scope)?.value || 1;
         const query = new URLSearchParams({ [buyNow ? 'buy' : 'add']: button.dataset.productSlug, variant: variation?.value || '', quantity });
-        if (variation?.id) query.set('product_variation_id', variation.id);
+        if (variation?.id) query.set('product_variant_id', variation.id);
         return `/buyer/${buyNow ? 'checkout' : 'cart'}?${query}`;
     };
 

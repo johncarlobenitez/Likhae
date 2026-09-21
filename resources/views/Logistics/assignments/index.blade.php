@@ -55,13 +55,13 @@
     @if($releaseDelivery)
         <section class="border border-green-200 bg-green-50 p-5">
             <h2 class="text-[13px] font-semibold text-green-900">Parcel Verified For Release</h2>
-            <p class="mt-2 text-[10px] text-green-800">{{ $releaseDelivery->tracking_number }} is assigned to {{ $releaseDelivery->rider?->name }} for {{ $releaseDelivery->delivery_area ?: 'the buyer destination' }}.</p>
+            <p class="mt-2 text-[10px] text-green-800">{{ $releaseDelivery->tracking_code }} is assigned to {{ $releaseDelivery->rider?->user?->name }} for {{ data_get($releaseDelivery->sellerOrder?->order?->shipping_address_snapshot, 'city', 'the buyer destination') }}.</p>
             @if($releaseAuthorized)
                 <div class="mt-4 border border-green-300 bg-white p-3 text-[10px] font-semibold text-green-800">Release already authorized. The assigned rider can now scan and collect the parcel.</div>
             @elseif($releaseAssignment?->status === 'accepted')
-                <form method="POST" action="{{ route('logistics.assignments.release', $releaseDelivery) }}" class="mt-4">@csrf<input type="hidden" name="tracking" value="{{ $releaseDelivery->tracking_number }}"><button class="bg-primary px-4 py-2 text-[10px] font-semibold text-white">Confirm Release Authorization</button></form>
+                <div class="mt-4 border border-green-300 bg-white p-3 text-[10px] font-semibold text-green-800">The assignment is stored and visible to the active rider.</div>
             @else
-                <div class="mt-4 border border-amber-300 bg-amber-50 p-3 text-[10px] font-semibold text-amber-800">Waiting for {{ $releaseDelivery->rider?->name ?: 'the assigned rider' }} to accept the delivery assignment.</div>
+                <div class="mt-4 border border-amber-300 bg-amber-50 p-3 text-[10px] font-semibold text-amber-800">Waiting for {{ $releaseDelivery->rider?->user?->name ?: 'the assigned rider' }} to collect the parcel.</div>
             @endif
         </section>
     @endif
@@ -89,7 +89,7 @@
                             {{ $parcel['area'] }}
                         </span>
 
-                        <form method="POST" action="{{ route('logistics.assignments.assign-rider', $parcel['id']) }}" class="flex flex-wrap items-center gap-2">
+                        <form method="POST" action="{{ route('logistics.dispatch.assign', $parcel['id']) }}" class="flex flex-wrap items-center gap-2">
                             @csrf
                             <select name="rider_id" required class="h-9 rounded-lg border border-line bg-surface px-2 text-[9px] text-ink">
                                 <option value="">Select rider</option>

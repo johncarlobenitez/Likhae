@@ -5,25 +5,31 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class OrderItem extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['order_id', 'product_id', 'product_name', 'variant', 'quantity', 'unit_price', 'subtotal'];
-
-    protected function casts(): array
-    {
-        return ['unit_price' => 'decimal:2', 'subtotal' => 'decimal:2'];
-    }
-
-    public function order(): BelongsTo
-    {
-        return $this->belongsTo(Order::class);
-    }
+    protected $fillable = ['seller_order_id', 'product_id', 'product_variant_id', 'product_name', 'variant_name', 'sku', 'quantity', 'unit_price_minor', 'subtotal_minor'];
 
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function sellerOrder(): BelongsTo
+    {
+        return $this->belongsTo(SellerOrder::class);
+    }
+
+    public function productVariant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class);
+    }
+
+    public function review(): HasOne
+    {
+        return $this->hasOne(ProductReview::class);
     }
 }

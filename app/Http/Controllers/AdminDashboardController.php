@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\Payment;
 use App\Models\PlatformSetting;
 use App\Models\Product;
-use App\Models\Refund;
-use App\Models\Transaction;
+use App\Models\ReturnRequest;
+use App\Models\SellerOrder;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
@@ -15,7 +16,7 @@ class AdminDashboardController extends Controller
 {
     public function index(): View
     {
-        $accounts = User::query()->whereIn('role', User::PUBLIC_ROLES);
+        $accounts = User::query()->anyRole(User::MANAGED_ROLES);
 
         $accountStats = [
             'pending' => (clone $accounts)->where('status', 'pending')->count(),
@@ -28,31 +29,29 @@ class AdminDashboardController extends Controller
 
         $productStats = [
             'total' => Product::count(),
-            'flagged' => Product::where('admin_status', 'flagged')->count(),
+            'flagged' => 0,
         ];
 
         $refundStats = [
-            'open' => Refund::whereNotIn('status', ['approved', 'rejected', 'resolved', 'completed'])->count(),
+            'open' => ReturnRequest::whereIn('status', ['requested', 'approved', 'disputed'])->count(),
         ];
 
-        $eligibleTransactions = Transaction::whereIn('status', ['paid', 'completed']);
-        $grossTransactionValue = (float) (clone $eligibleTransactions)->sum('amount');
+        $grossTransactionValue = ((int) Payment::whereIn('status', ['paid', 'completed'])->sum('amount_minor')) / 100;
         $commissionRate = PlatformSetting::commissionRate();
         $platformCommission = round($grossTransactionValue * $commissionRate, 2);
 
-        $todayOrders = Order::whereBetween('created_at', [now()->startOfDay(), now()->endOfDay()]);
+        $todayRange = [now()->startOfDay(), now()->endOfDay()];
+        $todayOrders = Order::whereBetween('created_at', $todayRange);
+        $todaySellerOrders = SellerOrder::whereHas('order', fn ($query) => $query->whereBetween('created_at', $todayRange));
         $orderStats = [
             'today' => (clone $todayOrders)->count(),
-            'processing' => (clone $todayOrders)->whereIn('status', ['pending', 'confirmed', 'processing', 'preparing'])->count(),
-            'shipping' => (clone $todayOrders)->whereIn('status', ['ready_for_pickup', 'picked_up', 'sorting', 'assigned', 'out_for_delivery', 'shipping'])->count(),
-            'delivered' => (clone $todayOrders)->where('status', 'delivered')->count(),
-            'completed_other' => (clone $todayOrders)->whereNotIn('status', [
-                'pending', 'confirmed', 'processing', 'preparing', 'ready_for_pickup', 'picked_up',
-                'sorting', 'assigned', 'out_for_delivery', 'shipping', 'delivered',
-            ])->count(),
+            'processing' => (clone $todaySellerOrders)->whereIn('status', ['pending', 'accepted', 'packed', 'ready_to_ship'])->count(),
+            'shipping' => (clone $todaySellerOrders)->where('status', 'shipped')->count(),
+            'delivered' => (clone $todaySellerOrders)->where('status', 'delivered')->count(),
+            'completed_other' => (clone $todaySellerOrders)->whereIn('status', ['completed', 'cancelled', 'refunded'])->count(),
         ];
 
-        $recentOrders = Order::with(['buyer', 'seller', 'delivery'])
+        $recentOrders = SellerOrder::with(['order.buyer', 'seller', 'shipment.provider'])
             ->latest()
             ->take(5)
             ->get();
@@ -60,14 +59,14 @@ class AdminDashboardController extends Controller
         $chartStart = now()->subDays(6)->startOfDay();
         $chartOrders = Order::query()
             ->where('created_at', '>=', $chartStart)
-            ->whereNotIn('status', ['cancelled'])
-            ->get(['created_at', 'total_amount']);
+            ->whereHas('sellerOrders', fn ($query) => $query->whereNotIn('status', ['cancelled', 'refunded']))
+            ->get(['created_at', 'total_minor']);
 
         $revenueChart = collect(range(0, 6))->map(function (int $offset) use ($chartStart, $chartOrders) {
             $date = $chartStart->copy()->addDays($offset);
             $total = (float) $chartOrders
                 ->filter(fn (Order $order) => $order->created_at?->isSameDay($date))
-                ->sum(fn (Order $order) => (float) $order->total_amount);
+                ->sum(fn (Order $order) => ((int) $order->total_minor) / 100);
 
             return [
                 'label' => $date->format('D'),

@@ -689,8 +689,8 @@
                     </a>
 
                     <a
-                        href="{{ route('rider.pickups') }}"
-                        class="rider-nav-link {{ request()->routeIs('rider.pickups', 'rider.pickups.*') ? 'is-active' : '' }}"
+                        href="{{ route('rider.shipments') }}"
+                        class="rider-nav-link {{ request()->routeIs('rider.shipments', 'rider.shipments.*') ? 'is-active' : '' }}"
                     >
                         <span class="rider-nav-icon">
                             <svg viewBox="0 0 24 24">
@@ -704,8 +704,8 @@
                     </a>
 
                     <a
-                        href="{{ route('rider.deliveries') }}"
-                        class="rider-nav-link {{ request()->routeIs('rider.deliveries', 'rider.deliveries.*') ? 'is-active' : '' }}"
+                        href="{{ route('rider.shipments') }}"
+                        class="rider-nav-link {{ request()->routeIs('rider.shipments', 'rider.shipments.*') ? 'is-active' : '' }}"
                     >
                         <span class="rider-nav-icon">
                             <svg viewBox="0 0 24 24">

@@ -22,7 +22,7 @@
             @forelse($contacts as $contact)
                 <a href="{{ route('logistics.messages', ['contact' => $contact->id]) }}" class="block border-b border-line px-5 py-4 transition hover:bg-page-secondary {{ $selected?->id === $contact->id ? 'bg-page-secondary' : '' }}">
                     <strong class="block text-[10px] font-semibold text-ink">{{ $contact->name }}</strong>
-                    <span class="mt-1 block text-[8px] text-muted">{{ Str::headline($contact->role) }} - {{ $contact->email }}</span>
+                    <span class="mt-1 block text-[8px] text-muted">{{ Str::headline($contact->primary_role) }} - {{ $contact->email }}</span>
                 </a>
             @empty
                 <div class="p-5 text-[10px] text-muted">No active contacts are available.</div>
@@ -32,7 +32,7 @@
         <section class="overflow-hidden rounded-xl border border-line bg-surface">
             <div class="border-b border-line px-5 py-4">
                 <h2 class="text-[13px] font-semibold text-ink">{{ $selected?->name ?? 'Select a contact' }}</h2>
-                <p class="mt-1 text-[9px] text-muted">{{ $selected ? Str::headline($selected->role) : 'Open a contact to view the thread.' }}</p>
+                <p class="mt-1 text-[9px] text-muted">{{ $selected ? Str::headline($selected->primary_role) : 'Open a contact to view the thread.' }}</p>
             </div>
 
             <div class="flex min-h-[420px] flex-col gap-3 bg-page-secondary p-5">

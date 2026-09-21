@@ -10,8 +10,10 @@ class ProductReview extends Model
 {
     use HasFactory;
 
+    protected $table = 'reviews';
+
     protected $fillable = [
-        'product_id', 'buyer_id', 'seller_id', 'rating', 'body', 'reply', 'replied_at', 'has_photo',
+        'order_item_id', 'product_id', 'buyer_id', 'seller_id', 'rating', 'body', 'reply', 'replied_at', 'has_photo',
     ];
 
     protected function casts(): array
@@ -24,6 +26,11 @@ class ProductReview extends Model
         return $this->belongsTo(Product::class);
     }
 
+    public function orderItem(): BelongsTo
+    {
+        return $this->belongsTo(OrderItem::class);
+    }
+
     public function buyer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'buyer_id');
@@ -31,6 +38,6 @@ class ProductReview extends Model
 
     public function seller(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'seller_id');
+        return $this->belongsTo(Seller::class, 'seller_id');
     }
 }

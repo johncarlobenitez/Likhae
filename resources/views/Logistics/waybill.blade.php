@@ -43,15 +43,15 @@
             <div>
                 <h2>Seller</h2>
                 <div class="box">
-                    <div class="value">{{ $delivery->order?->seller?->business_name ?: $delivery->order?->seller?->store_name ?: $delivery->order?->seller?->name ?: 'Seller not found' }}</div>
-                    <div class="value">{{ $delivery->order?->seller?->full_address ?: $delivery->order?->seller?->address ?: 'No seller address recorded' }}</div>
+                    <div class="value">{{ $delivery->sellerOrder?->seller?->name ?: 'Seller not found' }}</div>
+                    <div class="value">{{ $delivery->sellerOrder?->seller?->pickupAddress?->formatted() ?: 'No seller address recorded' }}</div>
                 </div>
             </div>
             <div>
                 <h2>Recipient</h2>
                 <div class="box">
-                    <div class="value">{{ $delivery->order?->buyer?->name ?: 'Buyer not found' }}</div>
-                    <div class="value">{{ $delivery->address ?: $delivery->order?->shipping_address ?: 'No delivery address recorded' }}</div>
+                    <div class="value">{{ $delivery->sellerOrder?->order?->buyer?->name ?: 'Buyer not found' }}</div>
+                    <div class="value">{{ collect($delivery->sellerOrder?->order?->shipping_address_snapshot ?? [])->only(['line1','barangay','city','province','postal_code'])->filter()->implode(', ') ?: 'No delivery address recorded' }}</div>
                 </div>
             </div>
         </section>
@@ -59,11 +59,11 @@
         <h2>Parcel</h2>
         <div class="box">
             <div class="label">Order</div>
-            <div class="value">{{ $delivery->order?->order_number ?: 'Order #'.$delivery->order_id }}</div>
+            <div class="value">{{ $delivery->sellerOrder?->order?->reference ?: 'Seller order #'.$delivery->seller_order_id }}</div>
             <div class="label" style="margin-top:12px;">Items</div>
             <div class="value">
-                @forelse($delivery->order?->items ?? [] as $item)
-                    {{ $item->quantity }} x {{ $item->product?->name ?: 'Product #'.$item->product_id }}<br>
+                @forelse($delivery->sellerOrder?->items ?? [] as $item)
+                    {{ $item->quantity }} x {{ $item->product_name ?: 'Product #'.$item->product_id }}<br>
                 @empty
                     No order items recorded.
                 @endforelse

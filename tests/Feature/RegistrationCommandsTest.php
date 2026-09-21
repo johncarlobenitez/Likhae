@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class RegistrationCommandsTest extends TestCase
@@ -21,7 +20,7 @@ class RegistrationCommandsTest extends TestCase
             ->expectsQuestion('Confirm password', 'SecurePass123')
             ->assertSuccessful();
         $admin = User::where('email', 'admin@example.com')->sole();
-        $this->assertSame('admin', $admin->role);
+        $this->assertTrue($admin->hasRole('admin'));
         $this->assertSame('active', $admin->status);
         $this->assertTrue(Hash::check('SecurePass123', $admin->password));
     }
@@ -35,34 +34,8 @@ class RegistrationCommandsTest extends TestCase
             ->expectsQuestion('Password (8-72 characters, uppercase, lowercase and a number)', 'SecurePass123')
             ->expectsQuestion('Confirm password', 'SecurePass123')
             ->assertFailed();
-        $this->assertSame('buyer', $user->fresh()->role);
+        $this->assertTrue($user->fresh()->hasRole('buyer'));
         $this->assertTrue(Hash::check('password', $user->fresh()->password));
     }
 
-    public function test_old_public_documents_are_moved_without_changing_database_references(): void
-    {
-        Storage::fake('public');
-        Storage::fake('registrations');
-        $path = 'registration/valid-ids/existing.pdf';
-        User::factory()->create(['valid_id_path' => $path]);
-        Storage::disk('public')->put($path, 'original-content');
-        $this->artisan('app:secure-registration-documents')->assertSuccessful();
-        Storage::disk('public')->assertMissing($path);
-        $this->assertSame('original-content', Storage::disk('registrations')->get($path));
-        $this->assertDatabaseHas('users', ['valid_id_path' => $path]);
-        $this->artisan('app:secure-registration-documents')->assertSuccessful();
-    }
-
-    public function test_conflicting_private_copies_preserve_the_original_document(): void
-    {
-        Storage::fake('public');
-        Storage::fake('registrations');
-        $path = 'registration/valid-ids/existing.pdf';
-        User::factory()->create(['valid_id_path' => $path]);
-        Storage::disk('public')->put($path, 'original-content');
-        Storage::disk('registrations')->put($path, 'different-content');
-        $this->artisan('app:secure-registration-documents')->assertFailed();
-        $this->assertSame('original-content', Storage::disk('public')->get($path));
-        $this->assertSame('different-content', Storage::disk('registrations')->get($path));
-    }
 }

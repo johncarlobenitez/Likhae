@@ -64,11 +64,11 @@
         <section class="border border-green-200 bg-green-50 p-5">
             <h2 class="text-[13px] font-semibold text-green-900">Parcel Verified</h2>
             <dl class="mt-3 grid gap-3 text-[10px] sm:grid-cols-3">
-                <div><dt class="text-green-700">Tracking</dt><dd class="font-semibold">{{ $selectedDelivery->tracking_number }}</dd></div>
-                <div><dt class="text-green-700">Buyer</dt><dd class="font-semibold">{{ $selectedDelivery->order?->buyer?->name }}</dd></div>
-                <div><dt class="text-green-700">Destination</dt><dd class="font-semibold">{{ collect([$selectedDelivery->order?->buyer?->barangay, $selectedDelivery->order?->buyer?->municipality, $selectedDelivery->order?->buyer?->province])->filter()->implode(', ') ?: 'Address review required' }}</dd></div>
+                <div><dt class="text-green-700">Tracking</dt><dd class="font-semibold">{{ $selectedDelivery->tracking_code }}</dd></div>
+                <div><dt class="text-green-700">Buyer</dt><dd class="font-semibold">{{ $selectedDelivery->sellerOrder?->order?->buyer?->name }}</dd></div>
+                <div><dt class="text-green-700">Destination</dt><dd class="font-semibold">{{ collect([data_get($selectedDelivery->sellerOrder?->order?->shipping_address_snapshot, 'barangay'), data_get($selectedDelivery->sellerOrder?->order?->shipping_address_snapshot, 'city'), data_get($selectedDelivery->sellerOrder?->order?->shipping_address_snapshot, 'province')])->filter()->implode(', ') ?: 'Address review required' }}</dd></div>
             </dl>
-            <form method="POST" action="{{ route('logistics.sorting.sort', $selectedDelivery) }}" class="mt-4">@csrf<input type="hidden" name="tracking" value="{{ $selectedDelivery->tracking_number }}"><button class="bg-primary px-4 py-2 text-[10px] font-semibold text-white">Confirm Sorted</button></form>
+            <form method="POST" action="{{ route('logistics.sorting.sort', $selectedDelivery) }}" class="mt-4">@csrf<input type="hidden" name="tracking" value="{{ $selectedDelivery->tracking_code }}"><button class="bg-primary px-4 py-2 text-[10px] font-semibold text-white">Verify Sorted Parcel</button></form>
         </section>
     @endif
 

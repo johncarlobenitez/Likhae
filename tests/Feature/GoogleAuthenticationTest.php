@@ -56,7 +56,7 @@ class GoogleAuthenticationTest extends TestCase
         ]);
     }
 
-    public function test_new_google_buyer_must_complete_registration_and_approval(): void
+    public function test_new_google_buyer_completes_registration_and_receives_buyer_role(): void
     {
         Storage::fake('registrations');
         $this->mockGoogleUser('google-new', 'new@example.com');
@@ -74,14 +74,18 @@ class GoogleAuthenticationTest extends TestCase
             'last_name' => 'Buyer',
             'sex' => 'Female',
             'birthday' => '1995-06-01',
-            'contact_no' => '09171234567',
+            'contact_number' => '09171234567',
             'email' => 'changed@example.com',
             'password' => 'SecurePass123',
             'password_confirmation' => 'SecurePass123',
-            'region' => '0400000000',
-            'province' => '0403400000',
-            'municipality' => '0403424000',
-            'barangay' => '0403424001',
+            'region' => 'Region IV-A (CALABARZON)',
+            'region_code' => '0400000000',
+            'province' => 'Laguna',
+            'province_code' => '0403400000',
+            'municipality' => 'City of San Pablo',
+            'municipality_code' => '0403424000',
+            'barangay' => 'Bagong Bayan II-A',
+            'barangay_code' => '0403424001',
             'street' => 'Mabini Street',
             'postal_code' => '4000',
             'terms' => 'on',
@@ -90,13 +94,15 @@ class GoogleAuthenticationTest extends TestCase
 
         $this->assertDatabaseHas('users', [
             'email' => 'new@example.com',
-            'role' => 'buyer',
-            'status' => 'pending',
+            'status' => 'active',
             'google_id' => 'google-new',
             'contact_number' => '09171234567',
-            'street' => 'Mabini Street',
         ]);
-        $this->assertGuest();
+        $this->assertDatabaseHas('addresses', ['user_id' => User::where('email', 'new@example.com')->value('id'), 'line1' => 'Mabini Street']);
+        $created = User::where('email', 'new@example.com')->firstOrFail();
+        $this->assertTrue($created->hasRole('buyer'));
+        $this->assertAuthenticatedAs($created);
+        auth()->logout();
 
         $pending = User::factory()->create([
             'email' => 'pending@example.com',

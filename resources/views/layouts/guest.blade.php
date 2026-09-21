@@ -31,8 +31,8 @@
                 <nav class="lk-guest-nav" aria-label="Main navigation">
                     <a class="is-active" href="{{ route('home') }}">Home</a>
                     <a href="{{ route('products') }}">Categories</a>
-                    <a href="{{ route('products', ['sort' => 'best-selling']) }}">Deals</a>
-                    <a href="#about-likhae">About</a>
+                    <a href="{{ route('sell.create') }}">Seller Centre</a>
+                    <a href="{{ route('logistics.home') }}">Logistics Centre</a>
                 </nav>
             </div>
 

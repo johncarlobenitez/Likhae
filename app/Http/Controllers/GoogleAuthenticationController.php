@@ -67,7 +67,7 @@ class GoogleAuthenticationController extends Controller
             return redirect()->route('register', ['role' => 'buyer']);
         }
 
-        if ($user->role !== 'buyer') {
+        if (! $user->hasRole('buyer')) {
             return redirect()->route('login')->withErrors([
                 'email' => 'Continue with Google is available for buyer accounts only.',
             ]);

@@ -3,8 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\Category;
+use App\Models\Address;
 use App\Models\Product;
-use App\Models\SellerProfile;
+use App\Models\Seller as Shop;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -262,51 +263,44 @@ class LikhaeSellerTestAccountsSeeder extends Seeder
                 [
                     'name' => $row['first'].' '.$row['last'],
                     'password' => Hash::make(self::PASSWORD),
-                    'role' => 'seller',
                     'status' => 'active',
+                    'email_verified_at' => now(),
                     'first_name' => $row['first'],
                     'last_name' => $row['last'],
                     'middle_initial' => chr(65 + $index),
                     'sex' => $index % 2 === 0 ? 'female' : 'male',
                     'birthday' => $birthday,
                     'contact_number' => '0917'.str_pad((string) (1000000 + $index), 7, '0', STR_PAD_LEFT),
-                    'region' => 'Development Region',
-                    'province' => $row['province'],
-                    'municipality' => $row['municipality'],
-                    'barangay' => $row['barangay'],
-                    'postal_code' => $row['postal'],
-                    'street' => 'LIKHAE Test Street',
-                    'house_number' => 'Unit '.str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT),
-                    'landmark' => 'Development test address',
                     'valid_id_path' => $paths['valid_id_path'],
-                    'business_name' => $row['business'],
-                    'store_name' => $row['business'],
-                    'line_of_business' => $row['category'],
-                    'business_type' => 'Sole Proprietorship',
+                ]
+            );
+            $seller->grant('buyer');
+            $seller->grant('seller');
+            $pickup = Address::updateOrCreate(['user_id' => $seller->id, 'label' => 'Seller pickup'], [
+                'recipient' => $seller->name, 'phone' => $seller->contact_number,
+                'line1' => 'Unit '.str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT).' LIKHAE Test Street',
+                'region' => 'Development Region', 'province' => $row['province'], 'city' => $row['municipality'],
+                'barangay' => $row['barangay'], 'postal_code' => $row['postal'],
+                'landmark' => 'Development test address', 'is_default' => true,
+            ]);
+            $shop = Shop::updateOrCreate(['user_id' => $seller->id], [
+                'name' => $row['business'], 'slug' => Str::slug($row['business']).'-'.$seller->id,
+                'description' => $row['category'].' development seller', 'status' => 'approved',
+                'commission_bps' => 800, 'approved_at' => now(), 'pickup_address_id' => $pickup->id,
+                'permit_path' => $paths['business_permit_path'],
+                'settings' => [
+                    'line_of_business_category_id' => $categoryIds[$row['category']],
+                    'business_name' => $row['business'], 'business_type' => 'Sole Proprietorship',
                     'dti_sec_number' => 'DEV-DTI-'.str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
                     'tin' => '000-000-'.str_pad((string) ($index + 1), 3, '0', STR_PAD_LEFT),
-                    'business_permit_path' => $paths['business_permit_path'],
-                    'reviewed_at' => now(),
-                ]
-            );
-
-            SellerProfile::updateOrCreate(
-                ['seller_id' => $seller->id],
-                [
-                    'line_of_business_category_id' => $categoryIds[$row['category']],
-                    'shop_name' => $row['business'],
                     'tagline' => $row['category'].' development seller',
-                    'description' => 'Approved LIKHAE development seller for '.$row['category'].'.',
                     'location' => $row['municipality'].', '.$row['province'],
-                    'business_days' => 'Monday to Saturday',
-                    'business_hours' => '9:00 AM - 6:00 PM',
-                    'processing_days' => 2,
-                    'store_visibility' => true,
-                    'vacation_mode' => false,
-                ]
-            );
+                    'business_days' => 'Monday to Saturday', 'business_hours' => '9:00 AM - 6:00 PM',
+                    'processing_days' => 2, 'store_visibility' => true, 'vacation_mode' => false,
+                ],
+            ]);
 
-            $this->seedProduct($seller, $row['category']);
+            $this->seedProduct($seller, $shop, $row['category']);
         }
     }
 
@@ -350,7 +344,7 @@ class LikhaeSellerTestAccountsSeeder extends Seeder
         return Str::slug($name).'-'.$parentId;
     }
 
-    private function seedProduct(User $seller, string $categoryName): void
+    private function seedProduct(User $seller, Shop $shop, string $categoryName): void
     {
         $data = self::PRODUCTS[$categoryName] ?? null;
 
@@ -363,23 +357,18 @@ class LikhaeSellerTestAccountsSeeder extends Seeder
             ->where('name', $data['subcategory'])
             ->first();
 
-        $slug = Str::slug($seller->store_name.' '.$data['name']);
-        $stock = collect($data['variations'])->sum('stock');
+        $slug = Str::slug($shop->name.' '.$data['name']);
+        $minPriceMinor = (int) round(collect($data['variations'])->min('price') * 100);
 
         $product = Product::updateOrCreate(
             ['slug' => $slug],
             [
-                'seller_id' => $seller->id,
+                'seller_id' => $shop->id,
                 'category_id' => $category?->id,
                 'name' => $data['name'],
-                'sku' => 'LIKHAE-'.Str::upper(Str::slug($categoryName, '')).'-'.str_pad((string) $seller->id, 4, '0', STR_PAD_LEFT),
                 'description' => $data['description'],
-                'price' => $data['price'],
-                'stock' => $stock,
-                'status' => 'active',
-                'listing_status' => 'active',
-                'admin_status' => 'approved',
-                'image_path' => $data['image'],
+                'min_price_minor' => $minPriceMinor,
+                'is_active' => true,
             ]
         );
 
@@ -388,9 +377,20 @@ class LikhaeSellerTestAccountsSeeder extends Seeder
             ['sort_order' => 0]
         );
 
-        $product->variations()->delete();
+        $product->variants()->delete();
         foreach ($data['variations'] as $variation) {
-            $product->variations()->create($variation);
+            $price = $variation['price'] ?? $data['price'];
+            $name = (string) ($variation['name'] ?? 'Default');
+            $value = (string) ($variation['value'] ?? '');
+            $product->variants()->create([
+                'name' => $value !== '' ? $name.' / '.$value : $name,
+                'options' => $value !== '' ? [$name => $value] : [],
+                'sku' => $variation['sku'] ?? null,
+                'stock' => (int) ($variation['stock'] ?? 0),
+                'price_minor' => (int) round($price * 100),
+                'weight_grams' => $variation['weight_grams'] ?? 500,
+                'is_active' => true,
+            ]);
         }
 
         $product->specifications()->delete();

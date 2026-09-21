@@ -26,11 +26,11 @@ class AdminAnnouncement extends Model
                 'sellers' => ['seller'],
                 'logistics' => ['logistics'],
                 'riders' => ['rider', 'courier'],
-                default => User::PUBLIC_ROLES,
+                default => User::MANAGED_ROLES,
             };
 
             User::query()
-                ->whereIn('role', $roles)
+                ->anyRole($roles)
                 ->where('status', 'active')
                 ->select('id')
                 ->chunkById(500, function ($users): void {

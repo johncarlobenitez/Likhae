@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\Address;
+use App\Models\Seller;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -25,7 +27,7 @@ class AdminUserManagementTest extends TestCase
 
     public static function publicRoles(): array
     {
-        return array_map(fn (string $role) => [$role], User::PUBLIC_ROLES);
+        return array_map(fn (string $role) => [$role], User::MANAGED_ROLES);
     }
 
     public function test_guests_cannot_read_or_change_managed_accounts(): void
@@ -40,7 +42,7 @@ class AdminUserManagementTest extends TestCase
             ->assertRedirectToRoute('login');
 
         $this->assertSame('active', $user->fresh()->status);
-        $this->assertDatabaseCount('user_status_changes', 0);
+        $this->assertDatabaseCount('audit_logs', 0);
     }
 
     #[DataProvider('publicRoles')]
@@ -57,7 +59,7 @@ class AdminUserManagementTest extends TestCase
 
         $this->assertSame('active', $active->fresh()->status);
         $this->assertSame('suspended', $suspended->fresh()->status);
-        $this->assertDatabaseCount('user_status_changes', 0);
+        $this->assertDatabaseCount('audit_logs', 0);
     }
 
     public function test_directory_lists_real_accounts_and_filters_each_role_including_rider_aliases(): void
@@ -180,9 +182,16 @@ class AdminUserManagementTest extends TestCase
         $user = User::factory()->create([
             'name' => '<script>alert("profile")</script>', 'email' => 'profile@example.test',
             'role' => 'seller', 'status' => 'active', 'contact_number' => '09171234567',
-            'business_name' => '<img src=x onerror=alert(1)>', 'store_name' => 'Handmade Harbor',
-            'street' => 'Mabini Extension', 'postal_code' => '4000',
             'valid_id_path' => 'private/uploads/secret-id.pdf',
+        ]);
+        $address = Address::create([
+            'user_id' => $user->id, 'recipient' => $user->name, 'phone' => '09171234567',
+            'line1' => 'Mabini Extension', 'barangay' => 'San Roque', 'city' => 'Antipolo',
+            'province' => 'Rizal', 'postal_code' => '4000', 'is_default' => true,
+        ]);
+        $seller = Seller::create([
+            'user_id' => $user->id, 'name' => '<img src=x onerror=alert(1)>',
+            'slug' => 'handmade-harbor', 'status' => 'approved', 'pickup_address_id' => $address->id,
         ]);
         $reason = '<script>alert("audit")</script>';
         $this->actingAs($admin)->post(route('admin.users.suspend', $user), ['reason' => $reason])
@@ -191,43 +200,39 @@ class AdminUserManagementTest extends TestCase
         $this->get(route('admin.users.show', $user))->assertOk()
             ->assertSee($user->name)->assertDontSee($user->name, false)
             ->assertSee($user->email)->assertSee($user->contact_number)
-            ->assertSee($user->business_name)->assertDontSee($user->business_name, false)
-            ->assertSee($user->store_name)->assertSee($user->street)
+            ->assertSee($seller->name)->assertDontSee($seller->name, false)
+            ->assertSee($address->line1)
             ->assertSee($reason)->assertDontSee($reason, false)
             ->assertDontSee($user->password, false)->assertDontSee($user->remember_token, false)
             ->assertDontSee($user->valid_id_path, false);
     }
 
     #[DataProvider('publicRoles')]
-    public function test_status_changes_are_audited_and_preserve_registration_review(string $role): void
+    public function test_status_changes_are_recorded_in_the_canonical_audit_log(string $role): void
     {
-        $reviewer = $this->administrator();
         $admin = $this->administrator();
         $user = User::factory()->create([
-            'role' => $role, 'status' => 'active', 'reviewed_by' => $reviewer->id,
-            'reviewed_at' => '2026-08-20 09:00:00', 'rejection_reason' => 'Historical registration note',
+            'role' => $role, 'status' => 'active',
         ]);
         $rememberToken = $user->remember_token;
-        $approval = $user->only(['reviewed_by', 'reviewed_at', 'rejection_reason']);
 
         $this->actingAs($admin)->post(route('admin.users.suspend', $user), ['reason' => 'Repeated delivery issues'])
             ->assertSessionHasNoErrors()->assertRedirectToRoute('admin.users.show', $user);
         $this->assertSame('suspended', $user->fresh()->status);
         $this->assertNotSame($rememberToken, $user->fresh()->remember_token);
-        $this->assertDatabaseHas('user_status_changes', [
-            'user_id' => $user->id, 'changed_by' => $admin->id, 'previous_status' => 'active',
-            'status' => 'suspended', 'reason' => 'Repeated delivery issues',
+        $this->assertDatabaseHas('audit_logs', [
+            'target_type' => 'User', 'target_id' => $user->id, 'actor_id' => $admin->id,
+            'action' => 'user.suspended', 'description' => 'Repeated delivery issues',
         ]);
 
         $this->post(route('admin.users.reactivate', $user), ['reason' => 'Issue resolved with account holder'])
             ->assertSessionHasNoErrors()->assertRedirectToRoute('admin.users.show', $user);
         $this->assertSame('active', $user->fresh()->status);
-        $this->assertEquals($approval, $user->fresh()->only(['reviewed_by', 'reviewed_at', 'rejection_reason']));
-        $this->assertDatabaseHas('user_status_changes', [
-            'user_id' => $user->id, 'changed_by' => $admin->id, 'previous_status' => 'suspended',
-            'status' => 'active', 'reason' => 'Issue resolved with account holder',
+        $this->assertDatabaseHas('audit_logs', [
+            'target_type' => 'User', 'target_id' => $user->id, 'actor_id' => $admin->id,
+            'action' => 'user.active', 'description' => 'Issue resolved with account holder',
         ]);
-        $this->assertDatabaseCount('user_status_changes', 2);
+        $this->assertDatabaseCount('audit_logs', 2);
         $this->get(route('admin.users.show', $user))->assertOk()
             ->assertSee('Repeated delivery issues')->assertSee('Issue resolved with account holder');
     }
@@ -237,18 +242,18 @@ class AdminUserManagementTest extends TestCase
         $user = User::factory()->create(['role' => 'buyer', 'status' => 'active']);
         $this->actingAs($this->administrator());
         $this->post(route('admin.users.suspend', $user), ['reason' => 'Original decision'])->assertSessionHasNoErrors();
-        $original = DB::table('user_status_changes')->first();
+        $original = DB::table('audit_logs')->first();
 
         $this->post(route('admin.users.suspend', $user), ['reason' => 'Duplicate decision'])->assertSessionHasErrors('status');
         $this->assertSame('suspended', $user->fresh()->status);
-        $this->assertDatabaseCount('user_status_changes', 1);
-        $this->assertEquals($original, DB::table('user_status_changes')->first());
+        $this->assertDatabaseCount('audit_logs', 1);
+        $this->assertEquals($original, DB::table('audit_logs')->first());
 
         $this->post(route('admin.users.reactivate', $user), ['reason' => 'Resolved'])->assertSessionHasNoErrors();
         $this->post(route('admin.users.reactivate', $user), ['reason' => 'Duplicate resolution'])->assertSessionHasErrors('status');
         $this->assertSame('active', $user->fresh()->status);
-        $this->assertDatabaseCount('user_status_changes', 2);
-        $this->assertEquals($original, DB::table('user_status_changes')->where('id', $original->id)->first());
+        $this->assertDatabaseCount('audit_logs', 2);
+        $this->assertEquals($original, DB::table('audit_logs')->where('id', $original->id)->first());
     }
 
     public function test_pending_and_rejected_accounts_cannot_bypass_registration_approval(): void
@@ -261,11 +266,10 @@ class AdminUserManagementTest extends TestCase
                 $this->post(route('admin.users.'.$action, $user), ['reason' => 'Attempted bypass'])
                     ->assertSessionHasErrors('status');
                 $this->assertSame($status, $user->fresh()->status);
-                $this->assertNull($user->fresh()->reviewed_at);
             }
         }
 
-        $this->assertDatabaseCount('user_status_changes', 0);
+        $this->assertDatabaseCount('audit_logs', 0);
     }
 
     public function test_administrators_cannot_change_their_own_or_other_administrators_status(): void
@@ -283,7 +287,7 @@ class AdminUserManagementTest extends TestCase
             $this->assertSame($target->status, $target->fresh()->status);
         }
 
-        $this->assertDatabaseCount('user_status_changes', 0);
+        $this->assertDatabaseCount('audit_logs', 0);
     }
 
     public function test_both_status_actions_require_a_nonempty_reason_of_at_most_2000_characters(): void
@@ -298,7 +302,7 @@ class AdminUserManagementTest extends TestCase
             }
         }
 
-        $this->assertDatabaseCount('user_status_changes', 0);
+        $this->assertDatabaseCount('audit_logs', 0);
     }
 
     public function test_status_action_ignores_forged_account_and_audit_fields(): void
@@ -309,19 +313,19 @@ class AdminUserManagementTest extends TestCase
 
         $this->actingAs($admin)->post(route('admin.users.suspend', $user), [
             'reason' => $reason, 'status' => 'active', 'role' => 'admin', 'email' => 'changed@example.test',
-            'reviewed_by' => $user->id, 'reviewed_at' => '2026-09-01', 'changed_by' => $user->id,
+            'changed_by' => $user->id,
             'previous_status' => 'pending', 'user_id' => $admin->id,
         ])->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('users', [
-            'id' => $user->id, 'status' => 'suspended', 'role' => 'buyer', 'email' => 'unchanged@example.test',
-            'reviewed_by' => null, 'reviewed_at' => null,
+            'id' => $user->id, 'status' => 'suspended', 'email' => 'unchanged@example.test',
         ]);
-        $this->assertDatabaseHas('user_status_changes', [
-            'user_id' => $user->id, 'changed_by' => $admin->id, 'previous_status' => 'active',
-            'status' => 'suspended', 'reason' => $reason,
+        $this->assertTrue($user->fresh()->hasRole('buyer'));
+        $this->assertDatabaseHas('audit_logs', [
+            'target_type' => 'User', 'target_id' => $user->id, 'actor_id' => $admin->id,
+            'action' => 'user.suspended', 'description' => $reason,
         ]);
-        $this->assertDatabaseCount('user_status_changes', 1);
+        $this->assertDatabaseCount('audit_logs', 1);
     }
 
     public function test_suspension_blocks_existing_sessions_and_login_until_reactivation(): void
@@ -351,6 +355,6 @@ class AdminUserManagementTest extends TestCase
         $this->get(route('admin.users.show', 999999))->assertNotFound();
         $this->post(route('admin.users.suspend', 999999), ['reason' => 'Missing account'])->assertNotFound();
         $this->post(route('admin.users.reactivate', 999999), ['reason' => 'Missing account'])->assertNotFound();
-        $this->assertDatabaseCount('user_status_changes', 0);
+        $this->assertDatabaseCount('audit_logs', 0);
     }
 }

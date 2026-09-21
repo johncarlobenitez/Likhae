@@ -5,6 +5,11 @@ use App\Http\Controllers\GuestMarketplaceController;
 use App\Http\Controllers\GoogleAuthenticationController;
 use App\Http\Controllers\PhilippineAddressController;
 use App\Http\Controllers\RegistrationController;
+use App\Http\Controllers\SellerApplicationController;
+use App\Http\Controllers\TrackingController;
+use App\Http\Controllers\AccountRecoveryController;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
+use App\Http\Controllers\LogisticsProviderApplicationController;
 use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -35,6 +40,8 @@ Route::get('/', [GuestMarketplaceController::class, 'home'])->name('home');
 Route::get('/guest-account', [GuestMarketplaceController::class, 'products'])->name('guest.home');
 Route::get('/products', [GuestMarketplaceController::class, 'products'])->name('products');
 Route::get('/products/{slug}', [GuestMarketplaceController::class, 'show'])->name('products.show');
+Route::get('/track/{trackingCode}', [TrackingController::class, 'show'])->middleware('throttle:30,1')->name('tracking.show');
+Route::get('/delivery-events/{event}/proof', [TrackingController::class, 'proof'])->middleware('auth')->name('delivery-events.proof');
 
 /*
 |--------------------------------------------------------------------------
@@ -52,6 +59,13 @@ Route::get('/login', function () {
 })->middleware('guest')->name('login');
 
 Route::post('/login', [AuthenticationController::class, 'store'])->middleware(['guest', 'throttle:30,1'])->name('login.post');
+Route::get('/forgot-password', [AccountRecoveryController::class, 'request'])->middleware('guest')->name('password.request');
+Route::post('/forgot-password', [AccountRecoveryController::class, 'email'])->middleware(['guest','throttle:5,1'])->name('password.email');
+Route::get('/reset-password/{token}', [AccountRecoveryController::class, 'reset'])->middleware('guest')->name('password.reset');
+Route::post('/reset-password', [AccountRecoveryController::class, 'update'])->middleware('guest')->name('password.update');
+Route::get('/email/verify', fn () => view('auth.verify-email'))->middleware('auth')->name('verification.notice');
+Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) { $request->fulfill(); return redirect()->route($request->user()->workspaceRoute()); })->middleware(['auth','signed','throttle:6,1'])->name('verification.verify');
+Route::post('/email/verification-notification', function (Request $request) { $request->user()->sendEmailVerificationNotification(); return back()->with('status','verification-link-sent'); })->middleware(['auth','throttle:6,1'])->name('verification.send');
 
 /*
 |--------------------------------------------------------------------------
@@ -67,18 +81,16 @@ Route::post('/login', [AuthenticationController::class, 'store'])->middleware(['
 
 Route::get('/register', [RegistrationController::class, 'create'])->middleware('guest')->name('register');
 
-Route::get('/registration/pending', function (Request $request) {
-    return view('auth.pending', ['accountType' => $request->query('type', 'LIKHAE')]);
-})->name('registration.pending');
-
-Route::get('/register/{role}', function (string $role) {
-    abort_unless(in_array($role, ['buyer', 'seller', 'logistics', 'rider'], true), 404);
-
-    return redirect()->route('register', ['role' => $role === 'rider' ? 'courier' : $role]);
-})->name('register.role');
-
 Route::post('/register', [RegistrationController::class, 'store'])
     ->middleware(['guest', 'throttle:10,1'])->name('register.store');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/sell', [SellerApplicationController::class, 'create'])->name('sell.create');
+    Route::post('/sell', [SellerApplicationController::class, 'store'])->name('sell.store');
+    Route::get('/partner', [LogisticsProviderApplicationController::class, 'create'])->name('partner.create');
+    Route::post('/partner', [LogisticsProviderApplicationController::class, 'store'])->name('partner.store');
+    Route::get('/partner/status', [LogisticsProviderApplicationController::class, 'status'])->name('partner.status');
+});
 
 /*
 |--------------------------------------------------------------------------

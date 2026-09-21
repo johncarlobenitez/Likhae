@@ -776,7 +776,7 @@
                 <tbody>
                     @forelse($users as $user)
                         @php
-                            $roleLabel = in_array($user->role, ['rider', 'courier'], true) ? 'Rider' : ucfirst($user->role);
+                            $roleLabel = in_array($user->primary_role, ['rider', 'courier'], true) ? 'Rider' : ucfirst($user->primary_role);
                             $statusLabel = $statuses[$user->status] ?? ucfirst($user->status);
                             $statusClass = $statusClasses[$user->status] ?? strtolower(str_replace(' ', '-', $user->status));
                             $searchText = strtolower('USR-'.$user->id.' '.$user->name.' '.$user->email.' '.$roleLabel.' '.$statusLabel);

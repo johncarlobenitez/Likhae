@@ -1074,22 +1074,22 @@
                             <tr>
                                 <td>
                                     <strong>
-                                        {{ $order->order_number ?: 'ORD-'.$order->id }}
+                                        {{ $order->order?->reference ?: 'ORD-'.$order->id }}
                                     </strong>
                                 </td>
 
-                                <td>{{ $order->buyer?->name ?: 'Unknown buyer' }}</td>
+                                <td>{{ $order->order?->buyer?->name ?: 'Unknown buyer' }}</td>
 
-                                <td>{{ $order->seller?->store_name ?: $order->seller?->business_name ?: $order->seller?->name ?: 'Unknown seller' }}</td>
+                                <td>{{ $order->seller?->name ?: 'Unknown seller' }}</td>
 
                                 <td>
                                     <strong>
-                                        ₱{{ number_format((float) $order->total_amount, 2) }}
+                                        ₱{{ number_format(($order->subtotal_minor + $order->shipping_fee_minor) / 100, 2) }}
                                     </strong>
                                 </td>
 
                                 <td>
-                                    {{ $order->delivery?->provider ?: $order->delivery?->tracking_number ?: 'Not assigned' }}
+                                    {{ $order->shipment?->provider?->name ?: $order->shipment?->tracking_code ?: 'Not assigned' }}
                                 </td>
 
                                 <td>

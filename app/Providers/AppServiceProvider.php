@@ -3,7 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Message;
-use App\Models\Order;
+use App\Models\SellerOrder;
 use App\Models\WorkspaceNotification;
 use App\Support\BuyerMarketplace;
 use Illuminate\Support\Facades\Schema;
@@ -24,7 +24,7 @@ class AppServiceProvider extends ServiceProvider
             $admin = auth()->user();
             $counts = ['messages' => 0, 'notifications' => 0];
 
-            if ($admin?->role === 'admin') {
+            if ($admin?->hasRole('admin')) {
                 if (Schema::hasTable('messages')) {
                     $counts['messages'] = Message::where('recipient_id', $admin->id)->whereNull('read_at')->count();
                 }
@@ -49,14 +49,17 @@ class AppServiceProvider extends ServiceProvider
                 'notifications' => 0,
             ];
 
-            if ($seller?->role === 'seller' && Schema::hasTable('orders')) {
-                Order::where('seller_id', $seller->id)
+            if ($seller?->hasRole('seller') && Schema::hasTable('seller_orders')) {
+                $shopIds = $seller->sellers()->where('status', 'approved')->pluck('id');
+                SellerOrder::whereIn('seller_id', $shopIds)
                     ->pluck('status')
                     ->each(function (?string $status) use (&$counts): void {
                         $key = match ($status) {
                             'pending' => 'to_process',
-                            'shipped' => 'shipping',
-                            'disputed' => 'returns',
+                            'accepted', 'packed' => 'to_prepare',
+                            'ready_to_ship' => 'ready_pickup',
+                            'shipped', 'delivered' => 'shipping',
+                            'refunded' => 'returns',
                             default => $status ?: 'to_process',
                         };
 
@@ -66,13 +69,13 @@ class AppServiceProvider extends ServiceProvider
                     });
             }
 
-            if ($seller?->role === 'seller' && Schema::hasTable('messages')) {
+            if ($seller?->hasRole('seller') && Schema::hasTable('messages')) {
                 $counts['messages'] = Message::where('recipient_id', $seller->id)
                     ->whereNull('read_at')
                     ->count();
             }
 
-            if ($seller?->role === 'seller' && Schema::hasTable('workspace_notifications')) {
+            if ($seller?->hasRole('seller') && Schema::hasTable('workspace_notifications')) {
                 $counts['notifications'] = WorkspaceNotification::where('user_id', $seller->id)
                     ->whereNull('read_at')
                     ->count();
@@ -87,7 +90,7 @@ class AppServiceProvider extends ServiceProvider
             $counts = ['cart' => 0, 'messages' => 0, 'notifications' => 0];
 
             if (
-                $buyer?->role === 'buyer'
+                $buyer?->hasRole('buyer')
                 && Schema::hasTable('carts')
                 && Schema::hasTable('cart_items')
                 && Schema::hasTable('messages')

@@ -1,19 +1,28 @@
 <?php
 
-use App\Http\Controllers\AdminRegistrationController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminOperationsController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AdminOnboardingController;
 use App\Http\Middleware\EnsureWorkspaceRole;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('admin')->name('admin.')->middleware(['auth', EnsureWorkspaceRole::class.':admin'])->group(function () {
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified', EnsureWorkspaceRole::class.':admin'])->group(function () {
     Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/sellers', [AdminOnboardingController::class, 'sellers'])->name('sellers.index');
+    Route::post('/sellers/{seller}/approve', [AdminOnboardingController::class, 'approveSeller'])->name('sellers.approve');
+    Route::post('/sellers/{seller}/reject', [AdminOnboardingController::class, 'rejectSeller'])->name('sellers.reject');
+    Route::post('/sellers/{seller}/suspend', [AdminOnboardingController::class, 'suspendSeller'])->name('sellers.suspend');
+    Route::post('/sellers/{seller}/reinstate', [AdminOnboardingController::class, 'reinstateSeller'])->name('sellers.reinstate');
+    Route::get('/sellers/{seller}/permit', [AdminOnboardingController::class, 'sellerDocument'])->name('sellers.permit');
+    Route::get('/couriers', [AdminOnboardingController::class, 'couriers'])->name('couriers.index');
+    Route::post('/couriers/{provider}/approve', [AdminOnboardingController::class, 'approveCourier'])->name('couriers.approve');
+    Route::post('/couriers/{provider}/reject', [AdminOnboardingController::class, 'rejectCourier'])->name('couriers.reject');
+    Route::post('/couriers/{provider}/suspend', [AdminOnboardingController::class, 'suspendCourier'])->name('couriers.suspend');
+    Route::post('/couriers/{provider}/reinstate', [AdminOnboardingController::class, 'reinstateCourier'])->name('couriers.reinstate');
+    Route::get('/couriers/{provider}/document', [AdminOnboardingController::class, 'courierDocument'])->name('couriers.document');
 
-    Route::get('/registrations', [AdminRegistrationController::class, 'index'])->name('registrations');
-    Route::post('/registrations/{user}/approve', [AdminRegistrationController::class, 'approve'])->name('registrations.approve');
-    Route::post('/registrations/{user}/reject', [AdminRegistrationController::class, 'reject'])->name('registrations.reject');
-    Route::get('/registrations/{user}/documents/{document}', [AdminRegistrationController::class, 'document'])->name('registrations.document');
+    Route::get('/registrations', fn () => redirect()->route('admin.sellers.index'))->name('registrations');
     Route::get('/users', [AdminUserController::class, 'index'])->name('users');
     Route::get('/users/{user}', [AdminUserController::class, 'show'])->name('users.show');
     Route::post('/users/{user}/suspend', [AdminUserController::class, 'suspend'])->name('users.suspend');
@@ -48,7 +57,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', EnsureWorkspaceRole:
     Route::post('/notifications/{notification}/read', [AdminOperationsController::class, 'markNotificationRead'])->name('notifications.read');
 
     // Compatibility aliases for the original Admin frontend routes.
-    Route::get('/sellers/approvals', fn () => redirect()->route('admin.registrations', ['type' => 'sellers']))->name('sellers.approvals');
+    Route::get('/sellers/approvals', fn () => redirect()->route('admin.sellers.index'))->name('sellers.approvals');
     Route::get('/riders', fn () => redirect()->route('admin.users', ['role' => 'riders']))->name('riders');
     Route::get('/categories', fn () => redirect()->route('admin.products', ['view' => 'categories']))->name('categories');
     Route::get('/payments', fn () => redirect()->route('admin.finance', ['tab' => 'payments']))->name('payments');

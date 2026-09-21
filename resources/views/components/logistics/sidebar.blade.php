@@ -49,7 +49,7 @@
         <div class="sl-nav-section">
             <span class="sl-nav-label">Rider Management</span>
 
-            <a href="{{ route('logistics.rider-applications') }}"
+            <a href="{{ route('logistics.riders.applications') }}"
                class="sl-nav-link {{ $active === 'rider-applications' ? 'is-active' : '' }}"
                data-title="Rider Applications">
                 <span class="sl-nav-icon">{!! $icon('apply') !!}</span>
@@ -67,7 +67,7 @@
         <div class="sl-nav-section">
             <span class="sl-nav-label">Parcel Operations</span>
 
-            <a href="{{ route('logistics.pickup-requests') }}"
+            <a href="{{ route('logistics.pickups') }}"
                class="sl-nav-link {{ $active === 'pickup-requests' ? 'is-active' : '' }}"
                data-title="Pickup Requests">
                 <span class="sl-nav-icon">{!! $icon('shipping') !!}</span>
@@ -88,14 +88,14 @@
                 <span class="sl-nav-text">Parcel Sorting</span>
             </a>
 
-            <a href="{{ route('logistics.assignments') }}"
+            <a href="{{ route('logistics.dispatch') }}"
                class="sl-nav-link {{ $active === 'assignments' ? 'is-active' : '' }}"
                data-title="Delivery Assignment">
                 <span class="sl-nav-icon">{!! $icon('shipping') !!}</span>
                 <span class="sl-nav-text">Delivery Assignment</span>
             </a>
 
-            <a href="{{ route('logistics.monitoring') }}"
+            <a href="{{ route('logistics.parcels.tracking') }}"
                class="sl-nav-link {{ $active === 'monitoring' ? 'is-active' : '' }}"
                data-title="Delivery Monitoring">
                 <span class="sl-nav-icon">{!! $icon('monitor') !!}</span>

@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class PlatformSetting extends Model
 {
+    protected $table = 'settings';
+
     protected $fillable = ['key', 'value', 'type', 'updated_by'];
 
     public static function valueOf(string $key, mixed $default = null): mixed
@@ -42,5 +44,10 @@ class PlatformSetting extends Model
     {
         $default = (float) config('likhae.seller_commission_rate', 0.10);
         return min(1, max(0, (float) static::valueOf('seller_commission_rate', $default)));
+    }
+
+    public static function commissionBps(): int
+    {
+        return min(10000, max(0, (int) static::valueOf('default_commission_bps', 800)));
     }
 }

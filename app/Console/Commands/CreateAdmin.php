@@ -40,9 +40,10 @@ class CreateAdmin extends Command
             return self::FAILURE;
         }
 
-        $user = new User(['name' => $name, 'email' => $email, 'password' => $password, 'role' => 'admin']);
+        $user = new User(['name' => $name, 'email' => $email, 'password' => $password]);
         $user->status = 'active';
         $user->save();
+        $user->grant('admin');
         $this->info('Administrator created. Sign in at '.route('login').' to review registrations.');
 
         return self::SUCCESS;

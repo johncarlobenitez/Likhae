@@ -40,39 +40,29 @@ class GuestMarketplaceController extends Controller
 
     private function query()
     {
-        return Product::query()
-            ->with(['seller', 'category.parent'])
-            ->where('stock', '>', 0)
-            ->where(function ($query) {
-                $query->where('listing_status', 'active')->orWhere(function ($q) {
-                    $q->whereNull('listing_status')->where('status', 'active');
-                });
-            })
-            ->where(function ($query) {
-                $query->whereNull('admin_status')->orWhere('admin_status', 'approved');
-            })
-            ->whereHas('seller', fn ($query) => $query->where('role', 'seller')->where('status', 'active'))
-            ->whereNotExists(function ($query) {
-                $query->selectRaw('1')->from('seller_profiles')
-                    ->whereColumn('seller_profiles.seller_id', 'products.seller_id')
-                    ->where(function ($profile) {
-                        $profile->where('seller_profiles.store_visibility', false)
-                            ->orWhere('seller_profiles.vacation_mode', true);
-                    });
-            });
+        return Product::visible()
+            ->with([
+                'seller.owner',
+                'seller.pickupAddress',
+                'category.parent',
+                'variants' => fn ($query) => $query->where('is_active', true)->where('stock', '>', 0),
+                'images',
+            ])
+            ;
     }
 
     private function previewProduct(Product $product): array
     {
-        $sellerName = $product->seller?->store_name
-            ?: $product->seller?->business_name
-            ?: $product->seller?->name
+        $seller = $product->seller;
+        $sellerName = $seller?->name
+            ?: $seller?->owner?->name
             ?: 'LIKHAE Seller';
 
-        $image = $product->image_path
-            ? (Str::startsWith($product->image_path, ['http://', 'https://'])
-                ? $product->image_path
-                : Storage::url($product->image_path))
+        $imagePath = $product->images->first()?->path;
+        $image = $imagePath
+            ? (Str::startsWith($imagePath, ['http://', 'https://'])
+                ? $imagePath
+                : Storage::url($imagePath))
             : asset('images/product-placeholder.svg');
 
         return [
@@ -96,8 +86,8 @@ class GuestMarketplaceController extends Controller
     private function publicLocation(Product $product): string
     {
         return collect([
-            $product->seller?->municipality,
-            $product->seller?->province,
+            $product->seller?->pickupAddress?->city,
+            $product->seller?->pickupAddress?->province,
         ])->filter()->implode(', ') ?: 'Philippines';
     }
 }

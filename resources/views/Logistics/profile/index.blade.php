@@ -22,7 +22,7 @@
                 <div>
                     <h2 class="text-[16px] font-semibold text-ink">{{ $user?->name }}</h2>
                     <p class="mt-1 text-[10px] text-muted">{{ $user?->email }}</p>
-                    <p class="mt-1 text-[9px] text-muted">{{ Str::headline($user?->role ?? 'logistics') }} - {{ Str::headline($user?->status ?? 'pending') }}</p>
+                    <p class="mt-1 text-[9px] text-muted">{{ Str::headline($user?->primary_role ?? 'logistics') }} - {{ Str::headline($user?->status ?? 'pending') }}</p>
                 </div>
             </div>
 
@@ -37,9 +37,9 @@
         <article class="rounded-xl border border-line bg-surface p-5">
             <h2 class="text-[13px] font-semibold text-ink">Registration Details</h2>
             <dl class="mt-4 grid gap-3 text-[10px]">
-                <div><dt class="text-muted">Contact No.</dt><dd class="mt-1 font-semibold text-ink">{{ $user?->contact_number ?: 'Not provided' }}</dd></div>
-                <div><dt class="text-muted">Business Name</dt><dd class="mt-1 font-semibold text-ink">{{ $user?->business_name ?: 'Not provided' }}</dd></div>
-                <div><dt class="text-muted">Address</dt><dd class="mt-1 font-semibold text-ink">{{ collect([$user?->house_number, $user?->street, $user?->barangay, $user?->municipality, $user?->province])->filter()->implode(', ') ?: 'Not provided' }}</dd></div>
+                <div><dt class="text-muted">Contact No.</dt><dd class="mt-1 font-semibold text-ink">{{ $provider?->contact_phone ?: $user?->contact_number ?: 'Not provided' }}</dd></div>
+                <div><dt class="text-muted">Business Name</dt><dd class="mt-1 font-semibold text-ink">{{ $provider?->name ?: 'Not provided' }}</dd></div>
+                <div><dt class="text-muted">Address</dt><dd class="mt-1 font-semibold text-ink">{{ collect([$address?->line1, $address?->barangay, $address?->city, $address?->province, $address?->postal_code])->filter()->implode(', ') ?: 'Not provided' }}</dd></div>
             </dl>
         </article>
 

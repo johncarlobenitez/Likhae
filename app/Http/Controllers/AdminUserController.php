@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\AdminAuditLog;
 use App\Models\WorkspaceNotification;
-use App\Models\UserStatusChange;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -37,7 +36,7 @@ class AdminUserController extends Controller
 
         $roles = ['buyers' => ['buyer'], 'sellers' => ['seller'], 'logistics' => ['logistics'], 'riders' => ['rider', 'courier'], 'admins' => ['admin']];
         if (isset($roles[$role])) {
-            $query->whereIn('role', $roles[$role]);
+            $query->anyRole($roles[$role]);
         }
         if ($status !== 'all') {
             $query->where('status', $status);
@@ -53,10 +52,11 @@ class AdminUserController extends Controller
         }
 
         $users = $query->latest()->orderByDesc('id')->paginate(20)->withQueryString();
-        $counts = User::selectRaw('role, COUNT(*) AS total')->groupBy('role')->pluck('total', 'role');
         $stats = [
-            'total' => $counts->sum(), 'buyers' => $counts['buyer'] ?? 0, 'sellers' => $counts['seller'] ?? 0,
-            'delivery' => ($counts['logistics'] ?? 0) + ($counts['courier'] ?? 0) + ($counts['rider'] ?? 0),
+            'total' => User::count(),
+            'buyers' => User::role('buyer')->count(),
+            'sellers' => User::role('seller')->count(),
+            'delivery' => User::anyRole(['logistics', 'rider'])->count(),
         ];
 
         return view('Admin.users', [
@@ -67,8 +67,15 @@ class AdminUserController extends Controller
 
     public function show(User $user): View
     {
-        $user->load('reviewer');
-        $changes = UserStatusChange::where('user_id', $user->id)->with('administrator')->latest()->orderByDesc('id')->paginate(10);
+        $user->load(['addresses', 'sellers', 'logisticsProvider', 'rider']);
+        $changes = AdminAuditLog::query()
+            ->where('target_type', 'User')
+            ->where('target_id', $user->id)
+            ->whereIn('action', ['user.suspended', 'user.active'])
+            ->with('actor')
+            ->latest()
+            ->orderByDesc('id')
+            ->paginate(10);
 
         return view('Admin.user-details', compact('user', 'changes'));
     }
@@ -85,26 +92,22 @@ class AdminUserController extends Controller
 
     private function changeStatus(Request $request, User $user, string $previousStatus, string $status): RedirectResponse
     {
-        abort_unless(in_array($user->role, User::PUBLIC_ROLES, true) && $user->id !== $request->user()->id, 403);
+        abort_unless(in_array($user->primary_role, User::MANAGED_ROLES, true) && $user->id !== $request->user()->id, 403);
         $validated = $request->validate(['reason' => ['required', 'string', 'max:2000']]);
 
         DB::transaction(function () use ($request, $user, $previousStatus, $status, $validated) {
             $account = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
-            abort_unless(in_array($account->role, User::PUBLIC_ROLES, true), 403);
+            abort_unless(in_array($account->primary_role, User::MANAGED_ROLES, true), 403);
             if ($account->status !== $previousStatus) {
                 throw ValidationException::withMessages(['status' => 'This account can no longer be changed with that action. Refresh the page to see its current status.']);
             }
 
             $account->status = $status;
+            $account->is_suspended = $status === 'suspended';
             if ($status === 'suspended') {
                 $account->remember_token = Str::random(60);
             }
             $account->save();
-
-            UserStatusChange::create([
-                'user_id' => $account->id, 'changed_by' => $request->user()->id,
-                'previous_status' => $previousStatus, 'status' => $status, 'reason' => $validated['reason'],
-            ]);
 
             WorkspaceNotification::create([
                 'user_id' => $account->id,
@@ -120,6 +123,10 @@ class AdminUserController extends Controller
                 'target_id' => $account->id,
                 'description' => $validated['reason'],
                 'ip_address' => $request->ip(),
+                'metadata' => [
+                    'before' => ['status' => $previousStatus],
+                    'after' => ['status' => $status],
+                ],
             ]);
         });
 

@@ -103,7 +103,7 @@
                             <span class="sl-avatar">{{ collect(explode(' ', $buyer->name))->filter()->take(2)->map(fn ($word) => mb_strtoupper(mb_substr($word, 0, 1)))->implode('') }}</span>
                             <span class="sl-conversation-copy">
                                 <span><strong>{{ $buyer->name }}</strong><small>{{ $last?->created_at?->diffForHumans() }}</small></span>
-                                <em>{{ $last?->order ? 'Order #'.$last->order->order_number : 'Buyer conversation' }}</em>
+                                <em>{{ $last?->order ? 'Order #'.$last->order->reference : 'Buyer conversation' }}</em>
                                 <p>{{ $last?->body ?: 'Start a conversation' }}</p>
                             </span>
                             @if($row['unread'])

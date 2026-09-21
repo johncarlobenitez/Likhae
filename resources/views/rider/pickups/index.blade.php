@@ -45,12 +45,6 @@
                     <div class="flex flex-wrap items-center gap-3">
                         <span class="rounded-full bg-warning-soft px-4 py-2 text-xs font-semibold text-warning">{{ $pickup['status_label'] }}</span>
                         <a href="{{ route('rider.pickups.show', $pickup['id']) }}" class="rounded-xl border border-line px-5 py-3 text-sm font-semibold text-ink hover:bg-page-secondary">View</a>
-                        @if($pickup['status'] === 'PICKUP_ASSIGNED')
-                            <form method="POST" action="{{ route('rider.pickups.accept', $pickup['id']) }}">
-                                @csrf
-                                <button type="submit" class="rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Accept Pickup</button>
-                            </form>
-                        @endif
                     </div>
                 </article>
             @empty

@@ -113,8 +113,8 @@
                 ],
                 [
                     'label' => 'Rider Assignment',
-                    'href' => route('logistics.assignments'),
-                    'active' => ['logistics.assignments', 'logistics.assignments.*'],
+                    'href' => route('logistics.dispatch'),
+                    'active' => ['logistics.dispatch'],
                     'icon' => 'assignment',
                 ],
                 [
@@ -133,12 +133,6 @@
                     'href' => route('logistics.riders'),
                     'active' => ['logistics.riders', 'logistics.riders.show'],
                     'icon' => 'riders',
-                ],
-                [
-                    'label' => 'Rider Applications',
-                    'href' => route('logistics.riders.applications'),
-                    'active' => ['logistics.riders.applications', 'logistics.rider-applications'],
-                    'icon' => 'application',
                 ],
                 [
                     'label' => 'Delivery Areas',

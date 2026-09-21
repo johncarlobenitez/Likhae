@@ -52,10 +52,9 @@
                             'Payment' => $parcel['payment'],
                             'Seller' => $parcel['seller'],
                             'Buyer' => $parcel['buyer'],
-                            'Handover Method' => str($delivery->handover_method ?: 'Not recorded')->headline(),
-                            'Pickup Rider' => $delivery->pickupRider?->name ?: 'Not applicable',
+                            'Assigned Rider' => $delivery->rider?->user?->name ?: 'Unassigned',
                             'Current Status' => str($delivery->status)->headline(),
-                            'Expected Center' => $delivery->logisticsCenter?->name ?: 'Not recorded',
+                            'Courier' => $delivery->provider?->name ?: 'Not recorded',
                             'Order Value' => 'PHP '.number_format($total ?: (float) data_get($parcel, 'value', 0), 2),
                         ] as $label => $value)
                             <div class="bg-surface p-4">
@@ -95,14 +94,14 @@
             <aside class="rounded-xl border border-line bg-surface p-5">
                 <h2 class="text-[13px] font-semibold text-ink">Confirm Receiving</h2>
                 <p class="mt-2 text-[10px] leading-6 text-muted">
-                    This action updates the delivery/order workflow in the database and makes the parcel available for sorting.
+                    This verifies the parcel record. Pickup status is changed only when the assigned rider confirms collection.
                 </p>
 
                 <form method="POST" action="{{ route('logistics.parcels.receive.confirm', $delivery) }}" class="mt-5">
                     @csrf
-                    <input type="hidden" name="tracking" value="{{ $delivery->tracking_number }}">
+                    <input type="hidden" name="tracking" value="{{ $delivery->tracking_code }}">
                     <button type="submit" class="inline-flex h-11 w-full items-center justify-center rounded-lg bg-primary px-4 text-[11px] font-semibold text-white">
-                        Confirm Parcel Received
+                        Verify Parcel
                     </button>
                 </form>
             </aside>

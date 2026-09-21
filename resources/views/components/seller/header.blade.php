@@ -5,8 +5,8 @@
 
 @php
     $seller = auth()->user();
-    $sellerName = $seller?->name ?? 'Mariel Santos';
-    $shopName = data_get($seller, 'store_name') ?? data_get($seller, 'business_name') ?? 'LIKHAE Studio';
+    $sellerName = $seller?->name ?? 'Seller';
+    $shopName = $seller?->sellers()->where('status', 'approved')->value('name') ?? 'LIKHAE Studio';
     $initial = mb_strtoupper(mb_substr($sellerName, 0, 1));
 @endphp
 

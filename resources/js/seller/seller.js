@@ -126,8 +126,8 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCount();
     }
 
-    select('[data-image-input]')?.addEventListener('change', (event) => {
-        const preview = select('[data-image-preview]');
+    const previewImages = (event, previewSelector) => {
+        const preview = select(previewSelector);
         if (!preview) return;
         preview.innerHTML = '';
         Array.from(event.target.files || []).slice(0, 5).forEach((file) => {
@@ -137,14 +137,17 @@ document.addEventListener('DOMContentLoaded', () => {
             image.addEventListener('load', () => URL.revokeObjectURL(image.src), { once: true });
             preview.appendChild(image);
         });
-    });
+    };
+    select('[data-image-input]')?.addEventListener('change', (event) => previewImages(event, '[data-image-preview]'));
+    select('[data-images-input]')?.addEventListener('change', (event) => previewImages(event, '[data-images-preview]'));
 
     select('[data-add-variation]')?.addEventListener('click', () => {
         const list = select('[data-variation-list]');
         if (!list) return;
         const row = document.createElement('div');
         row.className = 'sl-variation-row';
-        row.innerHTML = '<input name="variation_name[]" placeholder="e.g. Color" aria-label="Variation name"><input name="variation_value[]" placeholder="e.g. Navy Blue" aria-label="Variation option"><input name="variation_sku[]" placeholder="SKU" aria-label="Variation SKU"><input name="variation_price[]" type="number" min="0" step="0.01" placeholder="Price" aria-label="Variation price"><input name="variation_stock[]" type="number" min="0" aria-label="Variation stock"><button type="button" class="sl-icon-btn" data-remove-row aria-label="Remove variation">&times;</button>';
+        const defaultWeight = document.querySelector('[name="weight_grams"]')?.value || '';
+        row.innerHTML = `<input name="variation_name[]" placeholder="e.g. Color" aria-label="Variation name"><input name="variation_value[]" placeholder="e.g. Navy Blue" aria-label="Variation option"><input name="variation_sku[]" placeholder="SKU" aria-label="Variation SKU"><input name="variation_price[]" type="number" min="0" step="0.01" placeholder="Price" aria-label="Variation price"><input name="variation_stock[]" type="number" min="0" aria-label="Variation stock"><input name="variation_weight_grams[]" type="number" min="1" value="${defaultWeight}" placeholder="Weight (g)" aria-label="Weight of one unit in grams"><button type="button" class="sl-icon-btn" data-remove-row aria-label="Remove variation">&times;</button>`;
         list.appendChild(row);
         select('input', row)?.focus();
     });
