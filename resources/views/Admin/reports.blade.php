@@ -1,31 +1,12 @@
 @extends('layouts.admin')
-
-@section('title', 'Financial Reports')
-@section('subtitle', 'Generate date-bounded reports for sales, profit, orders, users, and marketplace risk.')
-@section('active', 'reports')
-
+@section('title','Reports')
+@section('subtitle','Live seller-order reporting with date and status filters.')
+@section('active','reports')
 @section('content')
-@php
-    $reports = [
-        ['title' => 'Sales Report', 'description' => 'Gross sales, discounts, refunds, and completed order value.', 'format' => 'CSV / PDF'],
-        ['title' => 'Commission Report', 'description' => 'The fixed 10% commission earned per eligible order.', 'format' => 'CSV / PDF'],
-        ['title' => 'Order Report', 'description' => 'Volume, status, cancellations, and fulfillment performance.', 'format' => 'CSV / XLSX'],
-        ['title' => 'Seller Performance', 'description' => 'Sales, service quality, violations, and settlement overview.', 'format' => 'CSV / PDF'],
-        ['title' => 'User Growth', 'description' => 'Buyer, seller, logistics-center, and rider account trends.', 'format' => 'CSV / XLSX'],
-        ['title' => 'Compliance Report', 'description' => 'Product flags, complaints, enforcement, and outcomes.', 'format' => 'PDF'],
-        ['title' => 'Delivery Performance', 'description' => 'Transit time, delivery exceptions, and completion rate.', 'format' => 'CSV / PDF'],
-        ['title' => 'Refund Report', 'description' => 'Return reasons, refund amounts, parties, and resolution time.', 'format' => 'CSV / PDF'],
-    ];
-@endphp
-
-<div class="ad-page">
-    <div class="ad-page-head"><div><span class="ad-overline">Analytics export</span><h2>Report center</h2><p>Choose a date range, generate a preview, then export in the required format.</p></div><a class="ad-btn ad-btn-secondary" href="{{ route('admin.finance') }}">Back to Finance</a></div>
-    <section class="ad-card"><form class="ad-filter-bar" data-demo-form data-success-message="Report preview generated"><div class="ad-inline-actions" style="flex:1"><label class="ad-field"><span>From date</span><input type="date" value="2026-08-01"></label><label class="ad-field"><span>To date</span><input type="date" value="2026-09-04"></label><label class="ad-field"><span>Scope</span><select><option>All marketplace activity</option><option>Selected sellers</option><option>Selected categories</option></select></label></div><button class="ad-btn ad-btn-primary" type="submit">Generate preview</button></form></section>
-    <section class="ad-report-grid">
-        @foreach($reports as $report)
-            <article class="ad-report-card"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5zM15 3v5h5M8 13h8M8 17h6"/></svg><h3>{{ $report['title'] }}</h3><p>{{ $report['description'] }}</p><div class="ad-inline-title"><span class="ad-status">{{ $report['format'] }}</span><button type="button" class="ad-btn ad-btn-secondary ad-btn-sm" data-demo-action="{{ $report['title'] }} queued for export">Generate</button></div></article>
-        @endforeach
-    </section>
-    <section class="ad-card"><header class="ad-card-head"><div><span class="ad-overline">Recent exports</span><h2>Generated reports</h2><p>Frontend sample of downloadable report history.</p></div></header><div class="ad-table-wrap"><table class="ad-table"><thead><tr><th>Report</th><th>Period</th><th>Requested by</th><th>Generated</th><th>Format</th><th>Status</th><th></th></tr></thead><tbody><tr><td><strong>August Commission Report</strong></td><td>Aug 1–31, 2026</td><td>Admin User</td><td>Sep 1, 9:20 AM</td><td>PDF</td><td><span class="ad-status is-completed">Ready</span></td><td><button class="ad-btn ad-btn-secondary ad-btn-sm" data-demo-action="Download started">Download</button></td></tr><tr><td><strong>Weekly Delivery Performance</strong></td><td>Aug 25–31, 2026</td><td>Admin User</td><td>Sep 1, 8:15 AM</td><td>CSV</td><td><span class="ad-status is-completed">Ready</span></td><td><button class="ad-btn ad-btn-secondary ad-btn-sm" data-demo-action="Download started">Download</button></td></tr></tbody></table></div></section>
+<div style="display:grid;gap:16px">
+<div class="ad-page-head"><div><span class="ad-overline">Reports</span><h2>Seller order report</h2><p>All figures are calculated from canonical seller orders.</p></div><a class="ad-btn ad-btn-secondary" href="{{ route('admin.reports.export',request()->query()) }}">Download CSV</a></div>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px"><div class="ad-card ad-card-body"><small>Gross order value</small><h2>PHP {{ number_format($gross,2) }}</h2></div><div class="ad-card ad-card-body"><small>Platform commission</small><h2>PHP {{ number_format($commission,2) }}</h2></div><div class="ad-card ad-card-body"><small>Completed</small><h2>{{ number_format($completed) }}</h2></div><div class="ad-card ad-card-body"><small>Cancelled</small><h2>{{ number_format($cancelled) }}</h2></div></div>
+<form class="ad-card ad-card-body ad-filter-bar" method="GET"><div class="ad-inline-actions"><select name="status"><option value="">All statuses</option>@foreach(['pending','accepted','packed','ready_to_ship','shipped','delivered','completed','cancelled','refunded'] as $s)<option value="{{ $s }}" @selected(request('status')===$s)>{{ str($s)->headline() }}</option>@endforeach</select><input type="date" name="date_from" value="{{ request('date_from') }}"><input type="date" name="date_to" value="{{ request('date_to') }}"><button class="ad-btn ad-btn-primary">Apply</button><a class="ad-btn ad-btn-secondary" href="{{ route('admin.reports') }}">Reset</a></div></form>
+<div class="ad-card"><div class="ad-table-wrap"><table class="ad-table"><thead><tr><th>Order</th><th>Buyer</th><th>Seller</th><th>Total</th><th>Payment</th><th>Status</th><th>Created</th></tr></thead><tbody>@forelse($orderRecords as $order)<tr><td><strong>{{ $order->order?->reference }}-{{ $order->id }}</strong></td><td>{{ $order->order?->buyer?->name }}</td><td>{{ $order->seller?->name }}</td><td>PHP {{ number_format(($order->subtotal_minor+$order->shipping_fee_minor)/100,2) }}</td><td>{{ str($order->order?->payments?->sortByDesc('id')->first()?->status ?? 'pending')->headline() }}</td><td>{{ str($order->status)->headline() }}</td><td>{{ $order->created_at?->format('M d, Y H:i') }}</td></tr>@empty<tr><td colspan="7">No orders match this report.</td></tr>@endforelse</tbody></table></div><div class="ad-card-body">{{ $orderRecords->links() }}</div></div>
 </div>
 @endsection

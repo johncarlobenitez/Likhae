@@ -1,7 +1,8 @@
 @props(['product'])
 
 @php
-    $id = data_get($product, 'id', 'PRD-001');
+    $id = data_get($product, 'id');
+    $dbId = data_get($product, 'db_id');
     $name = data_get($product, 'name', 'Product');
     $image = data_get($product, 'image');
     $stock = (int) data_get($product, 'stock', 0);
@@ -29,7 +30,6 @@
     </dl>
     <div class="sl-row-actions">
         <a href="{{ route('seller.products', ['mode' => 'edit', 'product' => $id]) }}" class="sl-btn sl-btn-soft sl-btn-sm">Edit</a>
-        <button type="button" class="sl-btn sl-btn-ghost sl-btn-sm" data-stock-update data-product="{{ $name }}">Update Stock</button>
-        <button type="button" class="sl-btn sl-btn-ghost sl-btn-sm" data-demo-action="{{ $status === 'Archived' ? 'Product restored' : 'Product archived' }}">{{ $status === 'Archived' ? 'Restore' : 'Archive' }}</button>
+        <form method="POST" action="{{ route('seller.products.toggle', $dbId) }}">@csrf @method('PATCH')<button type="submit" class="sl-btn sl-btn-ghost sl-btn-sm">{{ $status === 'Archived' ? 'Restore' : 'Archive' }}</button></form>
     </div>
 </article>

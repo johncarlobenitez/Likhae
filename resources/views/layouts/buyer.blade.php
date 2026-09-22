@@ -8,7 +8,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $pageTitle }} · LIKHAE Buyer</title>
+    <title>{{ $pageTitle }} &middot; LIKHAE Buyer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -16,7 +16,8 @@
     @stack('head')
     <script>
         (function(){var t=localStorage.getItem('likhae-theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}})();
-    </script></head>
+    </script>
+</head>
 <body class="lk-buyer-body">
     <div class="lk-buyer-app" data-lk-buyer-app>
         <x-buyer.sidebar :active="$activePage" />
@@ -32,5 +33,3 @@
     @stack('scripts')
 </body>
 </html>
-
-

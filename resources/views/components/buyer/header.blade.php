@@ -3,13 +3,17 @@
 @php
     $user = auth()->user();
     $demoUser = session('demo_user');
-    $buyerName = data_get($user, 'name') 
-        ?? data_get($demoUser, 'name') 
+    $buyerName = data_get($user, 'name')
+        ?? data_get($demoUser, 'name')
         ?? (data_get($demoUser, 'role') === 'buyer' || !$guest ? 'Buyer Account' : 'Guest Shopper');
     $initials = collect(explode(' ', trim($buyerName)))->filter()->take(2)->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode('') ?: 'BA';
     $searchRoute = $guest ? route('home') : route('buyer.products');
-    $cartCount = session('cart_count', 2);
-    $notificationCount = session('notification_count', 3);
+    $cartCount = (int) data_get($buyerUiCounts ?? [], 'cart', 0);
+    $notificationCount = (int) data_get($buyerUiCounts ?? [], 'notifications', 0);
+    $profilePhoto = data_get($user, 'profile_photo_path');
+    $profilePhotoUrl = $profilePhoto
+        ? (\Illuminate\Support\Str::startsWith($profilePhoto, ['http://', 'https://']) ? $profilePhoto : \Illuminate\Support\Facades\Storage::url($profilePhoto))
+        : null;
 @endphp
 
 <header class="lk-header {{ $guest ? 'is-guest' : '' }}">
@@ -23,7 +27,7 @@
             <x-likhae-logo context="Marketplace" class="likhae-logo--guest" />
         </a>
     @else
-        <div class="lk-header-title"><strong>{{ preg_replace('/\s+—\s+LIKHAE$/', '', $title) }}</strong><span>Shop smart with LIKHAE</span></div>
+        <div class="lk-header-title"><strong>{{ preg_replace('/\s+-\s+LIKHAE$/', '', $title) }}</strong><span>Shop smart with LIKHAE</span></div>
     @endif
     <form action="{{ $searchRoute }}" method="GET" class="lk-search" role="search">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -33,7 +37,7 @@
     @if($guest)
         <nav class="lk-guest-actions" aria-label="Guest actions">
             <a class="lk-btn lk-btn-light" href="{{ Route::has('login') ? route('login') : url('/login') }}">Sign In</a>
-            <a class="lk-btn lk-btn-red" href="{{ Route::has('register') ? route('register') : url('/register') }}">Create Account</a>
+            <a class="lk-btn lk-btn-red" href="{{ Route::has('register') ? route('register') : url('/register') }}">Register</a>
         </nav>
     @else
         <div class="lk-header-actions">
@@ -41,7 +45,13 @@
             <a href="{{ route('buyer.cart') }}" class="lk-icon-btn" title="Cart" aria-label="Cart"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h15l-2 8H8z"/><path d="M6 6 5 3H2"/><circle cx="9" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg>@if($cartCount)<span class="lk-badge">{{ $cartCount }}</span>@endif</a>
         </div>
         <a class="lk-profile-container" href="{{ route('buyer.account') }}">
-            <span class="lk-profile-avatar">{{ $initials }}</span><span class="lk-profile-info"><strong>{{ $buyerName }}</strong><small>Buyer Default</small></span>
+            <span class="lk-profile-avatar">
+                @if($profilePhotoUrl)
+                    <img src="{{ $profilePhotoUrl }}" alt="{{ $buyerName }}">
+                @else
+                    {{ $initials }}
+                @endif
+            </span><span class="lk-profile-info"><strong>{{ $buyerName }}</strong><small>Buyer Account</small></span>
         </a>
     @endif
 </header>

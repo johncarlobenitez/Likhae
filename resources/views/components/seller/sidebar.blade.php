@@ -2,8 +2,8 @@
 
 @php
     $seller = auth()->user();
-    $sellerName = $seller?->name ?? 'Mariel Santos';
-    $shopName = data_get($seller, 'shop_name', 'LIKHAE Studio');
+    $sellerName = $seller?->name ?? 'Seller';
+    $shopName = $seller?->sellers()->where('status', 'approved')->value('name') ?? 'LIKHAE Studio';
     $initial = mb_strtoupper(mb_substr($sellerName, 0, 1));
 
     $icon = fn (string $name) => match ($name) {
@@ -73,8 +73,8 @@
                 <span class="sl-nav-icon">{!! $icon('orders') !!}</span><span class="sl-nav-text">Orders</span><span class="sl-nav-arrow">⌄</span>
             </button>
             <div class="sl-nav-submenu {{ $ordersActive ? 'is-open' : '' }}" data-nav-submenu @if (!$ordersActive) hidden @endif>
-                <a href="{{ route('seller.orders', ['status' => 'to-process']) }}">New Orders <span>5</span></a>
-                <a href="{{ route('seller.orders', ['status' => 'to-prepare']) }}">To Prepare <span>8</span></a>
+                <a href="{{ route('seller.orders', ['status' => 'to-process']) }}">New Orders @if(($sellerSidebarCounts['to_process'] ?? 0) > 0)<span>{{ $sellerSidebarCounts['to_process'] }}</span>@endif</a>
+                <a href="{{ route('seller.orders', ['status' => 'to-prepare']) }}">To Prepare @if(($sellerSidebarCounts['to_prepare'] ?? 0) > 0)<span>{{ $sellerSidebarCounts['to_prepare'] }}</span>@endif</a>
                 <a href="{{ route('seller.orders', ['status' => 'ready-pickup']) }}">Ready for Pickup</a>
                 <a href="{{ route('seller.orders', ['status' => 'shipping']) }}">Shipping</a>
                 <a href="{{ route('seller.orders', ['status' => 'completed']) }}">Completed</a>
@@ -97,7 +97,7 @@
         <div class="sl-nav-section">
             <span class="sl-nav-label">Customer Service</span>
             <a href="{{ route('seller.messages') }}" class="sl-nav-link {{ $active === 'messages' ? 'is-active' : '' }}" data-title="Messages">
-                <span class="sl-nav-icon">{!! $icon('messages') !!}</span><span class="sl-nav-text">Messages</span><span class="sl-nav-badge">3</span>
+                <span class="sl-nav-icon">{!! $icon('messages') !!}</span><span class="sl-nav-text">Messages</span>@if(($sellerSidebarCounts['messages'] ?? 0) > 0)<span class="sl-nav-badge">{{ $sellerSidebarCounts['messages'] }}</span>@endif
             </a>
             <a href="{{ route('seller.reviews') }}" class="sl-nav-link {{ $active === 'reviews' ? 'is-active' : '' }}" data-title="Reviews">
                 <span class="sl-nav-icon">{!! $icon('reviews') !!}</span><span class="sl-nav-text">Reviews</span>

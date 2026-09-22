@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\LogisticsProvider;
+use App\Models\Rider;
+use App\Models\Seller;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -16,13 +19,29 @@ class WorkspaceRoleTest extends TestCase
         $this->withoutVite();
     }
 
+    private function approvedSeller(): User
+    {
+        $user = User::factory()->create(['role' => 'seller', 'status' => 'active']);
+        Seller::create(['user_id' => $user->id, 'name' => 'Approved Shop '.$user->id, 'slug' => 'approved-shop-'.$user->id, 'status' => 'approved']);
+
+        return $user;
+    }
+
+    private function approvedProvider(): array
+    {
+        $user = User::factory()->create(['role' => 'logistics', 'status' => 'active']);
+        $provider = LogisticsProvider::create(['user_id' => $user->id, 'name' => 'Approved Courier '.$user->id, 'slug' => 'approved-courier-'.$user->id, 'status' => 'approved']);
+
+        return [$user, $provider];
+    }
+
     public function test_seller_can_access_seller_workspace_and_logistics_collaboration(): void
     {
-        $this->actingAs(User::factory()->create(['role' => 'seller', 'status' => 'active']))
+        $this->actingAs($this->approvedSeller())
             ->get('/seller/dashboard')
             ->assertOk();
 
-        $this->actingAs(User::factory()->create(['role' => 'seller', 'status' => 'active']))
+        $this->actingAs($this->approvedSeller())
             ->get('/seller/logistics')
             ->assertOk();
     }
@@ -40,11 +59,19 @@ class WorkspaceRoleTest extends TestCase
 
     public function test_each_role_can_access_its_own_workspace(): void
     {
-        $this->actingAs(User::factory()->create(['role' => 'logistics', 'status' => 'active']))
+        [$logistics, $provider] = $this->approvedProvider();
+        $this->actingAs($logistics)
             ->get('/logistics/dashboard')
-            ->assertOk();
+            ->assertOk()
+            ->assertDontSee('Barcode Scanner');
 
-        $this->actingAs(User::factory()->create(['role' => 'courier', 'status' => 'active']))
+        $this->actingAs($logistics)
+            ->get('/logistics/scanner')
+            ->assertRedirect(route('logistics.parcels.receive'));
+
+        $riderUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
+        Rider::create(['user_id' => $riderUser->id, 'logistics_provider_id' => $provider->id, 'is_active' => true]);
+        $this->actingAs($riderUser)
             ->get('/rider/dashboard')
             ->assertOk();
     }

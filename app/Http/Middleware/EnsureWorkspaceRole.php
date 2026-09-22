@@ -17,7 +17,7 @@ class EnsureWorkspaceRole
 
         $user = Auth::user();
 
-        if ($user->status !== 'active') {
+        if ($user->isSuspended() || $user->status !== 'active') {
             $message = $user->inactiveMessage();
             Auth::logout();
             $request->session()->invalidate();
@@ -27,9 +27,13 @@ class EnsureWorkspaceRole
                 ->withErrors(['email' => $message]);
         }
 
-        $actualRole = $user->role === 'courier' ? 'rider' : $user->role;
         $expectedRole = $role === 'courier' ? 'rider' : $role;
-        abort_unless($actualRole === $expectedRole, 403);
+
+        if ($expectedRole === 'buyer' && $user->hasRole('seller') && ! $user->hasRole('buyer')) {
+            $user->grant('buyer');
+        }
+
+        abort_unless($user->hasRole($expectedRole), 403);
 
         return $next($request);
     }

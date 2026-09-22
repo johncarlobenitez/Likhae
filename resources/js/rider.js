@@ -1,3 +1,5 @@
+import { initializeParcelScanners } from './parcel-scanner';
+
 /*
 |--------------------------------------------------------------------------
 | RIDER JS
@@ -6,6 +8,8 @@
 
 
 document.addEventListener('DOMContentLoaded', function () {
+
+    initializeParcelScanners();
 
 
     /*

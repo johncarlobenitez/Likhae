@@ -139,29 +139,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }));
 
+    const selectedVariation = (scope) => {
+        const selected = one('[data-variation-option][aria-pressed="true"]', scope);
+        if (!selected) return null;
+
+        return {
+            id: selected.dataset.variationId || '',
+            value: selected.dataset.variationValue || '',
+            stock: Number(selected.dataset.variationStock || 0),
+            price: Number(selected.dataset.variationPrice || 0),
+        };
+    };
+
+    const productPurchaseUrl = (scope, button, buyNow) => {
+        const variation = selectedVariation(scope);
+        const quantity = one('[data-quantity-input]', scope)?.value || 1;
+        const query = new URLSearchParams({ [buyNow ? 'buy' : 'add']: button.dataset.productSlug, variant: variation?.value || '', quantity });
+        if (variation?.id) query.set('product_variant_id', variation.id);
+        return `/buyer/${buyNow ? 'checkout' : 'cart'}?${query}`;
+    };
+
+    all('[data-test-add-cart], [data-test-buy-now]').forEach((button) => button.addEventListener('click', (event) => {
+        const scope = event.currentTarget.closest('.lk-detail-info-card') || document;
+        window.location.href = productPurchaseUrl(scope, event.currentTarget, event.currentTarget.hasAttribute('data-test-buy-now'));
+    }));
+
     all('[data-variant-stock-product]').forEach((product) => {
         let stocks = {};
         try { stocks = JSON.parse(product.dataset.variantStocks || '{}'); } catch (_) { return; }
-        const selected = () => Object.fromEntries(all('[data-variation-group]', product).map((group) => [group.dataset.variationName, one('[data-variation-option][aria-pressed="true"]', group)?.dataset.variationValue]));
         const sync = () => {
-            const choice = selected();
-            const stock = Number(stocks[`${choice.Color} / ${choice.Size}`] ?? 0);
+            const variation = selectedVariation(product);
+            const stock = variation?.id ? Number(stocks[variation.id] ?? variation.stock ?? 0) : 0;
             const availability = one('[data-variant-availability]', product);
             const quantity = one('[data-quantity-input]', product);
+            const price = one('.lk-detail-price', product);
             if (availability) availability.textContent = stock ? `${stock} available` : 'Out of stock';
+            if (price && variation?.price) price.textContent = `₱${variation.price.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             if (quantity) { quantity.max = Math.max(1, stock); quantity.value = Math.min(Number(quantity.value || 1), Math.max(1, stock)); }
             all('[data-product-purchase]', product).forEach((control) => { control.disabled = stock < 1; control.setAttribute('aria-disabled', String(stock < 1)); });
         };
         all('[data-variation-option]', product).forEach((button) => button.addEventListener('click', sync));
-        const cartUrl = (slug, buyNow) => {
-            const choice = selected();
-            const quantity = one('[data-quantity-input]', product)?.value || 1;
-            const query = new URLSearchParams({ add: slug, color: choice.Color || '', size: choice.Size || '', quantity });
-            if (buyNow) query.set('checkout', '1');
-            return `/buyer/cart?${query}`;
-        };
-        one('[data-test-add-cart]', product)?.addEventListener('click', (event) => { window.location.href = cartUrl(event.currentTarget.dataset.productSlug, false); });
-        one('[data-test-buy-now]', product)?.addEventListener('click', (event) => { window.location.href = cartUrl(event.currentTarget.dataset.productSlug, true); });
         sync();
     });
 
@@ -172,23 +189,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }));
 
     all('[data-wishlist]').forEach((button) => button.addEventListener('click', () => {
+        const productId = button.dataset.productId;
+        if (!productId) return;
+
         const active = button.getAttribute('aria-pressed') !== 'true';
         button.setAttribute('aria-pressed', String(active));
         button.classList.toggle('is-active', active);
         showToast(active ? 'Product saved to your wishlist.' : 'Product removed from your wishlist.');
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/buyer/wishlist/${encodeURIComponent(productId)}`;
+        form.style.display = 'none';
+
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (token) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = '_token';
+            input.value = token;
+            form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
     }));
 
-    all('[data-demo-action]').forEach((button) => button.addEventListener('click', () => showToast(button.dataset.demoAction)));
-    all('[data-demo-form]').forEach((form) => form.addEventListener('submit', (event) => {
-        event.preventDefault();
-        showToast(form.dataset.successMessage || 'Saved for this frontend preview.');
-    }));
-
-    all('[data-account-form]').forEach((form) => form.addEventListener('submit', (event) => {
-        event.preventDefault();
-        showToast('Account changes saved for this frontend preview.');
-    }));
-    all('[data-account-page] button[type="button"]:not([data-demo-action])').forEach((button) => button.addEventListener('click', () => {
-        showToast('Account action recorded for this frontend preview.');
-    }));
 });

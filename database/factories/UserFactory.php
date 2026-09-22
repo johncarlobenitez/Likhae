@@ -17,6 +17,24 @@ class UserFactory extends Factory
      */
     protected static ?string $password;
 
+    public function configure(): static
+    {
+        return $this
+            ->afterMaking(function (User $user): void {
+                $role = $user->getAttribute('role');
+                if ($role) {
+                    $user->setRelation('_factory_role', $role);
+                    $user->offsetUnset('role');
+                }
+            })
+            ->afterCreating(function (User $user): void {
+                if ($user->relationLoaded('_factory_role')) {
+                    $user->grant((string) $user->getRelation('_factory_role'));
+                    $user->unsetRelation('_factory_role');
+                }
+            });
+    }
+
     /**
      * Define the model's default state.
      *

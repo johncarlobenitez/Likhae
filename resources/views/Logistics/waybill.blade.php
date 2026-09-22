@@ -1,12 +1,76 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Waybill {{ $tracking }} | LIKHAE</title>
-    @vite('resources/css/logistic/app.css')
-    <style>@media print {.no-print { display: none !important; } body { background: #fff !important; } .waybill { box-shadow: none !important; border-color: #111 !important; }}</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waybill {{ $parcel['tracking'] ?? $tracking ?? '' }}</title>
+    <style>
+        body { margin: 0; background: #f7f0e8; color: #2f1d18; font-family: Arial, sans-serif; }
+        .sheet { width: min(820px, calc(100% - 32px)); margin: 24px auto; background: #fffdf9; border: 1px solid #eadccc; padding: 28px; }
+        .head { display: flex; justify-content: space-between; gap: 24px; border-bottom: 2px solid #561c17; padding-bottom: 16px; }
+        h1 { margin: 0; font-size: 28px; color: #561c17; }
+        h2 { margin: 24px 0 10px; font-size: 15px; color: #561c17; text-transform: uppercase; letter-spacing: .08em; }
+        .tracking { text-align: right; font-weight: 700; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+        .box { border: 1px solid #eadccc; padding: 14px; min-height: 110px; }
+        .label { color: #8b6f60; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+        .value { margin-top: 6px; font-weight: 700; white-space: pre-line; }
+        .barcode { margin-top: 22px; border: 1px dashed #561c17; padding: 18px; text-align: center; font-size: 22px; letter-spacing: .15em; }
+        .actions { width: min(820px, calc(100% - 32px)); margin: 0 auto 24px; display: flex; gap: 10px; justify-content: flex-end; }
+        .btn { border: 1px solid #561c17; background: #561c17; color: #fff; padding: 10px 14px; text-decoration: none; border-radius: 8px; font-size: 13px; cursor: pointer; }
+        @media print { body { background: #fff; } .actions { display: none; } .sheet { margin: 0; width: auto; border: 0; } }
+    </style>
 </head>
-<body class="bg-page p-4 text-ink sm:p-8">
-@php $parcel = ['LH-2026-1001' => ['order' => 'ORD-2026-1045', 'recipient' => 'Juan Dela Cruz', 'contact' => '0917 123 4567', 'address' => '21 Rizal Street, Brgy. Bubukal, Santa Cruz, Laguna', 'payment' => 'Cash on Delivery'], 'LH-2026-1002' => ['order' => 'ORD-2026-1046', 'recipient' => 'Maria Santos', 'contact' => '0918 456 7712', 'address' => '18 Riverside Street, Brgy. Sampaloc, Pagsanjan, Laguna', 'payment' => 'GCash']][$tracking] ?? ['order' => 'ORD-2026-1047', 'recipient' => 'Ana Reyes', 'contact' => '0919 845 2201', 'address' => '15 Lopez Avenue, Brgy. Batong Malake, Los Baños, Laguna', 'payment' => 'GCash']; @endphp
-<main class="waybill mx-auto max-w-2xl rounded-xl border-2 border-ink bg-surface p-6 shadow-sm sm:p-9"><div class="flex items-start justify-between gap-4 border-b-2 border-ink pb-5"><div><strong class="text-xl tracking-wide text-primary">LIKHAE</strong><p class="mt-1 text-xs text-muted">Marketplace Logistics Waybill</p></div><button class="no-print rounded-lg bg-primary px-4 py-2 text-xs font-bold text-white" onclick="window.print()">Print</button></div><div class="grid gap-6 py-6 sm:grid-cols-2"><section><span class="text-[10px] font-bold uppercase tracking-widest text-muted">Deliver to</span><h1 class="mt-2 text-lg font-bold">{{ $parcel['recipient'] }}</h1><p class="mt-2 text-sm leading-6">{{ $parcel['contact'] }}<br>{{ $parcel['address'] }}</p></section><section class="sm:text-right"><span class="text-[10px] font-bold uppercase tracking-widest text-muted">Tracking number</span><strong class="mt-2 block text-xl tracking-wider">{{ $tracking }}</strong><div class="mt-3 inline-block rounded border-2 border-ink px-3 py-2 font-mono text-lg tracking-[0.3em]">||| ||| ||||</div></section></div><div class="grid gap-3 border-t border-line pt-5 text-sm sm:grid-cols-3"><div><span class="block text-[10px] uppercase text-muted">Order</span><strong>{{ $parcel['order'] }}</strong></div><div><span class="block text-[10px] uppercase text-muted">Service</span><strong>Standard Delivery</strong></div><div><span class="block text-[10px] uppercase text-muted">Payment</span><strong>{{ $parcel['payment'] }}</strong></div></div><p class="mt-8 border-t border-line pt-4 text-[10px] text-muted">Scan the tracking number at each handoff. This frontend waybill is a printable template; parcel data requires the Logistics backend.</p></main>
+<body>
+    <div class="actions">
+        <a class="btn" href="{{ route('logistics.parcels.show', $delivery) }}">Back</a>
+        <button class="btn" onclick="window.print()">Print</button>
+    </div>
+
+    <main class="sheet">
+        <header class="head">
+            <div>
+                <h1>LIKHAE Logistics</h1>
+                <div class="label">Official parcel waybill</div>
+            </div>
+            <div class="tracking">
+                <div class="label">Tracking Number</div>
+                <div>{{ $parcel['tracking'] ?? $tracking }}</div>
+            </div>
+        </header>
+
+        <section class="grid">
+            <div>
+                <h2>Seller</h2>
+                <div class="box">
+                    <div class="value">{{ $delivery->sellerOrder?->seller?->name ?: 'Seller not found' }}</div>
+                    <div class="value">{{ $delivery->sellerOrder?->seller?->pickupAddress?->formatted() ?: 'No seller address recorded' }}</div>
+                </div>
+            </div>
+            <div>
+                <h2>Recipient</h2>
+                <div class="box">
+                    <div class="value">{{ $delivery->sellerOrder?->order?->buyer?->name ?: 'Buyer not found' }}</div>
+                    <div class="value">{{ collect($delivery->sellerOrder?->order?->shipping_address_snapshot ?? [])->only(['line1','barangay','city','province','postal_code'])->filter()->implode(', ') ?: 'No delivery address recorded' }}</div>
+                </div>
+            </div>
+        </section>
+
+        <h2>Parcel</h2>
+        <div class="box">
+            <div class="label">Order</div>
+            <div class="value">{{ $delivery->sellerOrder?->order?->reference ?: 'Seller order #'.$delivery->seller_order_id }}</div>
+            <div class="label" style="margin-top:12px;">Items</div>
+            <div class="value">
+                @forelse($delivery->sellerOrder?->items ?? [] as $item)
+                    {{ $item->quantity }} x {{ $item->product_name ?: 'Product #'.$item->product_id }}<br>
+                @empty
+                    No order items recorded.
+                @endforelse
+            </div>
+        </div>
+
+        <div class="barcode">{{ $parcel['tracking'] ?? $tracking }}</div>
+    </main>
 </body>
 </html>

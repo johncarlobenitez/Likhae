@@ -2,6 +2,689 @@
 
 @section('title', 'Home')
 
+@push('head')
+<style>
+    :root {
+        --lk-bg: #FBF7F2;
+        --lk-bg-soft: #F6EFE7;
+        --lk-bg-alt: #EFE7DE;
+        --lk-card: #FFFDF9;
+
+        --lk-border: #EADCCC;
+        --lk-border-strong: #DBCEC1;
+
+        --lk-maroon: #561C17;
+        --lk-maroon-2: #642920;
+        --lk-maroon-light: #7A2A22;
+        --lk-maroon-dark: #3E130F;
+
+        --lk-text: #3B211B;
+        --lk-text-dark: #1C160F;
+        --lk-brown: #6C4936;
+        --lk-muted: #987865;
+        --lk-muted-2: #A99386;
+
+        --lk-tan: #C19771;
+        --lk-gold: #C19771;
+        --lk-star: #C88418;
+
+        --lk-footer: #561C17;
+        --lk-footer-dark: #3A120F;
+    }
+
+    body,
+    .lk-buyer-body,
+    .lk-page {
+        background: var(--lk-bg) !important;
+        color: var(--lk-text) !important;
+    }
+
+    .lk-page {
+        min-height: 100vh !important;
+        padding: 28px 32px 56px !important;
+    }
+
+    .lk-section {
+        margin-top: 34px !important;
+    }
+
+    .lk-kicker {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+
+        margin-bottom: 8px !important;
+
+        color: var(--lk-maroon) !important;
+
+        font-size: 10px !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.22em !important;
+        text-transform: uppercase !important;
+    }
+
+    .lk-section-head {
+        display: flex !important;
+        align-items: end !important;
+        justify-content: space-between !important;
+        gap: 20px !important;
+
+        margin-bottom: 18px !important;
+    }
+
+    .lk-section-head h2 {
+        margin: 0 !important;
+
+        color: var(--lk-text) !important;
+
+        font-family: "Instrument Serif", Georgia, serif !important;
+        font-size: clamp(32px, 3vw, 46px) !important;
+        font-weight: 400 !important;
+        line-height: 0.98 !important;
+        letter-spacing: -0.035em !important;
+    }
+
+    .lk-section-head p {
+        margin: 8px 0 0 !important;
+        color: var(--lk-muted) !important;
+        font-size: 13px !important;
+        line-height: 1.7 !important;
+    }
+
+    .lk-text-link {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+
+        color: var(--lk-brown) !important;
+
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        text-decoration: none !important;
+
+        transition: 160ms ease !important;
+    }
+
+    .lk-text-link:hover {
+        color: var(--lk-maroon) !important;
+    }
+
+    /* =====================================================
+       HERO PALETTE OVERRIDE
+    ====================================================== */
+
+    .lk-hero,
+    .lk-marketplace-hero,
+    .lk-ed-hero {
+        overflow: hidden !important;
+
+        border: 1px solid var(--lk-border) !important;
+        border-radius: 26px !important;
+
+        background:
+            radial-gradient(circle at 0% 20%, rgba(193, 151, 113, 0.18), transparent 28%),
+            radial-gradient(circle at 100% 0%, rgba(86, 28, 23, 0.08), transparent 32%),
+            linear-gradient(135deg, #FFFDF9 0%, #F6EFE7 56%, #EFE7DE 100%) !important;
+
+        color: var(--lk-text) !important;
+
+        box-shadow: 0 18px 46px rgba(86, 28, 23, 0.08) !important;
+    }
+
+    .lk-hero h1,
+    .lk-marketplace-hero h1,
+    .lk-ed-hero h1 {
+        color: var(--lk-maroon) !important;
+
+        font-family: "Instrument Serif", Georgia, serif !important;
+        font-weight: 400 !important;
+        letter-spacing: -0.05em !important;
+        line-height: 0.92 !important;
+    }
+
+    .lk-hero h1 span,
+    .lk-marketplace-hero h1 span,
+    .lk-ed-hero h1 span {
+        color: var(--lk-maroon) !important;
+        font-style: italic !important;
+    }
+
+    .lk-hero p,
+    .lk-marketplace-hero p,
+    .lk-ed-hero p {
+        color: var(--lk-text) !important;
+    }
+
+    .lk-hero-copy,
+    .lk-marketplace-hero-copy,
+    .lk-ed-hero-copy {
+        color: var(--lk-text) !important;
+    }
+
+    .lk-hero-showcase,
+    .lk-hero-product,
+    .lk-marketplace-hero-visual,
+    .lk-ed-hero-visual {
+        background: transparent !important;
+    }
+
+    .lk-btn,
+    .lk-btn-red,
+    .lk-ed-btn-primary {
+        border-radius: 9px !important;
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        text-decoration: none !important;
+    }
+
+    .lk-btn-red,
+    .lk-ed-btn-primary {
+        border: 1px solid var(--lk-maroon) !important;
+        background: var(--lk-maroon) !important;
+        color: #FFFFFF !important;
+        box-shadow: 0 8px 18px rgba(86, 28, 23, 0.16) !important;
+    }
+
+    .lk-btn-red:hover,
+    .lk-ed-btn-primary:hover {
+        border-color: var(--lk-maroon-dark) !important;
+        background: var(--lk-maroon-dark) !important;
+    }
+
+    .lk-btn-light,
+    .lk-ed-btn-outline {
+        border: 1px solid var(--lk-tan) !important;
+        background: rgba(255, 253, 249, 0.78) !important;
+        color: var(--lk-maroon) !important;
+    }
+
+    .lk-btn-light:hover,
+    .lk-ed-btn-outline:hover {
+        background: var(--lk-bg-alt) !important;
+        color: var(--lk-maroon-dark) !important;
+    }
+
+    /* =====================================================
+       QUICK ACTIONS
+    ====================================================== */
+
+    .lk-quick-grid {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 16px !important;
+    }
+
+    .lk-quick-card {
+        display: flex !important;
+        align-items: center !important;
+        gap: 14px !important;
+
+        min-height: 88px !important;
+        padding: 18px !important;
+
+        border: 1px solid var(--lk-border) !important;
+        border-radius: 18px !important;
+
+        background: var(--lk-card) !important;
+        color: var(--lk-text) !important;
+
+        text-decoration: none !important;
+
+        box-shadow: 0 8px 24px rgba(86, 28, 23, 0.045) !important;
+
+        transition: 180ms ease !important;
+    }
+
+    .lk-quick-card:hover {
+        transform: translateY(-2px) !important;
+        border-color: var(--lk-tan) !important;
+        box-shadow: 0 14px 34px rgba(86, 28, 23, 0.08) !important;
+    }
+
+    .lk-quick-icon {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+
+        width: 48px !important;
+        height: 48px !important;
+
+        border-radius: 999px !important;
+
+        background: #F1E4D7 !important;
+        color: var(--lk-maroon) !important;
+
+        flex-shrink: 0 !important;
+    }
+
+    .lk-quick-icon svg {
+        width: 24px !important;
+        height: 24px !important;
+    }
+
+    .lk-quick-card strong {
+        display: block !important;
+        color: var(--lk-text) !important;
+        font-size: 14px !important;
+        font-weight: 800 !important;
+    }
+
+    .lk-quick-card small {
+        display: block !important;
+        margin-top: 3px !important;
+        color: var(--lk-muted) !important;
+        font-size: 12px !important;
+    }
+
+    /* =====================================================
+       CATEGORIES
+    ====================================================== */
+
+    .lk-category-grid {
+        display: grid !important;
+        grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+        gap: 14px !important;
+    }
+
+    .lk-category-card {
+        min-height: 138px !important;
+        padding: 18px 14px !important;
+
+        border: 1px solid var(--lk-border) !important;
+        border-radius: 17px !important;
+
+        background: var(--lk-card) !important;
+        color: var(--lk-text) !important;
+
+        text-align: center !important;
+        text-decoration: none !important;
+
+        box-shadow: 0 7px 22px rgba(86, 28, 23, 0.045) !important;
+
+        transition: 180ms ease !important;
+    }
+
+    .lk-category-card:hover {
+        transform: translateY(-3px) !important;
+        border-color: var(--lk-tan) !important;
+        box-shadow: 0 14px 32px rgba(86, 28, 23, 0.08) !important;
+    }
+
+    .lk-category-icon {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+
+        width: 52px !important;
+        height: 52px !important;
+
+        margin-bottom: 14px !important;
+
+        border-radius: 999px !important;
+
+        background: #F1E4D7 !important;
+        color: var(--lk-maroon) !important;
+    }
+
+    .lk-category-icon svg {
+        width: 25px !important;
+        height: 25px !important;
+
+        fill: none !important;
+        stroke: currentColor !important;
+        stroke-width: 1.7 !important;
+    }
+
+    .lk-category-card strong {
+        display: block !important;
+
+        color: var(--lk-text) !important;
+
+        font-size: 13px !important;
+        font-weight: 800 !important;
+    }
+
+    .lk-category-card small {
+        display: block !important;
+
+        margin-top: 5px !important;
+
+        color: var(--lk-muted) !important;
+
+        font-size: 11px !important;
+        font-weight: 600 !important;
+    }
+
+    /* =====================================================
+       PRODUCT CARDS
+    ====================================================== */
+
+    .lk-product-grid {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        gap: 16px !important;
+    }
+
+    .lk-product-card {
+        overflow: hidden !important;
+
+        border: 1px solid var(--lk-border) !important;
+        border-radius: 15px !important;
+
+        background: var(--lk-card) !important;
+        color: var(--lk-text) !important;
+
+        box-shadow: 0 6px 20px rgba(86, 28, 23, 0.045) !important;
+
+        transition: 180ms ease !important;
+    }
+
+    .lk-product-card:hover {
+        transform: translateY(-3px) !important;
+        border-color: var(--lk-tan) !important;
+        box-shadow: 0 14px 32px rgba(86, 28, 23, 0.08) !important;
+    }
+
+    .lk-product-media,
+    .lk-product-placeholder {
+        background: #F3ECE4 !important;
+    }
+
+    .lk-product-body {
+        background: var(--lk-card) !important;
+    }
+
+    .lk-product-category {
+        color: var(--lk-brown) !important;
+        font-size: 10px !important;
+        font-weight: 700 !important;
+    }
+
+    .lk-product-name,
+    .lk-product-title-link {
+        color: var(--lk-text) !important;
+        font-size: 14px !important;
+        font-weight: 800 !important;
+        text-decoration: none !important;
+    }
+
+    .lk-product-title-link:hover {
+        color: var(--lk-maroon) !important;
+    }
+
+    .lk-product-seller,
+    .lk-product-sold {
+        color: var(--lk-muted) !important;
+    }
+
+    .lk-product-price-row strong,
+    .lk-product-price,
+    .lk-product-card strong[class*="price"] {
+        color: var(--lk-maroon) !important;
+    }
+
+    .lk-product-price-row del {
+        color: var(--lk-muted-2) !important;
+    }
+
+    .lk-product-discount {
+        background: var(--lk-maroon) !important;
+        color: #FFFFFF !important;
+    }
+
+    .lk-btn-view,
+    .lk-product-card button,
+    .lk-product-card .lk-btn {
+        border-color: var(--lk-maroon) !important;
+    }
+
+    .lk-btn-view {
+        background: transparent !important;
+        color: var(--lk-maroon) !important;
+    }
+
+    .lk-btn-view:hover {
+        background: var(--lk-maroon) !important;
+        color: #FFFFFF !important;
+    }
+
+    /* =====================================================
+       FLASH PICKS / DEAL BANNER
+    ====================================================== */
+
+    .lk-deal-banner {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto auto !important;
+        align-items: center !important;
+        gap: 24px !important;
+
+        padding: 34px 42px !important;
+
+        border: 1px solid rgba(255, 255, 255, 0.16) !important;
+        border-radius: 22px !important;
+
+        background:
+            radial-gradient(circle at 92% 18%, rgba(255, 255, 255, 0.16), transparent 24%),
+            linear-gradient(135deg, var(--lk-maroon) 0%, var(--lk-maroon-2) 52%, var(--lk-maroon-dark) 100%) !important;
+
+        color: #FFF7EF !important;
+
+        box-shadow: 0 18px 44px rgba(86, 28, 23, 0.18) !important;
+    }
+
+    .lk-deal-banner .lk-kicker {
+        color: #E8C8B2 !important;
+    }
+
+    .lk-deal-banner h2 {
+        margin: 0 !important;
+
+        color: #FFFFFF !important;
+
+        font-family: "Instrument Serif", Georgia, serif !important;
+        font-size: clamp(36px, 4vw, 58px) !important;
+        font-weight: 400 !important;
+        line-height: 0.95 !important;
+        letter-spacing: -0.04em !important;
+    }
+
+    .lk-deal-banner p {
+        margin: 8px 0 0 !important;
+        color: #F4DED4 !important;
+        font-size: 13px !important;
+        line-height: 1.7 !important;
+    }
+
+    .lk-countdown {
+        display: inline-flex !important;
+        align-items: center !important;
+        gap: 8px !important;
+
+        padding: 8px 12px !important;
+
+        border: 1px solid rgba(255, 255, 255, 0.22) !important;
+        border-radius: 14px !important;
+
+        background: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    .lk-countdown div {
+        min-width: 48px !important;
+        text-align: center !important;
+    }
+
+    .lk-countdown b {
+        display: block !important;
+        color: #FFFFFF !important;
+        font-size: 18px !important;
+        font-weight: 800 !important;
+        line-height: 1 !important;
+    }
+
+    .lk-countdown small {
+        display: block !important;
+        margin-top: 4px !important;
+        color: #E8C8B2 !important;
+        font-size: 9px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.12em !important;
+    }
+
+    .lk-countdown span {
+        color: #E8C8B2 !important;
+        font-weight: 800 !important;
+    }
+
+    .lk-btn-gold {
+        border: 1px solid #FFF7EF !important;
+        background: #FFF7EF !important;
+        color: var(--lk-maroon) !important;
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08) !important;
+    }
+
+    .lk-btn-gold:hover {
+        background: #F6EFE7 !important;
+        color: var(--lk-maroon-dark) !important;
+    }
+
+    /* =====================================================
+       EMPTY STATES
+    ====================================================== */
+
+    .lk-page .rounded-2xl {
+        border-color: var(--lk-border) !important;
+        background: var(--lk-card) !important;
+        color: var(--lk-text) !important;
+    }
+
+    .lk-page .text-stone-900 {
+        color: var(--lk-text) !important;
+    }
+
+    .lk-page .text-stone-500 {
+        color: var(--lk-muted) !important;
+    }
+
+    .lk-page .bg-red-50 {
+        background: #F1E4D7 !important;
+    }
+
+    .lk-page .text-red-800,
+    .lk-page .text-red-900 {
+        color: var(--lk-maroon) !important;
+    }
+
+    .lk-page .bg-red-900 {
+        background: var(--lk-maroon) !important;
+    }
+
+    .lk-page .hover\:bg-red-950:hover {
+        background: var(--lk-maroon-dark) !important;
+    }
+
+    /* =====================================================
+       DARK MODE SAFE OVERRIDE
+    ====================================================== */
+
+    html.dark body,
+    html.dark .lk-buyer-body,
+    html.dark .lk-page {
+        background: #171210 !important;
+        color: #FFF8F2 !important;
+    }
+
+    html.dark .lk-section-head h2,
+    html.dark .lk-quick-card strong,
+    html.dark .lk-category-card strong {
+        color: #FFF8F2 !important;
+    }
+
+    html.dark .lk-section-head p,
+    html.dark .lk-quick-card small,
+    html.dark .lk-category-card small {
+        color: #C8B7AD !important;
+    }
+
+    html.dark .lk-quick-card,
+    html.dark .lk-category-card,
+    html.dark .lk-product-card,
+    html.dark .lk-page .rounded-2xl {
+        background: #241A17 !important;
+        border-color: #49342B !important;
+        color: #FFF8F2 !important;
+    }
+
+    html.dark .lk-quick-icon,
+    html.dark .lk-category-icon {
+        background: #382820 !important;
+        color: #EBA99D !important;
+    }
+
+    /* =====================================================
+       RESPONSIVE
+    ====================================================== */
+
+    @media (max-width: 1180px) {
+        .lk-category-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+        }
+
+        .lk-product-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        }
+
+        .lk-deal-banner {
+            grid-template-columns: 1fr !important;
+        }
+    }
+
+    @media (max-width: 900px) {
+        .lk-page {
+            padding: 22px 18px 44px !important;
+        }
+
+        .lk-section-head {
+            align-items: flex-start !important;
+            flex-direction: column !important;
+        }
+
+        .lk-quick-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+
+        .lk-category-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+
+        .lk-product-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        }
+
+        .lk-deal-banner {
+            padding: 28px 22px !important;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .lk-page {
+            padding-left: 14px !important;
+            padding-right: 14px !important;
+        }
+
+        .lk-quick-grid,
+        .lk-category-grid,
+        .lk-product-grid {
+            grid-template-columns: 1fr !important;
+        }
+
+        .lk-countdown {
+            width: 100% !important;
+            justify-content: center !important;
+        }
+    }
+</style>
+@endpush
+
 @section('content')
 @php
     /*
@@ -18,7 +701,9 @@
 
     $featuredProducts = $products->take(4);
     $recommendedProducts = $products->skip(4)->take(4);
-    $heroProduct = $products->firstWhere('slug', 'wireless-headphones') ?? $products->first();
+
+    $heroProduct = $products->firstWhere('slug', 'wireless-headphones')
+        ?? $products->first();
 
     $heroImage = data_get($heroProduct, 'image_url')
         ?? data_get($heroProduct, 'image');
@@ -48,8 +733,7 @@
     |--------------------------------------------------------------------------
     */
 
-    $hasWishlistRoute =
-        \Illuminate\Support\Facades\Route::has('buyer.wishlist');
+    $hasWishlistRoute = \Illuminate\Support\Facades\Route::has('buyer.wishlist');
 
     $wishlistUrl = $hasWishlistRoute
         ? route('buyer.wishlist')
@@ -106,6 +790,7 @@
 @endphp
 
 <div class="lk-page">
+
     {{-- Hero --}}
     <x-buyer.marketplace-hero
         :products="$products"
@@ -114,105 +799,6 @@
         :categories-url="route('buyer.products')"
         :orders-url="route('buyer.orders')"
     />
-    {{--
-    <section class="lk-hero">
-        <div class="lk-hero-copy">
-            <span class="lk-kicker">
-                Welcome to LIKHAE
-            </span>
-
-            <h1>
-                Discover products with
-                <span>heart and story.</span>
-            </h1>
-
-            <p>
-                Explore meaningful local finds from trusted sellers,
-                manage your orders, and connect directly with shops.
-            </p>
-
-            <div class="lk-hero-actions">
-                <a
-                    href="{{ route('buyer.products') }}"
-                    class="lk-btn lk-btn-red"
-                >
-                    Shop Now
-                </a>
-
-                <a
-                    href="{{ route('buyer.orders') }}"
-                    class="lk-btn lk-btn-light"
-                >
-                    Track Orders
-                </a>
-            </div>
-
-            <div class="lk-hero-stats">
-                <div>
-                    <strong>30+</strong>
-                    <span>Trusted Sellers</span>
-                </div>
-
-                <div>
-                    <strong>10k+</strong>
-                    <span>Buyer Visits</span>
-                </div>
-
-                <div>
-                    <strong>4.8</strong>
-                    <span>Average Rating</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="lk-hero-showcase">
-            <div class="lk-hero-product">
-                @if ($heroImage)
-                    <img
-                        src="{{ $heroImage }}"
-                        alt="{{ $heroName }}"
-                        decoding="async"
-                    >
-                @else
-                    <div
-                        class="flex h-full min-h-72 w-full items-center justify-center rounded-2xl bg-red-50 text-red-800"
-                        aria-label="Featured product placeholder"
-                    >
-                        <svg
-                            width="110"
-                            height="110"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="1"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            aria-hidden="true"
-                        >
-                            <path d="M6 8h12l1 13H5z"/>
-                            <path d="M9 10V6a3 3 0 0 1 6 0v4"/>
-                            <path d="M9 14h6"/>
-                        </svg>
-                    </div>
-                @endif
-            </div>
-
-            @if ($heroProduct)
-                <div class="lk-hero-product-info">
-                    <span>{{ $heroCategory }}</span>
-
-                    <strong>{{ $heroName }}</strong>
-
-                    @if ($heroPrice > 0)
-                        <small>
-                            ₱{{ number_format($heroPrice, 2) }}
-                        </small>
-                    @endif
-                </div>
-            @endif
-        </div>
-    </section>
-    --}}
 
     {{-- Quick actions --}}
     <section class="lk-section" aria-labelledby="quick-actions-heading">
@@ -355,6 +941,7 @@
                 class="lk-text-link"
             >
                 View All
+                <span aria-hidden="true">→</span>
             </a>
         </div>
 
@@ -365,7 +952,9 @@
                     class="lk-category-card"
                 >
                     <div class="lk-category-icon">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">{!! $category['icon'] !!}</svg>
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            {!! $category['icon'] !!}
+                        </svg>
                     </div>
 
                     <strong>{{ $category['name'] }}</strong>
@@ -398,6 +987,7 @@
                 class="lk-text-link"
             >
                 See All
+                <span aria-hidden="true">→</span>
             </a>
         </div>
 
@@ -454,7 +1044,7 @@
                 </h2>
 
                 <p>
-                    Premium local finds with limited-time prices.
+                    Premium finds with limited-time prices.
                 </p>
             </div>
 
@@ -515,6 +1105,7 @@
                 class="lk-text-link"
             >
                 See All
+                <span aria-hidden="true">→</span>
             </a>
         </div>
 

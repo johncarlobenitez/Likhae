@@ -1,720 +1,94 @@
-@extends('logistics.app')
+@extends('Logistics.app')
 
-@section('title','Rider Application Review — LIKHAE Logistics')
+@section('title', 'Rider Application Review - LIKHAE Logistics')
 
+@php
+    $data = $rider ?? [];
+    $status = data_get($data, 'status', 'Pending Approval');
+    $statusClass = match ($status) {
+        'Approved' => 'bg-success-soft text-success',
+        'Rejected' => 'bg-danger-soft text-danger',
+        default => 'bg-warning-soft text-warning',
+    };
+    $fullName = data_get($data, 'name', 'Rider Applicant');
+
+    $details = [
+        ['Full Name', $fullName],
+        ['Email', data_get($data, 'email', 'Not recorded')],
+        ['Contact Number', data_get($data, 'contact', 'Not recorded')],
+        ['Address', data_get($data, 'address', 'Not recorded')],
+        ['Vehicle Type', data_get($data, 'vehicle', 'Not recorded')],
+        ['Plate Number', data_get($data, 'plate', 'Not recorded')],
+        ['Delivery Area', data_get($data, 'area', 'Unassigned')],
+        ['Submitted', data_get($data, 'submitted', 'Not recorded')],
+    ];
+@endphp
 
 @section('content')
+<div class="flex w-full flex-col gap-6">
+    @if(session('success'))
+        <div class="rounded-xl border border-success/30 bg-success-soft p-4 text-[10px] font-semibold text-success">
+            {{ session('success') }}
+        </div>
+    @endif
 
+    <nav class="flex flex-wrap items-center gap-2 text-[10px] text-muted">
+        <a href="{{ route('logistics.dashboard') }}" class="transition hover:text-primary">Dashboard</a>
+        <span>/</span>
+        <a href="{{ route('logistics.riders.applications') }}" class="transition hover:text-primary">Rider Applications</a>
+        <span>/</span>
+        <span class="font-semibold text-ink">{{ $fullName }}</span>
+    </nav>
 
-<div class="flex flex-col gap-8">
+    <section class="flex flex-col gap-5 rounded-xl border border-line bg-surface p-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+            <span class="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Courier Registration</span>
+            <h1 class="mt-2 font-display text-[32px] font-semibold tracking-[-0.04em] text-ink sm:text-[38px]">Rider Application</h1>
+            <p class="mt-2 max-w-[680px] text-[11px] leading-6 text-muted">
+                Review the applicant profile from the user record before making an approval decision.
+            </p>
+        </div>
+        <span class="rounded-full px-3 py-1 text-[8px] font-semibold {{ $statusClass }}">
+            {{ $status }}
+        </span>
+    </section>
 
+    <section class="rounded-xl border border-line bg-surface p-5">
+        <h2 class="text-[13px] font-semibold text-ink">Submitted Information</h2>
+        <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            @foreach($details as $detail)
+                <div class="rounded-lg bg-page-secondary p-4">
+                    <span class="text-[8px] uppercase text-muted">{{ $detail[0] }}</span>
+                    <strong class="mt-2 block break-words text-[10px] font-semibold text-ink">{{ $detail[1] }}</strong>
+                </div>
+            @endforeach
+        </div>
+    </section>
 
+    <section class="rounded-xl border border-line bg-surface p-5">
+        <h2 class="text-[13px] font-semibold text-ink">Documents</h2>
+        <p class="mt-2 text-[10px] leading-6 text-muted">
+            No storage-backed rider document fields are exposed by the current controller payload. This page does not display fake document previews.
+        </p>
+    </section>
 
-{{-- SUCCESS MESSAGE --}}
-
-@if(session('success'))
-
-<div
-class="
-rounded-2xl
-bg-success-soft
-p-5
-text-sm
-font-semibold
-text-success
-"
->
-{{ session('success') }}
+    @if($status === 'Pending Approval')
+        <section class="flex flex-col gap-4 rounded-xl border border-line bg-surface p-5 md:flex-row md:items-center md:justify-between">
+            <div>
+                <h2 class="text-[13px] font-semibold text-ink">Application Decision</h2>
+                <p class="mt-1 text-[9px] text-muted">Approval and rejection update the rider account in the database.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <form method="POST" action="{{ route('logistics.riders.approve', data_get($data, 'id')) }}">
+                    @csrf
+                    <button type="submit" class="h-10 rounded-lg bg-success px-4 text-[10px] font-semibold text-white">Approve Application</button>
+                </form>
+                <form method="POST" action="{{ route('logistics.riders.reject', data_get($data, 'id')) }}">
+                    @csrf
+                    <button type="submit" class="h-10 rounded-lg border border-danger/30 bg-surface px-4 text-[10px] font-semibold text-danger">Reject Application</button>
+                </form>
+            </div>
+        </section>
+    @endif
 </div>
-
-@endif
-
-
-
-
-
-
-
-{{-- HEADER --}}
-
-
-<section
-class="
-flex
-flex-col
-gap-5
-lg:flex-row
-lg:items-center
-lg:justify-between
-"
->
-
-
-<div>
-
-
-<span class="text-xs font-bold uppercase tracking-[0.2em] text-primary">
-Courier Registration
-</span>
-
-
-
-<h1 class="mt-3 text-4xl font-bold text-ink">
-Rider Application
-</h1>
-
-
-
-<p class="mt-3 text-muted">
-Review submitted rider requirements before approval.
-</p>
-
-
-</div>
-
-
-
-
-
-@if($rider['status']=="Approved")
-
-<span
-class="
-rounded-full
-bg-success-soft
-px-5
-py-3
-text-sm
-font-semibold
-text-success
-"
->
-APPROVED
-</span>
-
-
-
-@elseif($rider['status']=="Rejected")
-
-
-<span
-class="
-rounded-full
-bg-danger-soft
-px-5
-py-3
-text-sm
-font-semibold
-text-danger
-"
->
-REJECTED
-</span>
-
-
-
-@else
-
-
-<span
-class="
-rounded-full
-bg-warning-soft
-px-5
-py-3
-text-sm
-font-semibold
-text-warning
-"
->
-PENDING REVIEW
-</span>
-
-
-
-@endif
-
-
-
-</section>
-
-
-
-
-
-
-
-
-
-{{-- APPLICANT PROFILE --}}
-
-
-<section
-class="
-rounded-3xl
-border
-border-line
-bg-surface
-p-8
-"
->
-
-
-<div class="flex flex-col gap-6 md:flex-row md:items-center">
-
-
-<div
-class="
-grid
-h-24
-w-24
-place-items-center
-rounded-full
-bg-primary-soft
-text-4xl
-"
->
-🚚
-</div>
-
-
-
-<div>
-
-
-<h2 class="text-2xl font-bold text-ink">
-{{ $rider['name'] }}
-</h2>
-
-
-
-<p class="mt-2 text-muted">
-Courier Applicant
-</p>
-
-
-
-</div>
-
-
-</div>
-
-
-</section>
-
-
-
-
-
-
-
-
-
-{{-- PERSONAL DETAILS --}}
-
-
-<section
-class="
-rounded-3xl
-border
-border-line
-bg-surface
-p-8
-"
->
-
-
-<h2 class="text-xl font-bold text-ink">
-Personal Information
-</h2>
-
-
-
-<div class="mt-6 grid gap-6 md:grid-cols-2">
-
-
-
-<div>
-
-<p class="text-sm text-muted">
-Last Name
-</p>
-
-<strong class="text-ink">
-Dela Cruz
-</strong>
-
-</div>
-
-
-
-
-<div>
-
-<p class="text-sm text-muted">
-First Name
-</p>
-
-<strong class="text-ink">
-Juan
-</strong>
-
-</div>
-
-
-
-
-<div>
-
-<p class="text-sm text-muted">
-Middle Initial
-</p>
-
-<strong class="text-ink">
-M.
-</strong>
-
-</div>
-
-
-
-
-<div>
-
-<p class="text-sm text-muted">
-Sex
-</p>
-
-<strong class="text-ink">
-Male
-</strong>
-
-</div>
-
-
-
-
-<div>
-
-<p class="text-sm text-muted">
-Birthday
-</p>
-
-<strong class="text-ink">
-January 15, 2000
-</strong>
-
-</div>
-
-
-
-
-<div>
-
-<p class="text-sm text-muted">
-Age
-</p>
-
-<strong class="text-ink">
-26 Years Old
-</strong>
-
-</div>
-
-
-
-
-</div>
-
-
-</section>
-
-
-
-
-
-
-
-
-
-{{-- CONTACT --}}
-
-
-<section
-class="
-rounded-3xl
-border
-border-line
-bg-surface
-p-8
-"
->
-
-
-<h2 class="text-xl font-bold text-ink">
-Contact Details
-</h2>
-
-
-
-<div class="mt-6 grid gap-6 md:grid-cols-2">
-
-
-
-<div>
-
-<p class="text-sm text-muted">
-Email
-</p>
-
-
-<strong class="text-ink">
-{{ $rider['email'] }}
-</strong>
-
-
-</div>
-
-
-
-
-
-<div>
-
-<p class="text-sm text-muted">
-Contact Number
-</p>
-
-
-<strong class="text-ink">
-{{ $rider['contact'] }}
-</strong>
-
-
-</div>
-
-
-
-
-
-<div class="md:col-span-2">
-
-<p class="text-sm text-muted">
-Complete Address
-</p>
-
-
-<strong class="text-ink">
-Barangay Real, Calamba City, Laguna
-</strong>
-
-
-</div>
-
-
-
-</div>
-
-
-</section>
-
-
-
-
-
-
-
-
-
-{{-- VEHICLE --}}
-
-
-<section
-class="
-rounded-3xl
-border
-border-line
-bg-surface
-p-8
-"
->
-
-
-<h2 class="text-xl font-bold text-ink">
-Vehicle Information
-</h2>
-
-
-
-<div class="mt-6 grid gap-6 md:grid-cols-3">
-
-
-
-<div>
-
-<p class="text-sm text-muted">
-Vehicle Type
-</p>
-
-<strong class="text-ink">
-{{ $rider['vehicle'] }}
-</strong>
-
-</div>
-
-
-
-
-<div>
-
-<p class="text-sm text-muted">
-Plate Number
-</p>
-
-
-<strong class="text-ink">
-{{ $rider['plate'] }}
-</strong>
-
-
-</div>
-
-
-
-
-<div>
-
-<p class="text-sm text-muted">
-Application Type
-</p>
-
-
-<strong class="text-ink">
-Courier Rider
-</strong>
-
-
-</div>
-
-
-
-</div>
-
-
-</section>
-
-
-
-
-
-
-
-
-
-{{-- DOCUMENTS --}}
-
-
-<section
-class="
-rounded-3xl
-border
-border-line
-bg-surface
-p-8
-"
->
-
-
-<h2 class="text-xl font-bold text-ink">
-Submitted Documents
-</h2>
-
-
-
-<div class="mt-6 grid gap-5 md:grid-cols-2">
-
-
-
-<div
-class="
-rounded-2xl
-bg-page-secondary
-p-6
-"
->
-
-
-<h3 class="font-bold text-ink">
-OR / CR
-</h3>
-
-
-<p class="mt-2 text-sm text-muted">
-Vehicle registration proof
-</p>
-
-
-<button
-class="
-mt-5
-rounded-xl
-bg-primary
-px-5
-py-3
-text-sm
-font-semibold
-text-white
-"
->
-Preview OR/CR
-</button>
-
-
-</div>
-
-
-
-
-
-
-
-<div
-class="
-rounded-2xl
-bg-page-secondary
-p-6
-"
->
-
-
-<h3 class="font-bold text-ink">
-Driver License / Valid ID
-</h3>
-
-
-<p class="mt-2 text-sm text-muted">
-Identity verification
-</p>
-
-
-<button
-class="
-mt-5
-rounded-xl
-bg-primary
-px-5
-py-3
-text-sm
-font-semibold
-text-white
-"
->
-Preview ID
-</button>
-
-
-</div>
-
-
-
-</div>
-
-
-</section>
-
-
-
-
-
-
-
-
-
-{{-- ACTIONS --}}
-
-
-@if($rider['status']=="Pending Approval")
-
-
-<section
-class="
-flex
-flex-wrap
-gap-4
-"
->
-
-
-<form
-method="POST"
-action="{{ route('logistics.rider-applications.approve',$rider['id']) }}"
->
-
-@csrf
-
-
-<button
-type="submit"
-class="
-rounded-2xl
-bg-success
-px-8
-py-4
-font-semibold
-text-white
-"
->
-✓ Approve Application
-</button>
-
-
-</form>
-
-
-
-
-
-
-
-<form
-method="POST"
-action="{{ route('logistics.rider-applications.reject',$rider['id']) }}"
->
-
-@csrf
-
-
-<button
-type="submit"
-class="
-rounded-2xl
-bg-danger
-px-8
-py-4
-font-semibold
-text-white
-"
->
-✕ Reject Application
-</button>
-
-
-</form>
-
-
-
-</section>
-
-
-
-@endif
-
-
-
-
-
-
-</div>
-
-
 @endsection

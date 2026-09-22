@@ -5,46 +5,7 @@
 
 @section('content')
 @php
-    /*
-    |--------------------------------------------------------------------------
-    | Front-end sample data
-    |--------------------------------------------------------------------------
-    |
-    | Sample products are only used when the controller does not provide
-    | $cartItems. When the backend sends an empty collection, the empty-cart
-    | design will appear normally.
-    |
-    */
-
-    if (!isset($cartItems)) {
-        $sessionCart = session('cart', []);
-        $cartItems = collect($sessionCart)->isNotEmpty() ? collect($sessionCart) : collect([
-            [
-                'id' => 1,
-                'name' => 'Handwoven Everyday Tote Bag',
-                'variant' => 'Natural Brown',
-                'seller' => 'Habi Local Crafts',
-                'price' => 849,
-                'old_price' => 999,
-                'quantity' => 1,
-                'stock' => 18,
-                'image' => null,
-            ],
-            [
-                'id' => 2,
-                'name' => 'Minimalist Ceramic Coffee Mug',
-                'variant' => 'Cream • 350 ml',
-                'seller' => 'Clay & Co. Studio',
-                'price' => 329,
-                'old_price' => 399,
-                'quantity' => 2,
-                'stock' => 24,
-                'image' => null,
-            ],
-        ]);
-    } else {
-        $cartItems = collect($cartItems);
-    }
+    $cartItems = collect($cartItems ?? []);
 
     $normalizedCartItems = $cartItems->map(function ($item) {
         $product = data_get($item, 'product');
@@ -109,11 +70,11 @@
             ),
 
             'stock' => max(
-                1,
+                0,
                 (int) (
                     data_get($item, 'stock')
                     ?? data_get($product, 'stock')
-                    ?? 99
+                    ?? 0
                 )
             ),
 
@@ -129,14 +90,14 @@
         fn ($item) => $item['price'] * $item['quantity']
     );
 
-    $shipping = $hasItems ? 120 : 0;
+    $shipping = 0;
     $discount = 0;
-    $total = max(0, $subtotal + $shipping - $discount);
+    $total = $subtotal;
 
     $buyer = auth()->user();
 
-    $buyerName = data_get($buyer, 'name', 'Buyer Name');
-    $buyerPhone = data_get($buyer, 'phone', '0912 345 6789');
+    $buyerName = data_get($buyer, 'name', 'Buyer');
+    $buyerPhone = data_get($buyer, 'contact_number', '');
 
     $addressRecipient = data_get(
         $defaultAddress ?? null,
@@ -146,15 +107,23 @@
 
     $addressPhone = data_get(
         $defaultAddress ?? null,
-        'phone',
+        'contact_number',
         $buyerPhone
     );
 
-    $addressLine = data_get(
-        $defaultAddress ?? null,
-        'full_address',
-        '123 Sample Street, Barangay Poblacion, Santa Cruz, Laguna, 4009'
-    );
+    $addressLine = $defaultAddress?->formatted()
+        ?: collect([
+            data_get($buyer, 'house_number'),
+            data_get($buyer, 'street'),
+            data_get($buyer, 'barangay'),
+            data_get($buyer, 'municipality'),
+            data_get($buyer, 'province'),
+            data_get($buyer, 'postal_code'),
+        ])->filter()->implode(', ');
+
+    if ($addressLine === '') {
+        $addressLine = 'No delivery address saved yet.';
+    }
 
     $hasProductDetailsRoute =
         \Illuminate\Support\Facades\Route::has('buyer.product-details');
@@ -298,6 +267,8 @@
                             data-cart-item
                             data-item-id="{{ $item['id'] ?? '' }}"
                             data-item-price="{{ $item['price'] }}"
+                            data-update-url="{{ route('buyer.cart.update', ['item' => $item['id']]) }}"
+                            data-remove-url="{{ route('buyer.cart.remove', ['item' => $item['id']]) }}"
                         >
                             <div class="flex items-start gap-3 sm:gap-4">
                                 <input
@@ -489,12 +460,12 @@
                         </p>
                     </div>
 
-                    <button
-                        type="button"
+                    <a
+                        href="{{ route('buyer.account', ['tab' => 'addresses']) }}"
                         class="shrink-0 text-xs font-semibold text-red-800 transition hover:text-red-900"
                     >
                         Change
-                    </button>
+                    </a>
                 </div>
 
                 <div class="p-5">
@@ -687,31 +658,7 @@
                 </div>
 
                 <div class="p-5">
-                    <div>
-                        <label for="voucher-code" class="mb-1.5 block text-xs font-semibold text-stone-700">
-                            Voucher code
-                        </label>
-
-                        <div class="flex gap-2">
-                            <input
-                                id="voucher-code"
-                                type="text"
-                                placeholder="Enter code"
-                                class="min-w-0 flex-1 rounded-xl border border-stone-300 px-3 py-2.5 text-xs uppercase outline-none transition placeholder:normal-case placeholder:text-stone-400 focus:border-red-800 focus:ring-4 focus:ring-red-100"
-                                data-voucher-input
-                            >
-
-                            <button
-                                type="button"
-                                class="rounded-xl border border-red-900 px-3.5 py-2.5 text-xs font-semibold text-red-800 transition hover:bg-red-50"
-                                data-apply-voucher
-                            >
-                                Apply
-                            </button>
-                        </div>
-
-                        <p class="mt-2 hidden text-[11px]" data-voucher-message></p>
-                    </div>
+                    <div class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs leading-5 text-stone-500">Seller discounts are already reflected in the product prices shown at checkout.</div>
 
                     <div class="mt-5 space-y-3 border-t border-stone-100 pt-5 text-sm">
                         <div class="flex items-center justify-between gap-4">
@@ -759,7 +706,7 @@
                         data-place-order
                         @disabled(!$hasItems)
                     >
-                        Place Order
+                        Checkout
 
                         <svg
                             width="16"
@@ -810,9 +757,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const discountElement = page.querySelector('[data-summary-discount]');
     const totalElement = page.querySelector('[data-summary-total]');
     const placeOrderButton = page.querySelector('[data-place-order]');
-    const voucherInput = page.querySelector('[data-voucher-input]');
-    const voucherButton = page.querySelector('[data-apply-voucher]');
-    const voucherMessage = page.querySelector('[data-voucher-message]');
 
     const getItems = () => {
         return Array.from(
@@ -978,6 +922,19 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     };
 
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    const persistQuantity = (item) => {
+        const input = item?.querySelector('[data-cart-quantity]');
+        if (!item?.dataset.updateUrl || !input) return;
+        const body = new URLSearchParams({_token: csrfToken, _method: 'PATCH', quantity: input.value});
+        fetch(item.dataset.updateUrl, {method: 'POST', headers: {'Accept': 'text/html'}, body}).catch(() => window.lkBuyerToast?.('Could not save cart quantity.'));
+    };
+    const persistRemove = (item) => {
+        if (!item?.dataset.removeUrl) return;
+        const body = new URLSearchParams({_token: csrfToken, _method: 'DELETE'});
+        fetch(item.dataset.removeUrl, {method: 'POST', headers: {'Accept': 'text/html'}, body}).catch(() => window.lkBuyerToast?.('Could not remove cart item.'));
+    };
+
     page.addEventListener('click', (event) => {
         const minusButton = event.target.closest(
             '[data-quantity-minus]'
@@ -1012,6 +969,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 updateLineTotal(item);
                 updateSummary();
+                persistQuantity(item);
             }
         }
 
@@ -1032,6 +990,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 updateLineTotal(item);
                 updateSummary();
+                persistQuantity(item);
             }
         }
 
@@ -1040,6 +999,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 '[data-cart-item]'
             );
 
+            persistRemove(item);
             item?.remove();
             updateSummary();
         }
@@ -1051,6 +1011,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
 
                 if (checkbox?.checked) {
+                    persistRemove(item);
                     item.remove();
                 }
             });
@@ -1068,6 +1029,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (item) {
                 updateLineTotal(item);
                 updateSummary();
+                persistQuantity(item);
             }
         }
 
@@ -1090,74 +1052,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    voucherButton?.addEventListener('click', () => {
-        const code = voucherInput?.value
-            .trim()
-            .toUpperCase();
-
-        if (!voucherMessage) {
-            return;
-        }
-
-        voucherMessage.classList.remove(
-            'hidden',
-            'text-red-700',
-            'text-red-600'
-        );
-
-        if (!code) {
-            page.dataset.appliedDiscount = '0';
-            voucherMessage.textContent =
-                'Enter a voucher code first.';
-            voucherMessage.classList.add('text-red-600');
-            updateSummary();
-            return;
-        }
-
-        if (code === 'LIKHAE100') {
-            page.dataset.appliedDiscount = '100';
-            voucherMessage.textContent =
-                'Voucher applied: ₱100 discount.';
-            voucherMessage.classList.add(
-                'text-red-700'
-            );
-        } else {
-            page.dataset.appliedDiscount = '0';
-            voucherMessage.textContent =
-                'This voucher code is not available.';
-            voucherMessage.classList.add('text-red-600');
-        }
-
-        updateSummary();
-    });
-
     placeOrderButton?.addEventListener('click', () => {
         const selectedItems = getItems().filter((item) =>
             item.querySelector('[data-cart-select]')?.checked
         );
-        const payment = page.querySelector('input[name="payment_method"]:checked');
-
         if (selectedItems.length === 0) {
             window.lkBuyerToast?.('Select at least one cart item.');
             return;
         }
 
-        if (!payment) {
-            window.lkBuyerToast?.('Choose a payment method before placing the order.');
-            page.querySelector('input[name="payment_method"]')?.focus();
-            return;
-        }
-
         placeOrderButton.disabled = true;
-        placeOrderButton.textContent = 'Placing Order…';
+        placeOrderButton.textContent = 'Opening Checkout...';
 
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = @json(route('buyer.order.store'));
+        form.action = @json(route('buyer.checkout.post', [], false));
 
         const fields = {
             _token: document.querySelector('meta[name="csrf-token"]')?.content || '',
-            payment_method: payment.value,
             items: JSON.stringify(selectedItems.map((item) => ({
                 id: item.dataset.itemId || '',
                 quantity: Number(item.querySelector('[data-cart-quantity]')?.value || 1),

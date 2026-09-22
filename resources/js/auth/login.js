@@ -438,7 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
             (event) => {
 
                 capsLockMessage.hidden =
-                    !event.getModifierState(
+                    typeof event.getModifierState !== 'function' || !event.getModifierState(
                         'CapsLock'
                     );
 
@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
             (event) => {
 
                 capsLockMessage.hidden =
-                    !event.getModifierState(
+                    typeof event.getModifierState !== 'function' || !event.getModifierState(
                         'CapsLock'
                     );
 
