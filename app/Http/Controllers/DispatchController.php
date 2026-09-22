@@ -61,9 +61,17 @@ class DispatchController extends Controller
     public function pickups(Request $request): View
     {
         $provider = $request->user()->logisticsProvider()->where('status', 'approved')->firstOrFail();
-        $shipments = Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.seller.user', 'rider.user', 'sellerOrder.order'])
+        $shipments = Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.seller.owner', 'sellerOrder.seller.pickupAddress', 'rider.user', 'sellerOrder.order'])
             ->where('logistics_provider_id', $provider->id)
-            ->whereIn('status', ['assigned', 'picked_up'])
+            ->where(function ($query) {
+                $query->whereIn('status', ['assigned', 'picked_up'])
+                    ->orWhere(function ($pending) {
+                        $pending->where('status', 'unassigned')
+                            ->whereHas('events', fn ($events) => $events
+                                ->where('source_type', 'seller_handover')
+                                ->where('source_id', 1));
+                    });
+            })
             ->latest()
             ->get();
 
@@ -81,7 +89,13 @@ class DispatchController extends Controller
                 'parcel' => [
                     'tracking' => $shipment->tracking_code,
                     'order' => $shipment->sellerOrder?->order?->reference ?? 'N/A',
-                    'seller' => $shipment->sellerOrder?->seller?->name ?? $shipment->sellerOrder?->seller?->user?->name ?? 'Seller',
+                    'seller' => $shipment->sellerOrder?->seller?->name ?? $shipment->sellerOrder?->seller?->owner?->name ?? 'Seller',
+                    'pickup_address' => collect([
+                        $shipment->sellerOrder?->seller?->pickupAddress?->line1,
+                        $shipment->sellerOrder?->seller?->pickupAddress?->barangay,
+                        $shipment->sellerOrder?->seller?->pickupAddress?->city,
+                        $shipment->sellerOrder?->seller?->pickupAddress?->province,
+                    ])->filter()->implode(', '),
                 ],
                 'riders' => $riders,
             ];

@@ -17,6 +17,7 @@ class BuyerOrderController extends Controller
 {
     public function index(Request $request, string $mode = 'index', ?string $reference = null): View
     {
+        $selected = null;
         $orders = SellerOrder::query()
             ->with(['order.payments', 'seller', 'items.product.images', 'items.productVariant', 'shipment.provider', 'shipment.events', 'events'])
             ->whereHas('order', fn ($query) => $query->where('buyer_id', $request->user()->id))
@@ -32,7 +33,7 @@ class BuyerOrderController extends Controller
 
         return view('Buyer.orders', [
             'mode' => $mode,
-            'selectedOrderId' => $reference,
+            'selectedOrderId' => $selected?->id ?? $reference,
             'buyerOrders' => $orders->map(fn (SellerOrder $order) => BuyerMarketplace::sellerOrder($order)),
         ]);
     }

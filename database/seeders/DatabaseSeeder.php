@@ -10,6 +10,7 @@ use App\Models\PlatformSetting;
 use App\Models\LogisticsProvider;
 use App\Models\Rider;
 use App\Models\Seller;
+use App\Models\ServiceArea;
 use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
@@ -57,6 +58,17 @@ class DatabaseSeeder extends Seeder
         $provider = LogisticsProvider::updateOrCreate(['user_id' => $providerOwner->id], [
             'name' => 'LIKHAE Logistics', 'slug' => 'likhae-logistics', 'status' => 'approved',
             'approved_at' => now(), 'contact_phone' => '09170000000',
+        ]);
+        ServiceArea::updateOrCreate([
+            'logistics_provider_id' => $provider->id,
+            'province' => 'Laguna',
+            'city' => 'Pila',
+        ], [
+            'province_code' => '0403400000',
+            'city_code' => '0403422000',
+            'base_fee_minor' => 7500,
+            'per_kg_fee_minor' => 1500,
+            'is_active' => true,
         ]);
         $riderUser = User::where('email', 'rider@likhae.com')->sole();
         Rider::updateOrCreate(['user_id' => $riderUser->id], [

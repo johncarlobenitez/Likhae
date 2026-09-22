@@ -48,6 +48,10 @@ class CanonicalCheckoutTest extends TestCase
         $this->assertDatabaseCount('cart_items', 0);
 
         $sellerOrder = $order->sellerOrders->first();
+        $this->actingAs($buyer)
+            ->get(route('buyer.orders.show', $order->reference))
+            ->assertOk()
+            ->assertDontSee('Order not found');
         $otherBuyer = User::factory()->create(['status' => 'active', 'email_verified_at' => now()]);
         $otherBuyer->grant('buyer');
         $this->actingAs($otherBuyer)->get(route('buyer.orders.show', $sellerOrder->id))->assertForbidden();
@@ -58,10 +62,28 @@ class CanonicalCheckoutTest extends TestCase
         $sellerOrder->transitionTo('accepted', $sellerOrder->seller->owner)
             ->transitionTo('packed', $sellerOrder->seller->owner)
             ->transitionTo('ready_to_ship', $sellerOrder->seller->owner);
+        $sellerOrder->seller->owner->grant('seller');
+        $provider->owner->grant('logistics');
+        $shipment = $sellerOrder->fresh()->shipment;
+        $this->actingAs($sellerOrder->seller->owner)->post(route('seller.logistics.pickup', $sellerOrder), [
+            'handover_method' => 'logistics_pickup',
+            'pickup_date' => now()->addDay()->toDateString(),
+            'pickup_window' => '10:00 AM - 12:00 PM',
+            'pickup_note' => 'Package is sealed and ready.',
+        ])->assertRedirect(route('seller.logistics', ['view' => 'pickups']));
+        $this->assertDatabaseHas('delivery_events', [
+            'shipment_id' => $shipment->id,
+            'status' => 'unassigned',
+            'source_type' => 'seller_handover',
+            'source_id' => 1,
+        ]);
+        $this->actingAs($provider->owner)->get(route('logistics.pickups'))
+            ->assertOk()
+            ->assertSee($shipment->tracking_code)
+            ->assertSee('Accept &amp; Assign', false);
         $riderUser = User::factory()->create(['role' => 'buyer', 'status' => 'active']);
         $riderUser->grant('rider');
         $rider = Rider::create(['user_id' => $riderUser->id, 'logistics_provider_id' => $provider->id, 'is_active' => true]);
-        $shipment = $sellerOrder->fresh()->shipment;
         $shipment->assignTo($rider, $provider->owner);
         $shipment->transitionTo('picked_up', $riderUser)->transitionTo('in_transit', $riderUser)->transitionTo('out_for_delivery', $riderUser)
             ->transitionTo('delivered', $riderUser, null, 'proofs/test.jpg', 'Maria Santos');

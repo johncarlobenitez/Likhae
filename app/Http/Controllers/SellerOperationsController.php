@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
+use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SellerOperationsController extends Controller
@@ -63,6 +64,48 @@ class SellerOperationsController extends Controller
             'sellerOrders' => $orders->map(fn ($order) => $this->orderRow($order)),
             'deliveries' => $orders->pluck('shipment')->filter(), 'riders' => collect(),
         ]);
+    }
+
+    public function requestPickup(Request $request, SellerOrder $sellerOrder): RedirectResponse
+    {
+        $seller = $this->seller($request);
+        abort_unless($sellerOrder->seller_id === $seller->id, 403);
+        abort_unless($sellerOrder->status === 'ready_to_ship', 409, 'Only ready-to-ship orders can request handover.');
+
+        $data = $request->validate([
+            'handover_method' => ['required', Rule::in(['logistics_pickup', 'seller_dropoff'])],
+            'pickup_date' => ['required', 'date', 'after_or_equal:today'],
+            'pickup_window' => ['required', Rule::in(['10:00 AM - 12:00 PM', '1:00 PM - 3:00 PM', '3:00 PM - 5:00 PM'])],
+            'pickup_note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $shipment = $sellerOrder->shipment()->firstOrFail();
+        abort_unless($shipment->logistics_provider_id === $sellerOrder->logistics_provider_id, 409, 'The shipment provider does not match this order.');
+        abort_unless($shipment->status === 'unassigned', 409, 'This shipment handover is already being processed.');
+
+        $methodLabel = $data['handover_method'] === 'logistics_pickup' ? 'Logistics pickup requested' : 'Seller drop-off selected';
+        $note = implode(' | ', array_filter([
+            $methodLabel,
+            'Date: '.$data['pickup_date'],
+            'Window: '.$data['pickup_window'],
+            trim((string) ($data['pickup_note'] ?? '')),
+        ]));
+
+        $shipment->events()->updateOrCreate(
+            ['status' => 'unassigned', 'attempt' => 2],
+            [
+                'user_id' => $request->user()->id,
+                'note' => $note,
+                'occurred_at' => now(),
+                'source_type' => 'seller_handover',
+                'source_id' => $data['handover_method'] === 'logistics_pickup' ? 1 : 2,
+            ],
+        );
+
+        return redirect()->route('seller.logistics', ['view' => 'pickups'])
+            ->with('status', $data['handover_method'] === 'logistics_pickup'
+                ? 'Pickup request sent to '.$shipment->provider?->name.'.'
+                : 'Drop-off handover recorded.');
     }
 
     public function waybill(Request $request, SellerOrder $sellerOrder, ShipmentCodeService $codes): View

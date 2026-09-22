@@ -30,7 +30,7 @@ Route::prefix('seller')
         Route::get('/orders-export', [SellerOperationsController::class, 'exportOrders'])->name('orders.export');
 
         Route::get('/logistics', [SellerOperationsController::class, 'logistics'])->name('logistics');
-        Route::post('/logistics/{sellerOrder}/pickup', fn () => redirect()->route('seller.logistics')->with('status', 'Shipment creation is controlled by Ready to Ship.'))->name('logistics.pickup');
+        Route::post('/logistics/{sellerOrder}/pickup', [SellerOperationsController::class, 'requestPickup'])->name('logistics.pickup');
 
         Route::get('/messages', [SellerEngagementController::class, 'messages'])->name('messages');
         Route::get('/messages/stream', [SellerEngagementController::class, 'stream'])->name('messages.stream');
