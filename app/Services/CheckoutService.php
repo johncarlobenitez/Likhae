@@ -16,13 +16,19 @@ use Illuminate\Validation\ValidationException;
 
 class CheckoutService
 {
-    public function place(User $buyer, Address $address, string $method, array $couriers, array $notes = []): Order
+    public function place(User $buyer, Address $address, string $method, array $couriers, array $notes = [], ?array $selection = null): Order
     {
         abort_unless($address->user_id === $buyer->id, 403);
 
-        return DB::transaction(function () use ($buyer, $address, $method, $couriers, $notes) {
-            $cart = Cart::query()->where('user_id', $buyer->id)->firstOrFail();
-            $cartItems = $cart->items()->where('selected', true)->lockForUpdate()->get();
+        return DB::transaction(function () use ($buyer, $address, $method, $couriers, $notes, $selection) {
+            $cart = $selection === null ? Cart::query()->where('user_id', $buyer->id)->firstOrFail() : null;
+            $cartItems = $selection === null
+                ? $cart->items()->where('selected', true)->lockForUpdate()->get()
+                : collect($selection)->map(fn ($row) => (object) [
+                    'product_variant_id' => (int) ($row['product_variant_id'] ?? $row['id'] ?? 0),
+                    'quantity' => max(1, (int) ($row['quantity'] ?? 1)),
+                ]);
+
             if ($cartItems->isEmpty()) throw ValidationException::withMessages(['cart' => 'Select at least one available item.']);
 
             $variants = ProductVariant::query()->with(['product.seller', 'product.category.parent'])
@@ -81,7 +87,9 @@ class CheckoutService
                 }
             }
             Payment::create(['order_id' => $order->id, 'method' => $method, 'amount_minor' => $grandTotal, 'status' => 'pending']);
-            $cart->items()->whereKey($cartItems->modelKeys())->delete();
+            if ($selection === null) {
+                $cart->items()->whereKey($cartItems->modelKeys())->delete();
+            }
             return $order->load('sellerOrders.items');
         }, 3);
     }

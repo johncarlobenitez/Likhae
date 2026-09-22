@@ -38,13 +38,65 @@ class CheckoutController extends Controller
             ?? $request->user()->addresses()->orderByDesc('is_default')->first();
         if (! $address) return redirect()->route('buyer.account.addresses')->withErrors(['address' => 'Add a delivery address before checkout.']);
 
-        $cart = Cart::query()->where('user_id', $request->user()->id)->first();
-        $rows = ($cart?->items()->where('selected', true)->with(['variation.product.seller', 'variation.product.images'])->get() ?? collect())
-            ->filter(fn ($item) => $item->variation?->is_active && $item->variation->product?->is_active && $item->variation->product?->seller?->status === 'approved');
-        if ($rows->isEmpty()) return redirect()->route('buyer.cart')->withErrors(['cart' => 'Select at least one available item before checkout.']);
-        $groups = $rows->groupBy(fn ($item) => $item->variation->product->seller_id);
+        $buyNow = $request->session()->get('buyer_buy_now');
+        if ($request->filled('buy')) {
+            $product = \App\Models\Product::query()->where('is_active', true)->where('slug', (string) $request->input('buy'))->first();
+            $variantId = $request->input('product_variant_id');
+            $variant = $variantId ? \App\Models\ProductVariant::query()->with(['product.seller', 'product.images'])->where('product_id', $product?->id)->whereKey((int) $variantId)->first() : null;
+            $quantity = max(1, (int) $request->input('quantity', 1));
+
+            if (! $product || ! $variant) {
+                return redirect()->route('buyer.cart')->withErrors(['cart' => 'The selected item is no longer available.']);
+            }
+
+            abort_unless($variant->is_active && $variant->product_id === $product->id, 422, 'Selected product option is invalid.');
+            abort_if($quantity > (int) $variant->stock, 422, 'Requested quantity exceeds available stock for this option.');
+
+            $request->session()->put('buyer_buy_now', ['product_variant_id' => $variant->id, 'quantity' => $quantity]);
+            $buyNow = $request->session()->get('buyer_buy_now');
+        }
+
+        $rows = collect();
+
+        if (is_array($buyNow) && ! empty($buyNow['product_variant_id'])) {
+            $variant = \App\Models\ProductVariant::query()->with(['product.seller', 'product.images'])->whereKey((int) $buyNow['product_variant_id'])->first();
+            $quantity = max(1, (int) ($buyNow['quantity'] ?? 1));
+
+            if (! $variant || ! $variant->is_active || ! $variant->product || ! $variant->product->is_active || $variant->product->seller?->status !== 'approved') {
+                $request->session()->forget('buyer_buy_now');
+                return redirect()->route('buyer.cart')->withErrors(['cart' => 'The selected item is no longer available.']);
+            }
+
+            if ($quantity > (int) $variant->stock) {
+                $request->session()->forget('buyer_buy_now');
+                return redirect()->route('buyer.cart')->withErrors(['cart' => 'Requested quantity exceeds available stock for this option.']);
+            }
+
+            $rows = collect([
+                [
+                    'cart_item_id' => null,
+                    'id' => $variant->id,
+                    'name' => $variant->product->name,
+                    'seller_id' => $variant->product->seller_id,
+                    'seller' => $variant->product->seller->name,
+                    'variant' => $variant->name,
+                    'quantity' => $quantity,
+                    'price_minor' => $variant->price_minor,
+                    'price' => $variant->price_minor / 100,
+                    'image' => optional($variant->product->images->first())->path,
+                ],
+            ]);
+        } else {
+            $cart = Cart::query()->where('user_id', $request->user()->id)->first();
+            $rows = ($cart?->items()->where('selected', true)->with(['variation.product.seller', 'variation.product.images'])->get() ?? collect())
+                ->filter(fn ($item) => $item->variation?->is_active && $item->variation->product?->is_active && $item->variation->product?->seller?->status === 'approved');
+            if ($rows->isEmpty()) return redirect()->route('buyer.cart')->withErrors(['cart' => 'Select at least one available item before checkout.']);
+        }
+
+        $rows = $rows->map(fn ($item) => $this->normalizeCheckoutRow($item));
+        $groups = $rows->groupBy(fn ($item) => (int) ($item['seller_id'] ?? 0));
         $couriers = $groups->map(function ($items) use ($address) {
-            $weight = $items->sum(fn ($item) => ($item->variation->weight_grams ?? 500) * $item->quantity);
+            $weight = collect($items)->sum(fn ($item) => ((int) ($item['weight_grams'] ?? 500)) * (int) ($item['quantity'] ?? 1));
             return ServiceArea::with('provider')->where('is_active', true)
                 ->where(fn ($q) => $address->city_code ? $q->where('city_code', $address->city_code) : $q->where('city', $address->city))
                 ->whereHas('provider', fn ($q) => $q->where('status', 'approved'))->get()
@@ -52,14 +104,7 @@ class CheckoutController extends Controller
         });
         $token = Str::random(48);
         $request->session()->put('checkout_token', $token);
-        $items = $rows->map(fn ($item) => [
-            'cart_item_id' => $item->id, 'name' => $item->variation->product->name,
-            'seller_id' => $item->variation->product->seller_id, 'seller' => $item->variation->product->seller->name,
-            'variant' => $item->variation->name, 'quantity' => $item->quantity,
-            'price_minor' => $item->variation->price_minor, 'price' => $item->variation->price_minor / 100,
-            'image' => optional($item->variation->product->images->first())->path,
-        ]);
-        return view('Buyer.checkout', ['items' => $items, 'defaultAddress' => $address, 'addresses' => $request->user()->addresses, 'couriers' => $couriers, 'checkoutToken' => $token]);
+        return view('Buyer.checkout', ['items' => $rows, 'defaultAddress' => $address, 'addresses' => $request->user()->addresses, 'couriers' => $couriers, 'checkoutToken' => $token]);
     }
 
     public function store(Request $request, CheckoutService $checkout): RedirectResponse
@@ -72,8 +117,54 @@ class CheckoutController extends Controller
         ]);
         abort_unless(hash_equals((string) $request->session()->get('checkout_token'), $data['checkout_token']), 409, 'This checkout was already submitted or expired.');
         $address = Address::query()->where('user_id', $request->user()->id)->findOrFail($data['address_id']);
-        $order = $checkout->place($request->user(), $address, $data['payment_method'], $data['courier'], $data['notes'] ?? []);
-        $request->session()->forget('checkout_token');
+
+        $selection = null;
+        $buyNow = $request->session()->get('buyer_buy_now');
+        if (is_array($buyNow) && ! empty($buyNow['product_variant_id'])) {
+            $selection = [[
+                'product_variant_id' => (int) $buyNow['product_variant_id'],
+                'quantity' => max(1, (int) ($buyNow['quantity'] ?? 1)),
+            ]];
+        }
+
+        $order = $checkout->place($request->user(), $address, $data['payment_method'], $data['courier'], $data['notes'] ?? [], $selection);
+        $request->session()->forget(['checkout_token', 'buyer_buy_now']);
         return redirect()->route('buyer.orders.show', $order->reference)->with('buyer_notice', 'Order placed successfully.');
+    }
+
+    private function normalizeCheckoutRow(mixed $item): array
+    {
+        if (is_array($item)) {
+            return [
+                'cart_item_id' => data_get($item, 'cart_item_id') ?? data_get($item, 'id'),
+                'id' => data_get($item, 'id') ?? data_get($item, 'cart_item_id'),
+                'name' => data_get($item, 'name'),
+                'seller_id' => (int) (data_get($item, 'seller_id') ?? 0),
+                'seller' => data_get($item, 'seller'),
+                'variant' => data_get($item, 'variant'),
+                'quantity' => (int) (data_get($item, 'quantity') ?? 1),
+                'price_minor' => (int) (data_get($item, 'price_minor') ?? 0),
+                'price' => (float) (data_get($item, 'price') ?? 0),
+                'image' => data_get($item, 'image'),
+                'weight_grams' => (int) (data_get($item, 'weight_grams') ?? 500),
+            ];
+        }
+
+        $variant = $item->variation;
+        $product = $variant?->product;
+
+        return [
+            'cart_item_id' => $item->id,
+            'id' => $item->id,
+            'name' => $product?->name,
+            'seller_id' => (int) ($product?->seller_id ?? 0),
+            'seller' => $product?->seller?->name,
+            'variant' => $variant?->name,
+            'quantity' => (int) ($item->quantity ?? 1),
+            'price_minor' => (int) ($variant?->price_minor ?? 0),
+            'price' => (float) (($variant?->price_minor ?? 0) / 100),
+            'image' => optional($product?->images?->first())->path,
+            'weight_grams' => (int) ($variant?->weight_grams ?? 500),
+        ];
     }
 }

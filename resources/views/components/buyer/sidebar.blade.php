@@ -79,6 +79,19 @@
             <path d="M4 21a8 8 0 0 1 16 0"></path>
         ',
 
+        'shop' => '
+            <path d="M3 9h18l-2-5H5z"></path>
+            <path d="M5 9v11h14V9"></path>
+            <path d="M9 20v-6h6v6"></path>
+        ',
+
+        'partner' => '
+            <path d="M8 12h8"></path>
+            <path d="M10 7 7 4 4 7l3 3"></path>
+            <path d="m14 17 3 3 3-3-3-3"></path>
+            <path d="m7 10 3 3m7 1-3-3"></path>
+        ',
+
         'logout' => '
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <path d="m16 17 5-5-5-5"></path>
@@ -1017,6 +1030,37 @@
                     </a>
                 @endforeach
             </div>
+        </div>
+
+        {{-- Partner With LIKHAE --}}
+        <div class="lk-nav-section">
+            <span class="lk-nav-section-title">
+                Partner With LIKHAE
+            </span>
+
+            <a href="{{ route('sell.create') }}" class="lk-nav-link">
+                <span class="lk-nav-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        {!! $icons['shop'] !!}
+                    </svg>
+                </span>
+
+                <span class="lk-nav-text">
+                    Open a Shop
+                </span>
+            </a>
+
+            <a href="{{ route('partner.create') }}" class="lk-nav-link">
+                <span class="lk-nav-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        {!! $icons['partner'] !!}
+                    </svg>
+                </span>
+
+                <span class="lk-nav-text">
+                    Become a Logistics Partner
+                </span>
+            </a>
         </div>
 
     </nav>

@@ -28,6 +28,11 @@ class EnsureWorkspaceRole
         }
 
         $expectedRole = $role === 'courier' ? 'rider' : $role;
+
+        if ($expectedRole === 'buyer' && $user->hasRole('seller') && ! $user->hasRole('buyer')) {
+            $user->grant('buyer');
+        }
+
         abort_unless($user->hasRole($expectedRole), 403);
 
         return $next($request);

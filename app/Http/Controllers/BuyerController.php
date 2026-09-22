@@ -60,12 +60,31 @@ class BuyerController extends Controller
 
     public function cart(Request $request): View|RedirectResponse
     {
+        if ($request->filled('buy')) {
+            $product = $this->findPurchasableProduct((string) $request->input('buy'));
+            $variation = $this->variationFromRequest($request, $product);
+            $quantity = max(1, (int) $request->input('quantity', 1));
+
+            if (! $variation && $product->variants()->exists()) {
+                abort(422, 'Select a valid product option before buying this item.');
+            }
+
+            if ($variation) {
+                abort_unless($variation->is_active && $variation->product_id === $product->id, 422, 'Selected product option is invalid.');
+                abort_if($quantity > (int) $variation->stock, 422, 'Requested quantity exceeds available stock for this option.');
+            }
+
+            $request->session()->put('buyer_buy_now', [
+                'product_variant_id' => $variation?->id,
+                'quantity' => $quantity,
+            ]);
+
+            return redirect()->route('buyer.checkout');
+        }
+
         if ($request->filled('add')) {
             $product = $this->findPurchasableProduct((string) $request->input('add'));
             $variation = $this->variationFromRequest($request, $product);
-            if (! $variation && $product->variants()->exists() && ! $request->filled('variant') && ! $request->filled('color') && ! $request->filled('size')) {
-                $variation = $product->variants()->orderBy('id')->first();
-            }
             $variant = $variation ? $this->variationLabel($variation) : $this->variantFromRequest($request);
             $quantity = max(1, (int) $request->input('quantity', 1));
             $this->putInCart($request->user()->id, $product, $variant, $quantity, $variation);
@@ -519,8 +538,14 @@ class BuyerController extends Controller
     {
         $id = $request->input('product_variant_id');
         if (! $id) {
+            if ($product->variants()->exists()) {
+                abort(422, 'Select a valid product option before adding this item to cart.');
+            }
+
             return null;
-        } $variation = ProductVariant::where('product_id', $product->id)->where('is_active', true)->whereKey((int) $id)->first();
+        }
+
+        $variation = ProductVariant::where('product_id', $product->id)->whereKey((int) $id)->first();
         abort_unless($variation, 422, 'Selected product option is invalid.');
 
         return $variation;
