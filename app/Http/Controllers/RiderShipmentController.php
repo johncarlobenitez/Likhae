@@ -14,7 +14,7 @@ class RiderShipmentController extends Controller
     {
         $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
         $shipments = Shipment::with(['sellerOrder.order', 'sellerOrder.seller.pickupAddress', 'events'])
-            ->where('rider_id', $rider->id)
+            ->where(fn ($query) => $query->where('pickup_rider_id', $rider->id)->orWhere('delivery_rider_id', $rider->id))
             ->when($request->filled('tracking'), fn ($query) => $query->where('tracking_code', trim((string) $request->query('tracking'))))
             ->latest()
             ->get();
@@ -35,12 +35,19 @@ class RiderShipmentController extends Controller
         $rider = $request->user()->rider()->where('is_active',true)->firstOrFail();
         abort_unless($shipment->rider_id === $rider->id,403);
         $data = $request->validate([
-            'status'=>['required',Rule::in(['picked_up','in_transit','out_for_delivery','delivered','failed'])],
+            'status'=>['required',Rule::in(['pickup_accepted','picked_up','in_transit_to_hub','delivery_accepted','delivery_collected','out_for_delivery','delivered','failed'])],
+            'tracking'=>['required_if:status,picked_up,delivery_collected','nullable','string'],
             'note'=>['required_if:status,failed','nullable','string','max:1000'], 'receiver_name'=>['required_if:status,delivered','nullable','string','max:255'],
             'proof'=>['required_if:status,delivered','nullable','image','mimes:jpg,jpeg,png,webp','max:10240'],
         ]);
+        if (in_array($data['status'], ['picked_up', 'delivery_collected'], true)) {
+            abort_unless(hash_equals($shipment->tracking_code, trim((string) $data['tracking'])), 422, 'Tracking code does not match this parcel.');
+        }
         $photo = $request->file('proof')?->store('delivery-proofs','local');
         $shipment->transitionTo($data['status'],$request->user(),$data['note']??null,$photo,$data['receiver_name']??null);
+        if ($data['status'] === 'delivered') {
+            return redirect()->route('rider.deliveries')->with('status', 'Delivery confirmed. Proof was saved and the buyer can now confirm Order Received.');
+        }
         return back()->with('status','Parcel moved to '.str($data['status'])->headline().'.');
     }
 }

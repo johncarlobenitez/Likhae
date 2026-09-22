@@ -54,34 +54,10 @@
                     </div>
 
                     <div class="flex flex-wrap gap-2">
-                        @foreach(['assigned' => 'picked_up', 'picked_up' => 'in_transit', 'in_transit' => 'out_for_delivery'] as $from => $to)
-                            @if($shipment->status === $from)
-                                <form method="POST" action="{{ route('rider.shipments.transition', $shipment) }}">
-                                    @csrf
-                                    @method('PATCH')
-                                    <input type="hidden" name="status" value="{{ $to }}">
-                                    <button class="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white">{{ str($to)->headline() }}</button>
-                                </form>
-                            @endif
-                        @endforeach
-
-                        @if($shipment->status === 'out_for_delivery')
-                            <form method="POST" enctype="multipart/form-data" action="{{ route('rider.shipments.transition', $shipment) }}" class="flex flex-wrap gap-2">
-                                @csrf
-                                @method('PATCH')
-                                <input type="hidden" name="status" value="delivered">
-                                <input name="receiver_name" required placeholder="Receiver name" class="min-h-10 rounded-lg border border-line bg-white px-3 text-sm">
-                                <input type="file" name="proof" accept="image/*" capture="environment" required class="min-h-10 rounded-lg border border-line bg-white px-3 text-sm">
-                                <button class="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white">Delivered</button>
-                            </form>
-
-                            <form method="POST" action="{{ route('rider.shipments.transition', $shipment) }}" class="flex gap-2">
-                                @csrf
-                                @method('PATCH')
-                                <input type="hidden" name="status" value="failed">
-                                <input name="note" required placeholder="Failure reason" class="min-h-10 rounded-lg border border-line bg-white px-3 text-sm">
-                                <button class="rounded-lg border border-line bg-white px-3 py-2 text-sm font-semibold text-ink">Failed</button>
-                            </form>
+                        @if($shipment->pickup_rider_id === auth()->user()->rider?->id && in_array($shipment->status, ['pickup_assigned','pickup_accepted','picked_up','in_transit_to_hub'], true))
+                            <a class="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white" href="{{ route('rider.pickups.show', $shipment) }}">Open Pickup Assignment</a>
+                        @elseif($shipment->delivery_rider_id === auth()->user()->rider?->id && in_array($shipment->status, ['delivery_assigned','delivery_accepted','delivery_collected','out_for_delivery','failed'], true))
+                            <a class="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white" href="{{ route('rider.deliveries.show', $shipment) }}">Open Delivery Assignment</a>
                         @endif
                     </div>
                 </div>

@@ -80,7 +80,7 @@ class BuyerOrderController extends Controller
         abort_unless(in_array($order->status, ['delivered', 'completed'], true), 422, 'Only delivered purchases can be reviewed.');
         abort_if($order->status === 'refunded', 422, 'Refunded purchases cannot be reviewed.');
         $data = $request->validate(['order_item_id' => ['nullable', 'integer'], 'rating' => ['required', 'integer', 'between:1,5'], 'review' => ['required', 'string', 'max:3000']]);
-        $item = $data['order_item_id']
+        $item = ! empty($data['order_item_id'])
             ? $order->items->firstWhere('id', (int) $data['order_item_id'])
             : ($order->items->count() === 1 ? $order->items->first() : null);
         abort_unless($item, 422, 'Select the purchased item to review.');

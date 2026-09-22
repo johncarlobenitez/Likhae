@@ -13,7 +13,7 @@ class RiderController extends Controller
     public function dashboard(Request $request): View
     {
         $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
-        $shipments = Shipment::with(['sellerOrder.order.buyer','sellerOrder.items.product.images'])->where('rider_id',$rider->id)->latest()->get();
+        $shipments = Shipment::with(['sellerOrder.order.buyer','sellerOrder.items.product.images'])->where(fn ($query) => $query->where('pickup_rider_id', $rider->id)->orWhere('delivery_rider_id', $rider->id))->latest()->get();
         return view('rider.dashboard', [
             'riderStats' => [
                 ['label'=>'Assigned Parcels','value'=>$shipments->where('status','assigned')->count()],
@@ -28,20 +28,21 @@ class RiderController extends Controller
     public function pickups(Request $request): View
     {
         $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
-        $shipments = Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.seller.user', 'sellerOrder.items.product.images'])
-            ->where('rider_id', $rider->id)
+        $shipments = Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.seller.owner', 'sellerOrder.seller.pickupAddress', 'sellerOrder.items.product.images'])
+            ->where('pickup_rider_id', $rider->id)
             ->latest()->get();
 
         $pickupStats = [
-            'ready' => $shipments->where('status', 'assigned')->count(),
-            'accepted' => $shipments->where('status', 'picked_up')->count(),
+            'ready' => $shipments->where('status', 'pickup_assigned')->count(),
+            'accepted' => $shipments->where('status', 'pickup_accepted')->count(),
             'picked_up' => $shipments->where('status', 'picked_up')->count(),
         ];
 
-        $pickups = $shipments->filter(fn ($shipment) => in_array($shipment->status, ['assigned', 'picked_up'], true))->map(function ($shipment) {
+        $pickups = $shipments->filter(fn ($shipment) => in_array($shipment->status, ['pickup_assigned', 'pickup_accepted', 'picked_up', 'in_transit_to_hub'], true))->map(function ($shipment) {
             $snapshot = $shipment->sellerOrder->order->shipping_address_snapshot ?? [];
             $buyer = $shipment->sellerOrder->order->buyer?->name ?? 'Buyer';
-            $seller = $shipment->sellerOrder->seller?->name ?? $shipment->sellerOrder->seller?->user?->name ?? 'Seller';
+            $seller = $shipment->sellerOrder->seller?->name ?? $shipment->sellerOrder->seller?->owner?->name ?? 'Seller';
+            $pickupAddress = $shipment->sellerOrder->seller?->pickupAddress;
             $path = $shipment->sellerOrder->items->first()?->product?->images?->first()?->path;
 
             return [
@@ -49,11 +50,12 @@ class RiderController extends Controller
                 'tracking' => $shipment->tracking_code,
                 'seller' => $seller,
                 'buyer' => $buyer,
-                'address' => collect([$snapshot['line1'] ?? null, $snapshot['city'] ?? null, $snapshot['province'] ?? null])->filter()->implode(', '),
+                'address' => collect([$pickupAddress?->line1, $pickupAddress?->barangay, $pickupAddress?->city, $pickupAddress?->province])->filter()->implode(', ') ?: 'Seller pickup address not recorded',
                 'items' => $shipment->sellerOrder->items->count(),
                 'amount' => '₱'.number_format(($shipment->sellerOrder->subtotal_minor ?? 0) / 100, 2),
                 'status' => match ($shipment->status) {
-                    'assigned' => 'PICKUP_ASSIGNED',
+                    'pickup_assigned' => 'PICKUP_ASSIGNED',
+                    'pickup_accepted' => 'PICKUP_ACCEPTED',
                     'picked_up' => 'PICKED_UP',
                     default => strtoupper($shipment->status),
                 },
@@ -68,20 +70,22 @@ class RiderController extends Controller
     public function pickupShow(Request $request, Shipment $shipment): View
     {
         $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
-        abort_unless($shipment->rider_id === $rider->id, 403);
+        abort_unless($shipment->pickup_rider_id === $rider->id, 403);
 
         $snapshot = $shipment->sellerOrder->order->shipping_address_snapshot ?? [];
+        $pickupAddress = $shipment->sellerOrder->seller?->pickupAddress;
         $delivery = $shipment;
         $pickup = [
             'id' => $shipment->id,
             'tracking' => $shipment->tracking_code,
             'seller' => $shipment->sellerOrder->seller?->name ?? 'Seller',
             'buyer' => $shipment->sellerOrder->order->buyer?->name ?? 'Buyer',
-            'address' => collect([$snapshot['line1'] ?? null, $snapshot['city'] ?? null, $snapshot['province'] ?? null])->filter()->implode(', '),
+            'address' => collect([$pickupAddress?->line1, $pickupAddress?->barangay, $pickupAddress?->city, $pickupAddress?->province])->filter()->implode(', ') ?: 'Seller pickup address not recorded',
             'items' => $shipment->sellerOrder->items->count(),
             'amount' => '₱'.number_format(($shipment->sellerOrder->subtotal_minor ?? 0) / 100, 2),
             'status' => match ($shipment->status) {
-                'assigned' => 'PICKUP_ASSIGNED',
+                'pickup_assigned' => 'PICKUP_ASSIGNED',
+                'pickup_accepted' => 'PICKUP_ACCEPTED',
                 'picked_up' => 'PICKED_UP',
                 default => strtoupper($shipment->status),
             },
@@ -96,17 +100,17 @@ class RiderController extends Controller
     {
         $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
         $shipments = Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.items.product.images'])
-            ->where('rider_id', $rider->id)
+            ->where('delivery_rider_id', $rider->id)
             ->latest()->get();
 
         $deliveryStats = [
-            'assigned' => $shipments->where('status', 'assigned')->count(),
+            'assigned' => $shipments->where('status', 'delivery_assigned')->count(),
             'out_for_delivery' => $shipments->where('status', 'out_for_delivery')->count(),
             'delivered_today' => $shipments->where('status', 'delivered')->filter(fn ($shipment) => $shipment->updated_at?->isToday())->count(),
             'failed_today' => $shipments->where('status', 'failed')->filter(fn ($shipment) => $shipment->updated_at?->isToday())->count(),
         ];
 
-        $deliveries = $shipments->filter(fn ($shipment) => in_array($shipment->status, ['assigned', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'failed'], true))->map(function ($shipment) {
+        $deliveries = $shipments->filter(fn ($shipment) => in_array($shipment->status, ['delivery_assigned', 'delivery_accepted', 'delivery_collected', 'out_for_delivery', 'delivered', 'failed'], true))->map(function ($shipment) {
             $snapshot = $shipment->sellerOrder->order->shipping_address_snapshot ?? [];
             $path = $shipment->sellerOrder->items->first()?->product?->images?->first()?->path;
 
@@ -128,7 +132,7 @@ class RiderController extends Controller
     public function deliveryShow(Request $request, Shipment $shipment): View
     {
         $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
-        abort_unless($shipment->rider_id === $rider->id, 403);
+        abort_unless($shipment->delivery_rider_id === $rider->id, 403);
 
         $snapshot = $shipment->sellerOrder->order->shipping_address_snapshot ?? [];
         $parcel = [
@@ -142,11 +146,12 @@ class RiderController extends Controller
             'status_label' => str($shipment->status)->replace('_', ' ')->title(),
         ];
 
+        $verified = $request->filled('tracking') && hash_equals($shipment->tracking_code, trim((string) $request->query('tracking')));
         return view('rider.deliveries.show', [
             'parcel' => $parcel,
             'delivery' => $shipment,
-            'released' => true,
-            'verified' => false,
+            'released' => in_array($shipment->status, ['delivery_accepted', 'delivery_collected', 'out_for_delivery', 'delivered'], true),
+            'verified' => $verified,
         ]);
     }
 
@@ -154,7 +159,7 @@ class RiderController extends Controller
     {
         $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
         $shipments = Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.items.product.images'])
-            ->where('rider_id', $rider->id)
+            ->where(fn ($query) => $query->where('pickup_rider_id', $rider->id)->orWhere('delivery_rider_id', $rider->id))
             ->latest()->get();
 
         $history = $shipments->map(function ($shipment) {

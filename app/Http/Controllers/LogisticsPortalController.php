@@ -25,7 +25,7 @@ class LogisticsPortalController extends Controller
 
         $stats = [
             ['label' => 'Parcels', 'value' => (string) (clone $shipmentQuery)->count(), 'description' => 'All tracked shipments', 'change' => 'Live'],
-            ['label' => 'Assigned', 'value' => (string) (clone $shipmentQuery)->whereIn('status', ['assigned', 'picked_up', 'in_transit', 'out_for_delivery'])->count(), 'description' => 'Active rider assignments', 'change' => 'Current'],
+            ['label' => 'Assigned', 'value' => (string) (clone $shipmentQuery)->whereIn('status', ['pickup_assigned', 'pickup_accepted', 'picked_up', 'in_transit_to_hub', 'delivery_assigned', 'delivery_accepted', 'delivery_collected', 'out_for_delivery'])->count(), 'description' => 'Active rider assignments', 'change' => 'Current'],
             ['label' => 'Delivered', 'value' => (string) (clone $shipmentQuery)->where('status', 'delivered')->count(), 'description' => 'Completed deliveries', 'change' => 'Database'],
             ['label' => 'Riders', 'value' => (string) $provider->riders()->where('is_active', true)->count(), 'description' => 'Active riders', 'change' => 'Ready'],
         ];

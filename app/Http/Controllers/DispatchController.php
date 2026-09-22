@@ -16,7 +16,7 @@ class DispatchController extends Controller
         $tracking = trim((string) ($request->input('tracking') ?: $request->route('tracking')));
         $shipmentRoute = $request->route('shipment');
         $shipmentId = $shipmentRoute instanceof Shipment ? $shipmentRoute->id : $shipmentRoute;
-        $shipments = Shipment::with(['sellerOrder.order','sellerOrder.seller.pickupAddress','rider.user'])
+        $shipments = Shipment::with(['sellerOrder.order','sellerOrder.seller.pickupAddress','rider.user','deliveryRider.user'])
             ->where('logistics_provider_id',$provider->id)
             ->when($tracking !== '', fn ($query) => $query->where('tracking_code', $tracking))
             ->when($shipmentId, fn ($query) => $query->whereKey($shipmentId))
@@ -64,7 +64,7 @@ class DispatchController extends Controller
         $shipments = Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.seller.owner', 'sellerOrder.seller.pickupAddress', 'rider.user', 'sellerOrder.order'])
             ->where('logistics_provider_id', $provider->id)
             ->where(function ($query) {
-                $query->whereIn('status', ['assigned', 'picked_up'])
+                $query->whereIn('status', ['pickup_assigned', 'pickup_accepted', 'picked_up', 'in_transit_to_hub'])
                     ->orWhere(function ($pending) {
                         $pending->where('status', 'unassigned')
                             ->whereHas('events', fn ($events) => $events
@@ -81,7 +81,7 @@ class DispatchController extends Controller
                 'id' => $rider->id,
                 'name' => $rider->user?->name ?? 'Rider',
                 'area' => $rider->service_area ?? 'General',
-                'workload' => Shipment::where('rider_id', $rider->id)->whereIn('status', ['assigned', 'picked_up', 'in_transit', 'out_for_delivery'])->count(),
+                'workload' => Shipment::where(fn ($q) => $q->where('pickup_rider_id', $rider->id)->orWhere('delivery_rider_id', $rider->id))->whereNotIn('status', ['delivered', 'returned'])->count(),
             ]);
 
             return [
@@ -110,6 +110,7 @@ class DispatchController extends Controller
         $tracking = trim((string) $request->query('tracking', ''));
         $delivery = $tracking !== '' ? Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.items.product', 'rider.user'])
             ->where('logistics_provider_id', $provider->id)
+            ->where('status', 'in_transit_to_hub')
             ->where('tracking_code', $tracking)
             ->first() : null;
 
@@ -141,7 +142,7 @@ class DispatchController extends Controller
         $tracking = trim((string) $request->query('tracking', ''));
         $shipments = Shipment::with(['sellerOrder.order.buyer'])
             ->where('logistics_provider_id', $provider->id)
-            ->where('status', 'picked_up')
+            ->where('status', 'received_at_hub')
             ->latest()->get();
 
         $selectedDelivery = $tracking !== '' ? $shipments->firstWhere('tracking_code', $tracking) : null;
@@ -240,10 +241,10 @@ class DispatchController extends Controller
     {
         $provider = $request->user()->logisticsProvider()->where('status','approved')->firstOrFail();
         abort_unless($shipment->logistics_provider_id === $provider->id,403);
-        abort_unless(in_array($shipment->status,['unassigned','assigned','failed'],true),409,'Shipment cannot be reassigned after pickup.');
+        abort_unless($shipment->status === 'ready_for_delivery',409,'Parcel must be received and sorted before delivery assignment.');
         $rider = Rider::where('logistics_provider_id',$provider->id)->where('is_active',true)->findOrFail($request->validate(['rider_id'=>['required','integer']])['rider_id']);
-        $shipment->assignTo($rider, $request->user());
-        return back()->with('status','Rider assigned.');
+        $shipment->assignDeliveryTo($rider, $request->user());
+        return back()->with('status','Delivery rider assigned.');
     }
 
     public function assignPickup(Request $request, Shipment $delivery): RedirectResponse
@@ -251,7 +252,7 @@ class DispatchController extends Controller
         $provider = $request->user()->logisticsProvider()->where('status', 'approved')->firstOrFail();
         abort_unless($delivery->logistics_provider_id === $provider->id, 403);
         $rider = Rider::where('logistics_provider_id', $provider->id)->where('is_active', true)->findOrFail($request->validate(['rider_id' => ['required', 'integer']])['rider_id']);
-        $delivery->assignTo($rider, $request->user());
+        $delivery->assignPickupTo($rider, $request->user());
         return back()->with('status', 'Rider assigned for pickup.');
     }
 
@@ -259,13 +260,22 @@ class DispatchController extends Controller
     {
         $provider = $request->user()->logisticsProvider()->where('status', 'approved')->firstOrFail();
         abort_unless($delivery->logistics_provider_id === $provider->id, 403);
-        return redirect()->route('logistics.parcels.show', $delivery)->with('status', 'Parcel verified. Pickup status can only be confirmed by the assigned rider.');
+        $tracking = trim((string) $request->validate(['tracking' => ['required', 'string']])['tracking']);
+        abort_unless(hash_equals($delivery->tracking_code, $tracking), 422, 'Tracking code does not match this parcel.');
+        abort_unless($delivery->status === 'in_transit_to_hub', 409, 'Parcel must be transported to the hub before receiving.');
+        $delivery->transitionTo('received_at_hub', $request->user(), 'Parcel scanned and physically received at logistics center.');
+        return redirect()->route('logistics.sorting', ['tracking' => $delivery->tracking_code])->with('status', 'Parcel received at hub.');
     }
 
     public function sortParcel(Request $request, Shipment $delivery): RedirectResponse
     {
         $provider = $request->user()->logisticsProvider()->where('status', 'approved')->firstOrFail();
         abort_unless($delivery->logistics_provider_id === $provider->id, 403);
-        return redirect()->route('logistics.parcels.show', $delivery)->with('status', 'Parcel verified for sorting. Assign an active rider from Dispatch when ready.');
+        $tracking = trim((string) $request->validate(['tracking' => ['required', 'string']])['tracking']);
+        abort_unless(hash_equals($delivery->tracking_code, $tracking), 422, 'Tracking code does not match this parcel.');
+        abort_unless($delivery->status === 'received_at_hub', 409, 'Only received parcels can be sorted.');
+        $delivery->transitionTo('sorting', $request->user(), 'Parcel entered sorting.');
+        $delivery->fresh()->transitionTo('ready_for_delivery', $request->user(), 'Sorting completed; parcel is ready for delivery assignment.');
+        return redirect()->route('logistics.dispatch', ['shipment' => $delivery->id])->with('status', 'Parcel sorted and ready for delivery rider assignment.');
     }
 }
