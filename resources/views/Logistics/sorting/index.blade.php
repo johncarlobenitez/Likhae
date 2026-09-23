@@ -1,4 +1,4 @@
-@extends('logistics.app')
+@extends('Logistics.app')
 
 @section('title', 'Parcel Sorting - LIKHAE Logistics')
 

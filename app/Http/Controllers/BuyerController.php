@@ -230,7 +230,7 @@ class BuyerController extends Controller
             $after = $lastId;
             $started = now();
 
-            while (! connection_aborted() && now()->diffInSeconds($started) < 20) {
+            while (! connection_aborted() && $started->diffInSeconds(now()) < 20) {
                 $messages = Message::with('sender')
                     ->where('id', '>', $after)
                     ->where(function ($query) use ($buyer, $sellerId) {
@@ -495,7 +495,7 @@ class BuyerController extends Controller
             $p = BuyerMarketplace::product($product);
             $price = $i->variation->price_minor / 100;
 
-            return $p + ['cart_item_id' => $i->id, 'id' => $i->id, 'product_id' => $product->id, 'product_variant_id' => $i->product_variant_id, 'quantity' => (int) $i->quantity, 'variant' => $i->variation->name, 'price' => $price, 'old_price' => $price, 'stock' => (int) $i->variation->stock];
+            return array_replace($p, ['cart_item_id' => $i->id, 'id' => $i->id, 'product_id' => $product->id, 'product_variant_id' => $i->product_variant_id, 'quantity' => (int) $i->quantity, 'variant' => $i->variation->name, 'price' => $price, 'old_price' => $price, 'stock' => (int) $i->variation->stock]);
         });
     }
 
@@ -504,6 +504,7 @@ class BuyerController extends Controller
         $this->guardPurchasable($product);
         $variation ??= $product->variants()->where('is_active', true)->first();
         abort_unless($variation, 422, 'Choose an available product option before adding this item to cart.');
+        abort_unless($variation->is_active, 422, 'This product option is no longer available.');
         $cart = $this->buyerCart($buyerId);
         $variant = trim($variant) ?: 'Standard';
         abort_if($variation && $variation->product_id !== $product->id, 422, 'Selected product option is invalid.');

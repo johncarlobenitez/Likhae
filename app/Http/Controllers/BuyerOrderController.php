@@ -17,7 +17,6 @@ class BuyerOrderController extends Controller
 {
     public function index(Request $request, string $mode = 'index', ?string $reference = null): View
     {
-        $selected = null;
         $orders = SellerOrder::query()
             ->with(['order.payments', 'seller', 'items.product.images', 'items.productVariant', 'shipment.provider', 'shipment.events', 'events'])
             ->whereHas('order', fn ($query) => $query->where('buyer_id', $request->user()->id))
@@ -33,7 +32,7 @@ class BuyerOrderController extends Controller
 
         return view('Buyer.orders', [
             'mode' => $mode,
-            'selectedOrderId' => $selected?->id ?? $reference,
+            'selectedOrderId' => isset($selected) ? (string) $selected->id : $reference,
             'buyerOrders' => $orders->map(fn (SellerOrder $order) => BuyerMarketplace::sellerOrder($order)),
         ]);
     }
@@ -42,13 +41,10 @@ class BuyerOrderController extends Controller
     {
         $data = $request->validate(['order_id' => ['required', 'string'], 'reason' => ['required', 'string', 'max:255'], 'note' => ['nullable', 'string', 'max:1000']]);
         $order = $this->owned($request, $data['order_id']);
-        abort_unless(in_array($order->status, ['pending', 'accepted', 'packed'], true), 422, 'This shop order can no longer be cancelled.');
-
         DB::transaction(function () use ($order, $request, $data): void {
-            $order->transitionTo('cancelled', $request->user(), $data['reason'].($data['note'] ? ': '.$data['note'] : ''));
-            foreach ($order->items as $item) {
-                $item->productVariant?->increment('stock', $item->quantity);
-            }
+            $order = SellerOrder::whereKey($order->id)->lockForUpdate()->firstOrFail();
+            abort_unless(in_array($order->status, ['pending', 'accepted', 'packed'], true), 422, 'This shop order can no longer be cancelled.');
+            $order->transitionTo('cancelled', $request->user(), $data['reason'].(! empty($data['note']) ? ': '.$data['note'] : ''));
             WorkspaceNotification::create([
                 'user_id' => $order->seller->user_id, 'type' => 'orders', 'title' => 'Order cancelled',
                 'body' => "Buyer cancelled {$order->order->reference}.",
@@ -85,7 +81,7 @@ class BuyerOrderController extends Controller
             : ($order->items->count() === 1 ? $order->items->first() : null);
         abort_unless($item, 422, 'Select the purchased item to review.');
 
-        ProductReview::create([
+        ProductReview::firstOrCreate(['order_item_id' => $item->id], [
             'order_item_id' => $item->id, 'product_id' => $item->product_id,
             'buyer_id' => $request->user()->id, 'seller_id' => $order->seller_id,
             'rating' => $data['rating'], 'body' => $data['review'], 'has_photo' => false,

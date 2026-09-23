@@ -29,6 +29,7 @@ require __DIR__.'/Seller.php';
 require __DIR__.'/Buyer.php';
 require __DIR__.'/logistics.php';
 require __DIR__.'/rider.php';
+require __DIR__.'/Courier.php';
 
 /*
 |--------------------------------------------------------------------------

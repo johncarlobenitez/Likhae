@@ -168,13 +168,17 @@ class AdminOperationsController extends Controller
     public function updateRefund(Request $request, ReturnRequest $refund, LedgerService $ledger): RedirectResponse
     {
         $validated = $request->validate(['status' => ['required', Rule::in(['refunded', 'rejected'])], 'admin_decision' => ['required', 'string', 'max:2000']]);
-        if ($validated['status'] === 'refunded') {
-            $refund->update(['admin_decision' => $validated['admin_decision'], 'resolved_by' => $request->user()->id]);
-            $ledger->refund($refund, $request->user());
-        } else {
-            $refund->update(['status' => 'rejected', 'admin_decision' => $validated['admin_decision'], 'resolved_by' => $request->user()->id]);
-        }
-        $this->audit($request, 'return.'.$validated['status'], $refund, (string) $refund->id);
+        DB::transaction(function () use ($request, $refund, $validated, $ledger): void {
+            $refund = ReturnRequest::whereKey($refund->id)->lockForUpdate()->firstOrFail();
+            abort_unless(in_array($refund->status, ['requested', 'approved', 'disputed'], true), 409, 'This return has already been resolved.');
+            $refund->update([
+                'admin_decision' => $validated['admin_decision'],
+                'resolved_by' => $request->user()->id,
+                'status' => $validated['status'] === 'refunded' ? 'approved' : 'rejected',
+            ]);
+            if ($validated['status'] === 'refunded') $ledger->refund($refund, $request->user());
+            $this->audit($request, 'return.'.$validated['status'], $refund, (string) $refund->id);
+        });
 
         return back()->with('success', 'Refund status updated.');
     }

@@ -1,4 +1,4 @@
-@extends('logistics.app')
+@extends('Logistics.app')
 
 @section('title', 'Parcel Scanner - LIKHAE Logistics')
 
@@ -22,8 +22,7 @@
         <div class="mt-5 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700">{{ $errors->first() }}</div>
     @endif
 
-    <form method="POST" action="{{ route('logistics.scanner.scan') }}" class="mt-6 flex flex-col gap-3 sm:flex-row" data-scanner-form>
-        @csrf
+    <form method="GET" action="{{ route('logistics.parcels.receive') }}" class="mt-6 flex flex-col gap-3 sm:flex-row" data-scanner-form>
         <input name="tracking" value="{{ old('tracking') }}" required autofocus class="min-h-12 flex-1 border border-line bg-white px-4 text-sm" placeholder="Tracking number or order number" data-scanner-input>
         <button class="bg-primary px-6 py-3 text-sm font-semibold text-white">Find parcel</button>
     </form>

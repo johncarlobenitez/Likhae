@@ -236,11 +236,11 @@ class BuyerMarketplace
             return 'to-receive';
         }
 
-        if (in_array($deliveryStatus, ['delivery_failed', 'failed', 'returned'], true)) {
+        if ($deliveryStatus === 'delivery_failed') {
             return 'returns';
         }
 
-        if (in_array($deliveryStatus, ['ready_for_pickup', 'awaiting_pickup_assignment', 'awaiting_dropoff', 'pickup_assigned', 'pickup_accepted', 'picked_up', 'in_transit_to_hub', 'received_at_hub', 'sorting', 'ready_for_delivery', 'delivery_assigned', 'delivery_accepted', 'delivery_collected', 'at_sorting_center', 'sorted', 'assigned_to_rider'], true)) {
+        if (in_array($deliveryStatus, ['ready_for_pickup', 'awaiting_pickup_assignment', 'awaiting_dropoff', 'pickup_assigned', 'pickup_accepted', 'picked_up', 'at_sorting_center', 'sorted', 'assigned_to_rider'], true)) {
             return 'to-ship';
         }
 
@@ -297,8 +297,8 @@ class BuyerMarketplace
         $deliveryStatus = $delivery?->status;
 
         $sellerProcessing = in_array($order->status, ['to_prepare', 'ready_pickup', 'shipping', 'shipped', 'completed'], true) || $delivery !== null;
-        $readyForPickup = in_array($order->status, ['ready_for_pickup', 'ready_pickup', 'shipping', 'shipped', 'completed'], true) || in_array($deliveryStatus, ['ready_for_pickup', 'awaiting_pickup_assignment', 'awaiting_dropoff', 'pickup_assigned', 'pickup_accepted', 'picked_up', 'in_transit_to_hub', 'received_at_hub', 'sorting', 'ready_for_delivery', 'delivery_assigned', 'delivery_accepted', 'delivery_collected', 'at_sorting_center', 'sorted', 'assigned_to_rider', 'out_for_delivery', 'delivered'], true);
-        $atSortingCenter = in_array($deliveryStatus, ['received_at_hub', 'sorting', 'ready_for_delivery', 'delivery_assigned', 'delivery_accepted', 'delivery_collected', 'at_sorting_center', 'sorted', 'assigned_to_rider', 'out_for_delivery', 'delivered'], true);
+        $readyForPickup = in_array($order->status, ['ready_for_pickup', 'ready_pickup', 'shipping', 'shipped', 'completed'], true) || in_array($deliveryStatus, ['ready_for_pickup', 'awaiting_pickup_assignment', 'awaiting_dropoff', 'pickup_assigned', 'pickup_accepted', 'picked_up', 'at_sorting_center', 'sorted', 'assigned_to_rider', 'out_for_delivery', 'delivered'], true);
+        $atSortingCenter = in_array($deliveryStatus, ['at_sorting_center', 'sorted', 'assigned_to_rider', 'out_for_delivery', 'delivered'], true);
         $outForDelivery = in_array($deliveryStatus, ['out_for_delivery', 'delivered'], true) || in_array($order->status, ['shipping', 'shipped', 'completed'], true);
         $delivered = $deliveryStatus === 'delivered' || $order->status === 'completed';
 

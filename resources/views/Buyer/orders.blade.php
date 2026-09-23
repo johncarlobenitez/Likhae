@@ -27,6 +27,13 @@
                 @php $firstProduct = collect(data_get($selectedOrder,'products',[]))->first(); @endphp
                 <div class="flex gap-3 border-b border-stone-100 pb-5"><img class="h-16 w-16 rounded-xl object-cover" src="{{ data_get($firstProduct,'image') }}" alt=""><div><strong class="text-sm text-stone-900">{{ data_get($firstProduct,'name') }}</strong><p class="mt-1 text-xs text-stone-500">{{ data_get($firstProduct,'variant') }}</p></div></div>
                 @if($mode === 'review')
+                    <label class="mt-5 block text-xs font-semibold text-stone-700">Purchased item
+                        <select name="order_item_id" required class="mt-2 block w-full rounded-xl border border-stone-300 p-3 text-sm">
+                            @foreach(data_get($selectedOrder, 'products', []) as $reviewProduct)
+                                <option value="{{ $reviewProduct['order_item_id'] }}">{{ $reviewProduct['name'] }} — {{ $reviewProduct['variant'] }}</option>
+                            @endforeach
+                        </select>
+                    </label>
                     <fieldset class="mt-5"><legend class="text-xs font-semibold text-stone-700">Your rating</legend><div class="mt-2 flex gap-2">@foreach(range(5,1) as $star)<label class="cursor-pointer"><input class="peer sr-only" type="radio" name="rating" value="{{ $star }}" @checked($star===5)><span class="block rounded-lg border border-stone-200 px-3 py-2 text-sm text-amber-500 peer-checked:border-red-800 peer-checked:bg-red-50">{{ $star }} ★</span></label>@endforeach</div></fieldset>
                     <label class="mt-5 block text-xs font-semibold text-stone-700">Review<textarea required name="review" rows="5" class="mt-2 block w-full rounded-xl border border-stone-300 p-3 text-sm outline-none focus:border-red-800" placeholder="Quality, fit, packaging, and your experience..."></textarea></label>
                                         <button class="lk-btn lk-btn-red mt-5" type="submit">Submit Review</button>

@@ -17,7 +17,7 @@ Route::prefix('logistics')
         |--------------------------------------------------------------------------
         */
 
-        Route::get('/', fn () => view('logistics.landing'))->name('home');
+        Route::get('/', fn () => view('Logistics.landing'))->name('home');
 
         Route::get('/login', function () {
             return view('auth.workspace-login', [
@@ -133,6 +133,8 @@ Route::prefix('logistics')
             */
 
             Route::get('/delivery-areas', [LogisticsPortalController::class, 'deliveryAreas'])->name('delivery-areas');
+            Route::post('/delivery-areas', [LogisticsPortalController::class, 'saveDeliveryArea'])->name('delivery-areas.store');
+            Route::patch('/delivery-areas/{area}', [LogisticsPortalController::class, 'toggleDeliveryArea'])->name('delivery-areas.toggle');
 
             /*
             |--------------------------------------------------------------------------

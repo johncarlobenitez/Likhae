@@ -667,7 +667,7 @@
                 </div>
             </section>
 
-            <nav class="rider-nav">
+            <nav class="rider-nav"><a href="{{ route('rider.messages') }}" class="rider-nav-link">Messages</a>
                 <span class="rider-nav-label">
                     Operations
                 </span>
@@ -689,8 +689,8 @@
                     </a>
 
                     <a
-                        href="{{ route('rider.shipments') }}"
-                        class="rider-nav-link {{ request()->routeIs('rider.shipments', 'rider.shipments.*') ? 'is-active' : '' }}"
+                        href="{{ route('rider.pickups') }}"
+                        class="rider-nav-link {{ request()->routeIs('rider.pickups', 'rider.pickups.*') ? 'is-active' : '' }}"
                     >
                         <span class="rider-nav-icon">
                             <svg viewBox="0 0 24 24">
@@ -704,8 +704,8 @@
                     </a>
 
                     <a
-                        href="{{ route('rider.shipments') }}"
-                        class="rider-nav-link {{ request()->routeIs('rider.shipments', 'rider.shipments.*') ? 'is-active' : '' }}"
+                        href="{{ route('rider.deliveries') }}"
+                        class="rider-nav-link {{ request()->routeIs('rider.deliveries', 'rider.deliveries.*') ? 'is-active' : '' }}"
                     >
                         <span class="rider-nav-icon">
                             <svg viewBox="0 0 24 24">

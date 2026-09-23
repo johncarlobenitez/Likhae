@@ -1,4 +1,4 @@
-@extends('logistics.app')
+@extends($messageLayout ?? 'Logistics.app')
 
 @section('title', 'Messages - LIKHAE Logistics')
 
@@ -20,7 +20,7 @@
                 <h2 class="text-[13px] font-semibold text-ink">Contacts</h2>
             </div>
             @forelse($contacts as $contact)
-                <a href="{{ route('logistics.messages', ['contact' => $contact->id]) }}" class="block border-b border-line px-5 py-4 transition hover:bg-page-secondary {{ $selected?->id === $contact->id ? 'bg-page-secondary' : '' }}">
+                <a href="{{ route($messageRoute ?? 'logistics.messages', ['contact' => $contact->id]) }}" class="block border-b border-line px-5 py-4 transition hover:bg-page-secondary {{ $selected?->id === $contact->id ? 'bg-page-secondary' : '' }}">
                     <strong class="block text-[10px] font-semibold text-ink">{{ $contact->name }}</strong>
                     <span class="mt-1 block text-[8px] text-muted">{{ Str::headline($contact->primary_role) }} - {{ $contact->email }}</span>
                 </a>
@@ -50,7 +50,7 @@
             </div>
 
             @if($selected)
-                <form method="POST" action="{{ route('logistics.messages.send') }}" class="flex gap-3 border-t border-line p-4">
+                <form method="POST" action="{{ route($sendRoute ?? 'logistics.messages.send') }}" class="flex gap-3 border-t border-line p-4">
                     @csrf
                     <input type="hidden" name="recipient_id" value="{{ $selected->id }}">
                     <input name="body" required maxlength="2000" class="min-h-10 flex-1 rounded-lg border border-line bg-surface px-3 text-[10px] text-ink" placeholder="Type a message...">

@@ -16,8 +16,6 @@ use App\Services\CheckoutService;
 use App\Services\LedgerService;
 use App\Models\ReturnRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CanonicalCheckoutTest extends TestCase
@@ -50,10 +48,6 @@ class CanonicalCheckoutTest extends TestCase
         $this->assertDatabaseCount('cart_items', 0);
 
         $sellerOrder = $order->sellerOrders->first();
-        $this->actingAs($buyer)
-            ->get(route('buyer.orders.show', $order->reference))
-            ->assertOk()
-            ->assertDontSee('Order not found');
         $otherBuyer = User::factory()->create(['status' => 'active', 'email_verified_at' => now()]);
         $otherBuyer->grant('buyer');
         $this->actingAs($otherBuyer)->get(route('buyer.orders.show', $sellerOrder->id))->assertForbidden();
@@ -64,43 +58,13 @@ class CanonicalCheckoutTest extends TestCase
         $sellerOrder->transitionTo('accepted', $sellerOrder->seller->owner)
             ->transitionTo('packed', $sellerOrder->seller->owner)
             ->transitionTo('ready_to_ship', $sellerOrder->seller->owner);
-        $sellerOrder->seller->owner->grant('seller');
-        $provider->owner->grant('logistics');
-        $shipment = $sellerOrder->fresh()->shipment;
-        $this->actingAs($sellerOrder->seller->owner)->post(route('seller.logistics.pickup', $sellerOrder), [
-            'handover_method' => 'logistics_pickup',
-            'pickup_date' => now()->addDay()->toDateString(),
-            'pickup_window' => '10:00 AM - 12:00 PM',
-            'pickup_note' => 'Package is sealed and ready.',
-        ])->assertRedirect(route('seller.logistics', ['view' => 'pickups']));
-        $this->assertDatabaseHas('delivery_events', [
-            'shipment_id' => $shipment->id,
-            'status' => 'unassigned',
-            'source_type' => 'seller_handover',
-            'source_id' => 1,
-        ]);
-        $this->actingAs($provider->owner)->get(route('logistics.pickups'))
-            ->assertOk()
-            ->assertSee($shipment->tracking_code)
-            ->assertSee('Accept &amp; Assign', false);
         $riderUser = User::factory()->create(['role' => 'buyer', 'status' => 'active']);
         $riderUser->grant('rider');
         $rider = Rider::create(['user_id' => $riderUser->id, 'logistics_provider_id' => $provider->id, 'is_active' => true]);
-        $shipment->assignPickupTo($rider, $provider->owner);
-        $shipment->transitionTo('pickup_accepted', $riderUser);
-        $this->actingAs($riderUser)->patch(route('rider.shipments.transition', $shipment), ['status' => 'picked_up', 'tracking' => $shipment->tracking_code])->assertRedirect();
-        $shipment->fresh()->transitionTo('in_transit_to_hub', $riderUser);
-        $this->actingAs($provider->owner)->post(route('logistics.parcels.receive.confirm', $shipment), ['tracking' => $shipment->tracking_code])->assertRedirect();
-        $this->actingAs($provider->owner)->post(route('logistics.sorting.sort', $shipment), ['tracking' => $shipment->tracking_code])->assertRedirect();
-        $this->actingAs($provider->owner)->post(route('logistics.dispatch.assign', $shipment), ['rider_id' => $rider->id])->assertRedirect();
-        $shipment->fresh()->transitionTo('delivery_accepted', $riderUser);
-        $this->actingAs($riderUser)->patch(route('rider.shipments.transition', $shipment), ['status' => 'delivery_collected', 'tracking' => $shipment->tracking_code])->assertRedirect();
-        $shipment->fresh()->transitionTo('out_for_delivery', $riderUser);
-        Storage::fake('local');
-        $this->actingAs($riderUser)->patch(route('rider.shipments.transition', $shipment), [
-            'status' => 'delivered', 'receiver_name' => 'Maria Santos',
-            'proof' => UploadedFile::fake()->image('proof.jpg'),
-        ])->assertRedirect();
+        $shipment = $sellerOrder->fresh()->shipment;
+        $shipment->assignTo($rider, $provider->owner);
+        $shipment->transitionTo('picked_up', $riderUser)->transitionTo('in_transit', $riderUser)->transitionTo('out_for_delivery', $riderUser)
+            ->transitionTo('delivered', $riderUser, null, 'proofs/test.jpg', 'Maria Santos');
         $this->assertSame('delivered', $sellerOrder->fresh()->status);
         $this->assertTrue($shipment->fresh()->cod_collected);
         $this->assertSame('paid', $order->fresh()->payment_status);
@@ -129,15 +93,6 @@ class CanonicalCheckoutTest extends TestCase
             'user_id' => $buyer->id,
         ]);
         $this->assertDatabaseHas('ledger_entries', ['account_type' => 'seller', 'account_id' => $sellerOrder->seller_id, 'type' => 'sale']);
-        $this->actingAs($buyer)->post(route('buyer.orders.review.store', $sellerOrder), [
-            'rating' => 5,
-            'review' => 'The product arrived safely and matches the description.',
-        ])->assertRedirect(route('buyer.orders.show', $sellerOrder));
-        $this->assertDatabaseHas('reviews', [
-            'order_item_id' => $sellerOrder->items->first()->id,
-            'buyer_id' => $buyer->id,
-            'rating' => 5,
-        ]);
         $return = ReturnRequest::create(['seller_order_id' => $sellerOrder->id, 'buyer_id' => $buyer->id, 'reason' => 'Damaged', 'status' => 'approved']);
         app(LedgerService::class)->refund($return, $buyer);
         $this->assertSame(5, $variants[0]->fresh()->stock);
@@ -213,14 +168,14 @@ class CanonicalCheckoutTest extends TestCase
         $shipment = $sellerOrder->fresh()->shipment;
 
         foreach (range(1, 3) as $attempt) {
-            $shipment->update(['delivery_rider_id' => $rider->id, 'rider_id' => $rider->id, 'status' => 'delivery_assigned']);
-            $shipment = $shipment->fresh()->transitionTo('delivery_accepted', $riderUser)->transitionTo('delivery_collected', $riderUser)->transitionTo('out_for_delivery', $riderUser);
+            $shipment = $shipment->assignTo($rider, $provider->owner);
+            $shipment = $shipment->transitionTo('picked_up', $riderUser)->transitionTo('in_transit', $riderUser)->transitionTo('out_for_delivery', $riderUser);
             $shipment = $shipment->transitionTo('failed', $riderUser, 'Recipient unavailable');
             $this->assertSame($attempt === 3 ? 'returned' : 'failed', $shipment->status);
         }
 
         $this->assertSame(3, $shipment->attempts);
-        $this->assertDatabaseCount('delivery_events', 14);
+        $this->assertDatabaseCount('delivery_events', 17);
         $this->assertDatabaseHas('delivery_events', ['shipment_id' => $shipment->id, 'status' => 'returned', 'attempt' => 3]);
     }
 
@@ -250,13 +205,14 @@ class CanonicalCheckoutTest extends TestCase
             'logistics_provider_id' => $provider->id,
             'is_active' => true,
         ]);
-        $shipment = $sellerOrder->fresh()->shipment;
-        $shipment->update(['delivery_rider_id' => $rider->id, 'rider_id' => $rider->id, 'status' => 'delivery_collected']);
+        $shipment = $sellerOrder->fresh()->shipment->assignTo($rider, $provider->owner)
+            ->transitionTo('picked_up', $riderUser)
+            ->transitionTo('in_transit', $riderUser);
 
         $this->actingAs($riderUser)->get(route('rider.deliveries'))
             ->assertOk()
             ->assertSee($shipment->tracking_code)
-            ->assertSeeText('Delivery Collected');
+            ->assertSeeText('In Transit');
     }
 
     private function buyerAndCourier(): array

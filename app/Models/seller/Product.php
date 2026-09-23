@@ -30,8 +30,10 @@ class Product extends Model
     public function scopeVisible(Builder $query): Builder
     {
         return $query->where('is_active', true)
-            ->whereHas('seller', fn (Builder $seller) => $seller->where('status', 'approved'))
-            ->whereHas('seller.owner', fn (Builder $owner) => $owner->where('status', 'active'))
+            ->whereHas('seller', fn (Builder $seller) => $seller->where('status', 'approved')
+                ->where(fn ($settings) => $settings->whereNull('settings->vacation_mode')->orWhere('settings->vacation_mode', false))
+                ->where(fn ($settings) => $settings->whereNull('settings->store_visibility')->orWhere('settings->store_visibility', true)))
+            ->whereHas('seller.owner', fn (Builder $owner) => $owner->where('status', 'active')->where('is_suspended', false))
             ->whereHas('category', fn (Builder $category) => $category->where('is_active', true)
                 ->whereHas('parent', fn (Builder $parent) => $parent->where('is_active', true)))
             ->whereHas('variants', fn (Builder $variant) => $variant->where('is_active', true)->where('stock', '>', 0));

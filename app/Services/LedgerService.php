@@ -62,15 +62,19 @@ class LedgerService
                 foreach ($order->items as $item) $item->productVariant?->increment('stock', $item->quantity);
                 $request->stock_restored_at = now();
             }
-            $this->entry('seller', $order->seller_id, 'refund_reversal', -($order->subtotal_minor - $order->commission_minor), $order, $actor);
-            $this->entry('platform', 0, 'commission_reversal', -$order->commission_minor, $order, $actor);
+            if (LedgerEntry::where('reference_type', SellerOrder::class)->where('reference_id', $order->id)->where('type', 'sale')->exists()) {
+                $this->entry('seller', $order->seller_id, 'refund_reversal', -($order->subtotal_minor - $order->commission_minor), $order, $actor);
+                $this->entry('platform', 0, 'commission_reversal', -$order->commission_minor, $order, $actor);
+            }
             $this->entry('buyer', $request->buyer_id, 'refund_credit', $order->subtotal_minor, $request, $actor);
             $order->transitionTo('refunded', $actor);
             $request->status = 'refunded';
             $request->resolved_by = $actor->id;
             if (in_array($order->order->payment_method, ['cod','cash_on_delivery'], true)) $request->cod_repayment_status = 'pending';
             $request->save();
-            $order->order->payments()->update(['status' => $order->order->sellerOrders()->where('status', '!=', 'refunded')->exists() ? 'partially_refunded' : 'refunded']);
+            $paymentStatus = $order->order->sellerOrders()->whereNotIn('status', ['refunded', 'cancelled'])->exists() ? 'partially_refunded' : 'refunded';
+            $order->order->payments()->update(['status' => $paymentStatus]);
+            $order->order->update(['payment_status' => $paymentStatus]);
             return $request->refresh();
         });
     }

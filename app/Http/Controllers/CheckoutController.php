@@ -9,6 +9,8 @@ use App\Services\CheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -16,19 +18,29 @@ class CheckoutController extends Controller
 {
     public function select(Request $request): RedirectResponse
     {
-        $rows = collect(json_decode((string) $request->validate(['items' => ['required', 'json']])['items'], true));
+        $decoded = json_decode((string) $request->validate(['items' => ['required', 'json']])['items'], true);
+        $validated = Validator::make(['items' => $decoded], [
+            'items' => ['required', 'array', 'min:1'],
+            'items.*' => ['required', 'array'],
+            'items.*.id' => ['required', 'integer', 'distinct', 'min:1'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+        ])->validate();
+        $rows = collect($validated['items']);
         $ids = $rows->pluck('id')->filter()->map(fn ($id) => (int) $id)->unique();
         abort_if($ids->isEmpty(), 422, 'Select at least one cart item to checkout.');
         $cart = Cart::query()->where('user_id', $request->user()->id)->firstOrFail();
         abort_unless($cart->items()->whereIn('id', $ids)->count() === $ids->count(), 403);
-        $cart->items()->update(['selected' => false]);
-        foreach ($rows as $row) {
+        DB::transaction(function () use ($cart, $rows): void {
+            $cart->items()->update(['selected' => false]);
+            foreach ($rows as $row) {
             $item = $cart->items()->with('variation')->findOrFail((int) $row['id']);
             $quantity = max(1, (int) ($row['quantity'] ?? 1));
             abort_unless($item->variation?->is_active && $item->variation->product?->is_active, 422, 'A selected item is no longer available.');
             abort_if($quantity > $item->variation->stock, 422, 'Requested quantity exceeds available stock.');
             $item->update(['quantity' => $quantity, 'selected' => true]);
-        }
+            }
+        });
+        $request->session()->forget(['buyer_buy_now', 'checkout_token']);
         return redirect()->route('buyer.checkout');
     }
 
@@ -84,6 +96,7 @@ class CheckoutController extends Controller
                     'price_minor' => $variant->price_minor,
                     'price' => $variant->price_minor / 100,
                     'image' => optional($variant->product->images->first())->path,
+                    'weight_grams' => $variant->weight_grams ?? 500,
                 ],
             ]);
         } else {
@@ -98,7 +111,7 @@ class CheckoutController extends Controller
         $couriers = $groups->map(function ($items) use ($address) {
             $weight = collect($items)->sum(fn ($item) => ((int) ($item['weight_grams'] ?? 500)) * (int) ($item['quantity'] ?? 1));
             return ServiceArea::with('provider')->where('is_active', true)
-                ->where(fn ($q) => $address->city_code ? $q->where('city_code', $address->city_code) : $q->where('city', $address->city))
+                ->forAddress($address)
                 ->whereHas('provider', fn ($q) => $q->where('status', 'approved'))->get()
                 ->map(fn ($area) => ['id' => $area->logistics_provider_id, 'name' => $area->provider->name, 'fee_minor' => $area->feeFor($weight)]);
         });
@@ -110,7 +123,7 @@ class CheckoutController extends Controller
     public function store(Request $request, CheckoutService $checkout): RedirectResponse
     {
         $data = $request->validate([
-            'address_id' => ['required', 'integer'], 'payment_method' => ['required', Rule::in(['cod', 'online'])],
+            'address_id' => ['required', 'integer'], 'payment_method' => ['required', Rule::in(['cod'])],
             'courier' => ['required', 'array'], 'courier.*' => ['required', 'integer'],
             'notes' => ['nullable', 'array'], 'notes.*' => ['nullable', 'string', 'max:500'],
             'checkout_token' => ['required', 'string'],
@@ -129,7 +142,7 @@ class CheckoutController extends Controller
 
         $order = $checkout->place($request->user(), $address, $data['payment_method'], $data['courier'], $data['notes'] ?? [], $selection);
         $request->session()->forget(['checkout_token', 'buyer_buy_now']);
-        return redirect()->route('buyer.orders.show', $order->reference)->with('buyer_notice', 'Order placed successfully.');
+        return redirect()->route('buyer.orders.success')->with('buyer_notice', 'Order placed successfully.');
     }
 
     private function normalizeCheckoutRow(mixed $item): array

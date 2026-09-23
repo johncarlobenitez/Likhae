@@ -32,8 +32,12 @@ class SellerAccountController extends Controller
             'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'], 'banner' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
         ]);
         $settings = $shop->settings ?? [];
-        foreach (['tagline','location','business_days','business_hours','processing_days','order_cutoff'] as $key) $settings[$key] = $data[$key] ?? null;
-        foreach (['vacation_mode','auto_accept_orders','store_visibility'] as $key) $settings[$key] = $request->boolean($key);
+        foreach (['tagline','location','business_days','business_hours','processing_days','order_cutoff'] as $key) {
+            if (array_key_exists($key, $data)) $settings[$key] = $data[$key];
+        }
+        foreach (['vacation_mode','auto_accept_orders','store_visibility'] as $key) {
+            if (array_key_exists($key, $data)) $settings[$key] = $request->boolean($key);
+        }
         $changes = ['settings' => $settings, 'description' => $data['description'] ?? $shop->description];
         if (filled($data['shop_name'] ?? null)) $changes += ['name' => $data['shop_name'], 'slug' => $this->uniqueSlug($data['shop_name'], $shop->id)];
         if ($request->hasFile('avatar')) { $this->deletePublic($shop->logo_path); $changes['logo_path'] = $request->file('avatar')->store("sellers/{$shop->id}/profile", 'public'); }
@@ -91,7 +95,22 @@ class SellerAccountController extends Controller
     }
 
     private function shop(Request $request): Seller { return $request->user()->sellers()->where('status','approved')->with(['owner','pickupAddress'])->firstOrFail(); }
-    private function profile(Seller $shop): object { $s = $shop->settings ?? []; $a = $shop->pickupAddress; return (object) array_merge($s, ['shop_name'=>$shop->name,'description'=>$shop->description,'avatar_path'=>$shop->logo_path,'banner_path'=>$shop->banner_path,'notification_preferences'=>$s['notification_preferences'] ?? [], 'province'=>$a?->province, 'municipality'=>$a?->city, 'barangay'=>$a?->barangay, 'house_number'=>'', 'street'=>$a?->line1]); }
+    private function profile(Seller $shop): object
+    {
+        $settings = array_replace([
+            'tagline' => '', 'location' => '', 'business_days' => '', 'business_hours' => '',
+            'processing_days' => 1, 'order_cutoff' => '', 'vacation_mode' => false,
+            'auto_accept_orders' => false, 'store_visibility' => true,
+        ], $shop->settings ?? []);
+        $address = $shop->pickupAddress;
+        return (object) array_merge($settings, [
+            'shop_name' => $shop->name, 'description' => $shop->description,
+            'avatar_path' => $shop->logo_path, 'banner_path' => $shop->banner_path,
+            'notification_preferences' => $settings['notification_preferences'] ?? [],
+            'province' => $address?->province, 'municipality' => $address?->city,
+            'barangay' => $address?->barangay, 'house_number' => '', 'street' => $address?->line1,
+        ]);
+    }
     private function deletePublic(?string $path): void { if ($path) Storage::disk('public')->delete($path); }
     private function uniqueSlug(string $name, int $ignore): string { $base=Str::slug($name) ?: 'shop'; $slug=$base; $i=2; while(Seller::where('slug',$slug)->whereKeyNot($ignore)->exists()) $slug=$base.'-'.$i++; return $slug; }
 }

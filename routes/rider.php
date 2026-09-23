@@ -37,6 +37,8 @@ Route::prefix('rider')
 
         // PROFILE
         Route::get('/profile', [RiderController::class, 'profile'])->name('profile');
+        Route::get('/messages', [RiderController::class, 'messages'])->name('messages');
+        Route::post('/messages', [RiderController::class, 'sendMessage'])->name('messages.send');
 
         // ACCOUNT (alias for profile, used by sidebar)
         Route::get('/account', [RiderController::class, 'profile'])->name('account');

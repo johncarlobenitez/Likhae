@@ -16,7 +16,7 @@ class SellerOrder extends Model
         'pending' => ['accepted', 'cancelled'],
         'accepted' => ['packed', 'cancelled'],
         'packed' => ['ready_to_ship', 'cancelled'],
-        'ready_to_ship' => ['shipped', 'cancelled'],
+        'ready_to_ship' => ['shipped'],
         'shipped' => ['delivered'],
         'delivered' => ['completed', 'refunded'],
         'completed' => ['refunded'],
@@ -80,6 +80,12 @@ class SellerOrder extends Model
             if ($status === 'delivered') $changes['delivered_at'] = now();
             $order->update($changes);
             $order->events()->create(['from_status' => $from, 'to_status' => $status, 'user_id' => $actor?->id, 'note' => $note]);
+
+            if ($status === 'cancelled') {
+                foreach ($order->items as $item) {
+                    $item->productVariant?->increment('stock', $item->quantity);
+                }
+            }
 
             if ($status === 'ready_to_ship') {
                 if (! $order->logistics_provider_id) {

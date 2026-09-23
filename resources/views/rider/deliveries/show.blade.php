@@ -31,22 +31,14 @@
         <article class="rounded-3xl border border-line bg-surface p-8">
             <h2 class="text-lg font-bold text-ink">Delivery Actions</h2>
             <div class="mt-5 grid gap-3">
-                @if($parcel['status'] === 'delivery_assigned')
-                    <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="delivery_accepted"><button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Accept Delivery Assignment</button></form>
+                @if($parcel['status'] === 'picked_up')
+                    <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="in_transit"><button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Mark In Transit</button></form>
                 @endif
-                @if($parcel['status'] === 'delivery_accepted')
-                    @if($verified)
-                        <div class="border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800">Hub parcel verified: {{ $delivery->tracking_code }}</div>
-                        <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="delivery_collected"><input type="hidden" name="tracking" value="{{ $delivery->tracking_code }}"><button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Receive Parcel From Logistics</button></form>
-                    @else
-                        <x-parcel-scanner :action="route('rider.deliveries.show', $delivery)" :tracking="request('tracking', '')" title="Scan Parcel At Logistics Center" description="Verify the assigned parcel before taking custody for delivery." button="Verify Parcel" />
-                    @endif
-                @endif
-                @if($parcel['status'] === 'delivery_collected')
+                @if($parcel['status'] === 'in_transit')
                     <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="out_for_delivery"><button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Out For Delivery</button></form>
                 @endif
                 @if($parcel['status'] === 'out_for_delivery')
-                    <form method="POST" enctype="multipart/form-data" action="{{ route('rider.shipments.transition', $delivery) }}" class="grid gap-3" data-delivery-proof-form>@csrf @method('PATCH')<input type="hidden" name="status" value="delivered"><input name="receiver_name" required class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm" placeholder="Receiver name"><input type="file" name="proof" accept="image/jpeg,image/png,image/webp" capture="environment" required class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm" data-delivery-proof><p class="text-xs text-muted" data-proof-status>Photos are optimized automatically before upload.</p><button type="submit" class="w-full rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white" data-delivery-submit>Mark Delivered</button></form>
+                    <form method="POST" enctype="multipart/form-data" action="{{ route('rider.shipments.transition', $delivery) }}" class="grid gap-3">@csrf @method('PATCH')<input type="hidden" name="status" value="delivered"><input name="receiver_name" required class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm" placeholder="Receiver name"><input type="file" name="proof" accept="image/*" capture="environment" required class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm"><button type="submit" class="w-full rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white">Mark Delivered</button></form>
                     <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}" class="grid gap-3">
                         @csrf @method('PATCH')<input type="hidden" name="status" value="failed">
                         <textarea name="note" rows="3" required class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm" placeholder="Reason for failed delivery"></textarea>
@@ -61,41 +53,3 @@
 
 </div>
 @endsection
-
-@push('scripts')
-<script>
-document.querySelector('[data-delivery-proof-form]')?.addEventListener('submit', async function (event) {
-    if (this.dataset.optimized === 'true') return;
-    const input = this.querySelector('[data-delivery-proof]');
-    const file = input?.files?.[0];
-    if (!file || file.size <= 1800000 || !window.DataTransfer) return;
-
-    event.preventDefault();
-    const status = this.querySelector('[data-proof-status]');
-    const button = this.querySelector('[data-delivery-submit]');
-    status.textContent = 'Optimizing proof photo...';
-    button.disabled = true;
-
-    try {
-        const bitmap = await createImageBitmap(file);
-        const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-        canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        bitmap.close?.();
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.78));
-        if (!blob) throw new Error('Photo optimization failed.');
-        const transfer = new DataTransfer();
-        transfer.items.add(new File([blob], 'delivery-proof.jpg', { type: 'image/jpeg' }));
-        input.files = transfer.files;
-        this.dataset.optimized = 'true';
-        status.textContent = 'Proof photo ready to upload.';
-        this.requestSubmit();
-    } catch (error) {
-        status.textContent = 'Unable to optimize this photo. Choose a smaller image and try again.';
-        button.disabled = false;
-    }
-});
-</script>
-@endpush

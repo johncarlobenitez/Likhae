@@ -19,6 +19,7 @@ class CheckoutService
     public function place(User $buyer, Address $address, string $method, array $couriers, array $notes = [], ?array $selection = null): Order
     {
         abort_unless($address->user_id === $buyer->id, 403);
+        if ($method !== 'cod') throw ValidationException::withMessages(['payment_method' => 'Online payment is not available. Choose Cash on Delivery.']);
 
         return DB::transaction(function () use ($buyer, $address, $method, $couriers, $notes, $selection) {
             $cart = $selection === null ? Cart::query()->where('user_id', $buyer->id)->firstOrFail() : null;
@@ -46,7 +47,7 @@ class CheckoutService
                 $providerId = (int) ($couriers[$sellerId] ?? 0);
                 $weight = $items->sum(fn ($item) => ($variants[$item->product_variant_id]->weight_grams ?? 500) * $item->quantity);
                 $area = ServiceArea::query()->where('logistics_provider_id', $providerId)->where('is_active', true)
-                    ->where(fn ($q) => $address->city_code ? $q->where('city_code', $address->city_code) : $q->where('city', $address->city))
+                    ->forAddress($address)
                     ->whereHas('provider', fn ($q) => $q->where('status', 'approved'))->first();
                 if (! $area) throw ValidationException::withMessages(["courier.$sellerId" => 'The selected courier does not serve this address.']);
                 $subtotal = $items->sum(fn ($item) => $variants[$item->product_variant_id]->price_minor * $item->quantity);
@@ -85,6 +86,9 @@ class CheckoutService
                     ]);
                     $variant->decrement('stock', $item->quantity);
                 }
+                if (data_get($variants[$data['items']->first()->product_variant_id]->product->seller->settings, 'auto_accept_orders', false)) {
+                    $sellerOrder->transitionTo('accepted', null, 'Automatically accepted by the shop.');
+                }
             }
             Payment::create(['order_id' => $order->id, 'method' => $method, 'amount_minor' => $grandTotal, 'status' => 'pending']);
             if ($selection === null) {
@@ -96,8 +100,11 @@ class CheckoutService
 
     private function assertPurchasable(?ProductVariant $variant, int $quantity): void
     {
-        if (! $variant || ! $variant->is_active || $variant->stock < $quantity || ! $variant->product || ! $variant->product->is_active
+        if ($quantity < 1 || ! $variant || ! $variant->is_active || $variant->stock < $quantity || ! $variant->product || ! $variant->product->is_active
             || $variant->product->seller?->status !== 'approved' || ! $variant->product->category?->is_active
+            || $variant->product->seller->owner?->status !== 'active' || $variant->product->seller->owner?->isSuspended()
+            || data_get($variant->product->seller->settings, 'vacation_mode', false)
+            || ! data_get($variant->product->seller->settings, 'store_visibility', true)
             || ($variant->product->category->parent && ! $variant->product->category->parent->is_active)) {
             throw ValidationException::withMessages(['cart' => 'An item is unavailable or no longer has enough stock.']);
         }
