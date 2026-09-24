@@ -589,15 +589,20 @@
                     Cancel
                 </button>
 
-                <button
-                    type="button"
+                <a
                     class="lk-btn lk-btn-red"
-                    data-demo-action="Payment window opened for order #{{ $id }}."
+                    href="{{ route('buyer.orders.show', ['id' => $id]) }}"
                 >
                     Pay Now
-                </button>
+                </a>
             @elseif($status === 'to-receive')
                 @if(data_get($order, 'delivered_at'))
+                    <a
+                        class="lk-btn lk-btn-light"
+                        href="{{ route('buyer.orders.return', ['id' => $id]) }}"
+                    >
+                        Return / Refund
+                    </a>
                     <form
                         method="POST"
                         action="{{ route('buyer.orders.received', ['id' => $id]) }}"
@@ -612,22 +617,14 @@
                         </button>
                     </form>
                 @else
-                    <button
-                        type="button"
+                    <a
                         class="lk-btn lk-btn-red"
-                        data-demo-action="Shipment tracking opened for order #{{ $id }}."
+                        href="{{ route('buyer.orders.show', ['id' => $id]) }}"
                     >
                         Track Parcel
-                    </button>
+                    </a>
                 @endif
             @elseif($status === 'completed')
-                <a
-                    class="lk-btn lk-btn-light"
-                    href="{{ route('buyer.orders.return', ['id' => $id]) }}"
-                >
-                    Return / Refund
-                </a>
-
                 <a
                     class="lk-btn lk-btn-red"
                     href="{{ route('buyer.orders.review', ['id' => $id]) }}"

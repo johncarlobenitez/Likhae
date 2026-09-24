@@ -681,28 +681,24 @@
 
     @if($tab === 'vouchers')
         <section class="lk-reward-voucher-grid">
-            @foreach([
-                ['LIKHAE100', '₱100 OFF', 'Minimum spend ₱1,000', 'Sep 30, 2026', 'Available'],
-                ['LOCAL15', '15% OFF', 'Selected local sellers · cap ₱250', 'Sep 18, 2026', 'Available'],
-                ['SHIPFREE', 'FREE SHIPPING', 'Minimum spend ₱499', 'Sep 12, 2026', 'Available'],
-            ] as [$code, $value, $condition, $expires, $status])
+            @forelse($activeVouchers as $voucher)
                 <article class="lk-voucher-card">
                     <div class="lk-voucher-top">
                         <div class="lk-voucher-icon">
-                            {{ str_contains($value, '%') ? '%' : (str_contains($value, 'FREE') ? '↗' : '₱') }}
+                            {{ $voucher['icon'] }}
                         </div>
 
                         <div>
                             <span class="lk-voucher-status">
-                                {{ $status }}
+                                {{ $voucher['status'] }}
                             </span>
 
                             <h2>
-                                {{ $value }}
+                                {{ $voucher['value'] }}
                             </h2>
 
                             <p>
-                                {{ $condition }}
+                                {{ $voucher['condition'] }}
                             </p>
                         </div>
                     </div>
@@ -710,24 +706,64 @@
                     <div class="lk-voucher-bottom">
                         <div>
                             <code class="lk-voucher-code">
-                                {{ $code }}
+                                {{ $voucher['code'] }}
                             </code>
 
                             <small class="lk-voucher-expiry">
-                                Expires {{ $expires }}
+                                Expires {{ $voucher['expires'] }}
                             </small>
                         </div>
 
-                        <button
-                            type="button"
+                        <a
+                            href="{{ route('buyer.products') }}"
                             class="lk-btn lk-btn-red"
-                            data-demo-action="Voucher {{ $code }} copied."
                         >
                             Use Now
-                        </button>
+                        </a>
                     </div>
                 </article>
-            @endforeach
+            @empty
+                <article class="lk-voucher-card">
+                    <div class="lk-voucher-top">
+                        <div class="lk-voucher-icon">
+                            %
+                        </div>
+
+                        <div>
+                            <span class="lk-voucher-status">
+                                No active vouchers
+                            </span>
+
+                            <h2>
+                                No seller vouchers yet
+                            </h2>
+
+                            <p>
+                                Active seller vouchers from the database will appear here.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="lk-voucher-bottom">
+                        <div>
+                            <code class="lk-voucher-code">
+                                NONE
+                            </code>
+
+                            <small class="lk-voucher-expiry">
+                                Check again later
+                            </small>
+                        </div>
+
+                        <a
+                            href="{{ route('buyer.products') }}"
+                            class="lk-btn lk-btn-red"
+                        >
+                            Browse Products
+                        </a>
+                    </div>
+                </article>
+            @endforelse
         </section>
 
         <section class="lk-reward-panel">
@@ -747,29 +783,25 @@
                     </thead>
 
                     <tbody>
-                        <tr>
-                            <td>
-                                <strong>WELCOME50</strong>
-                            </td>
+                        @forelse($voucherHistory as $history)
+                            <tr>
+                                <td>
+                                    <strong>{{ $history['voucher'] }}</strong>
+                                </td>
 
-                            <td>₱50 discount</td>
+                                <td>{{ $history['benefit'] }}</td>
 
-                            <td>#LK-2048</td>
+                                <td>{{ $history['order'] }}</td>
 
-                            <td class="is-muted">Used</td>
-                        </tr>
-
-                        <tr>
-                            <td>
-                                <strong>SHIPSEP</strong>
-                            </td>
-
-                            <td>Free shipping</td>
-
-                            <td>—</td>
-
-                            <td class="is-muted">Expired</td>
-                        </tr>
+                                <td class="is-muted">{{ $history['status'] }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="4" class="is-muted">
+                                    No voucher history yet.
+                                </td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
@@ -782,7 +814,7 @@
                 </span>
 
                 <strong>
-                    2,450
+                    {{ number_format($pointsBalance) }}
                 </strong>
 
                 <span>
@@ -790,7 +822,7 @@
                 </span>
 
                 <div class="lk-points-note">
-                    100 points = ₱1 checkout discount
+                    100 points = PHP 1 checkout discount
                 </div>
             </article>
 
@@ -803,7 +835,7 @@
                     @foreach([
                         ['Complete an order', '+50'],
                         ['Review a product', '+20'],
-                        ['Shop local picks', '2×'],
+                        ['Database tracked', 'Live'],
                     ] as [$label, $value])
                         <div class="lk-earn-item">
                             <strong>
@@ -825,27 +857,39 @@
             </h2>
 
             <div class="lk-activity-list">
-                @foreach([
-                    ['Order #LK-2071 completed', '+50 points', 'Sep 3, 2026'],
-                    ['Product review submitted', '+20 points', 'Aug 31, 2026'],
-                    ['Checkout discount', '−500 points', 'Aug 28, 2026'],
-                ] as [$label, $amount, $date])
+                @forelse($pointActivities as $activity)
                     <div class="lk-activity-row">
                         <div>
                             <strong>
-                                {{ $label }}
+                                {{ $activity['label'] }}
                             </strong>
 
                             <time>
-                                {{ $date }}
+                                {{ $activity['date'] }}
                             </time>
                         </div>
 
-                        <span class="lk-activity-amount {{ str_starts_with($amount, '−') ? 'is-negative' : '' }}">
-                            {{ $amount }}
+                        <span class="lk-activity-amount {{ $activity['negative'] ? 'is-negative' : '' }}">
+                            {{ $activity['amount'] }}
                         </span>
                     </div>
-                @endforeach
+                @empty
+                    <div class="lk-activity-row">
+                        <div>
+                            <strong>
+                                No points activity yet
+                            </strong>
+
+                            <small>
+                                Completed orders and product reviews will appear here.
+                            </small>
+                        </div>
+
+                        <span class="lk-activity-amount">
+                            0 points
+                        </span>
+                    </div>
+                @endforelse
             </div>
         </section>
     @else
@@ -856,16 +900,15 @@
                 </span>
 
                 <strong class="lk-cashback-value">
-                    ₱368.00
+                    PHP {{ number_format($availableCashback, 2) }}
                 </strong>
 
-                <button
-                    type="button"
+                <a
+                    href="{{ route('buyer.checkout') }}"
                     class="lk-btn lk-btn-red mt-5"
-                    data-demo-action="Cashback will be applied at checkout."
                 >
-                    Use at Checkout
-                </button>
+                    Go to Checkout
+                </a>
             </article>
 
             <article class="lk-cashback-card">
@@ -879,7 +922,7 @@
                 </p>
 
                 <div class="lk-cashback-pending">
-                    ₱125 pending · available when current orders are completed.
+                    PHP {{ number_format($pendingCashback, 2) }} pending - available when current orders are completed.
                 </div>
             </article>
         </section>
@@ -890,29 +933,43 @@
             </h2>
 
             <div class="lk-activity-list">
-                @foreach([
-                    ['Order #LK-2071', 'Earned', '₱85.00', 'Sep 3, 2026'],
-                    ['Order #LK-2064', 'Used', '−₱120.00', 'Aug 28, 2026'],
-                    ['Order #LK-2050', 'Earned', '₱45.00', 'Aug 21, 2026'],
-                ] as [$order, $type, $amount, $date])
+                @forelse($cashbackActivities as $activity)
                     <div class="lk-cashback-activity-row">
                         <strong>
-                            {{ $order }}
+                            {{ $activity['order'] }}
                         </strong>
 
                         <span>
-                            {{ $type }}
+                            {{ $activity['type'] }}
                         </span>
 
                         <span class="lk-cashback-amount">
-                            {{ $amount }}
+                            {{ $activity['amount'] }}
                         </span>
 
                         <time>
-                            {{ $date }}
+                            {{ $activity['date'] }}
                         </time>
                     </div>
-                @endforeach
+                @empty
+                    <div class="lk-cashback-activity-row">
+                        <strong>
+                            No cashback activity yet
+                        </strong>
+
+                        <span>
+                            Earned
+                        </span>
+
+                        <span class="lk-cashback-amount">
+                            PHP 0.00
+                        </span>
+
+                        <time>
+                            -
+                        </time>
+                    </div>
+                @endforelse
             </div>
         </section>
     @endif

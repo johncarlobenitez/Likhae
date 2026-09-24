@@ -2,8 +2,8 @@
 
 @php
     $seller = auth()->user();
-    $sellerName = $seller?->name ?? 'Mariel Santos';
-    $shopName = data_get($seller, 'shop_name', 'LIKHAE Studio');
+    $sellerName = $seller?->name ?? 'Seller';
+    $shopName = $seller?->sellers()->where('status', 'approved')->value('name') ?? 'LIKHAE Studio';
     $initial = mb_strtoupper(mb_substr($sellerName, 0, 1));
 
     $icon = fn (string $name) => match ($name) {
@@ -73,8 +73,8 @@
                 <span class="sl-nav-icon">{!! $icon('orders') !!}</span><span class="sl-nav-text">Orders</span><span class="sl-nav-arrow">⌄</span>
             </button>
             <div class="sl-nav-submenu {{ $ordersActive ? 'is-open' : '' }}" data-nav-submenu @if (!$ordersActive) hidden @endif>
-                <a href="{{ route('seller.orders', ['status' => 'to-process']) }}">New Orders <span>5</span></a>
-                <a href="{{ route('seller.orders', ['status' => 'to-prepare']) }}">To Prepare <span>8</span></a>
+                <a href="{{ route('seller.orders', ['status' => 'to-process']) }}">New Orders @if(($sellerSidebarCounts['to_process'] ?? 0) > 0)<span>{{ $sellerSidebarCounts['to_process'] }}</span>@endif</a>
+                <a href="{{ route('seller.orders', ['status' => 'to-prepare']) }}">To Prepare @if(($sellerSidebarCounts['to_prepare'] ?? 0) > 0)<span>{{ $sellerSidebarCounts['to_prepare'] }}</span>@endif</a>
                 <a href="{{ route('seller.orders', ['status' => 'ready-pickup']) }}">Ready for Pickup</a>
                 <a href="{{ route('seller.orders', ['status' => 'shipping']) }}">Shipping</a>
                 <a href="{{ route('seller.orders', ['status' => 'completed']) }}">Completed</a>
@@ -97,7 +97,7 @@
         <div class="sl-nav-section">
             <span class="sl-nav-label">Customer Service</span>
             <a href="{{ route('seller.messages') }}" class="sl-nav-link {{ $active === 'messages' ? 'is-active' : '' }}" data-title="Messages">
-                <span class="sl-nav-icon">{!! $icon('messages') !!}</span><span class="sl-nav-text">Messages</span><span class="sl-nav-badge">3</span>
+                <span class="sl-nav-icon">{!! $icon('messages') !!}</span><span class="sl-nav-text">Messages</span>@if(($sellerSidebarCounts['messages'] ?? 0) > 0)<span class="sl-nav-badge">{{ $sellerSidebarCounts['messages'] }}</span>@endif
             </a>
             <a href="{{ route('seller.reviews') }}" class="sl-nav-link {{ $active === 'reviews' ? 'is-active' : '' }}" data-title="Reviews">
                 <span class="sl-nav-icon">{!! $icon('reviews') !!}</span><span class="sl-nav-text">Reviews</span>
@@ -166,14 +166,14 @@
         >
             <span style="display:flex;align-items:center;gap:8px;">
                 <span class="sl-nav-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" style="width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.6;"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>
+                    <svg viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"/></svg>
                 </span>
-                <span style="display:grid;text-align:left;">
-                    <strong style="color:inherit;font-size:10.5px;font-weight:500;line-height:1.1;">Appearance</strong>
-                    <span style="margin-top:2px;color:#987865;font-size:8px;line-height:1.1;">Light / Dark Mode</span>
+                <span class="sl-nav-text" style="flex-direction:column;align-items:flex-start;">
+                    <span style="display:block;font-weight:600;font-size:.8125rem;">Appearance</span>
+                    <span style="display:block;font-size:.7rem;opacity:.6;">Light / Dark Mode</span>
                 </span>
             </span>
-            <span id="themeToggleBadge" style="display:inline-flex;min-height:21px;align-items:center;padding:0 9px;border-radius:9999px;background:#E3E3E2;color:#494644;font-size:7px;font-weight:900;white-space:nowrap;">OFF</span>
+            <span id="themeToggleBadge" style="border-radius:9999px;padding:2px 10px;font-size:.7rem;font-weight:700;background:#c92d2f;color:#fff;">ON</span>
         </button>
         <form method="POST" action="{{ Route::has('logout') ? route('logout') : url('/logout') }}">
             @csrf

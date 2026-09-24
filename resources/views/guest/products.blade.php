@@ -2,6 +2,85 @@
 
 @section('title', 'Products - LIKHAE Marketplace')
 
+@push('head')
+<style>
+    @media (max-width: 900px) {
+        .lk-guest-products-page .lk-guest-products-layout {
+            display: block;
+        }
+
+        .lk-guest-products-page .lk-guest-products-sidebar {
+            position: relative;
+            z-index: 2;
+            display: block;
+            width: 100%;
+            margin-bottom: 16px;
+        }
+
+        .lk-guest-products-page .lk-guest-category-card {
+            overflow: visible;
+            padding: 14px;
+        }
+
+        .lk-guest-products-page .lk-guest-category-list {
+            display: flex !important;
+            grid-template-columns: none !important;
+            gap: 8px;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 2px 2px 10px;
+            scroll-snap-type: x proximity;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .lk-guest-products-page .lk-guest-category-item {
+            flex: 0 0 auto;
+            min-width: 138px;
+            min-height: 44px;
+            scroll-snap-align: start;
+            white-space: nowrap;
+        }
+
+        .lk-guest-products-page .lk-category-group {
+            flex: 0 0 210px;
+            scroll-snap-align: start;
+        }
+
+        .lk-guest-products-page .lk-category-group .lk-guest-category-item {
+            width: 100%;
+        }
+
+        .lk-guest-products-page .lk-category-sublist {
+            margin: 6px 0 0;
+            padding-left: 0;
+            border-left: 0;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .lk-guest-products-page .lk-guest-category-card {
+            padding: 12px;
+        }
+
+        .lk-guest-products-page .lk-guest-category-list {
+            margin-inline: -2px;
+        }
+
+        .lk-guest-products-page .lk-guest-category-item {
+            min-width: 128px;
+            padding-inline: 12px;
+        }
+
+        .lk-guest-products-page .lk-toolbar-actions,
+        .lk-guest-products-page .lk-catalog-sort,
+        .lk-guest-products-page .lk-catalog-sort select {
+            width: 100%;
+        }
+    }
+</style>
+@endpush
+
 @section('content')
 @php
     $collection = collect($buyerProducts ?? []);
@@ -9,18 +88,50 @@
     $activeSort = strtolower((string) request('sort', 'latest'));
     $activeView = in_array(request('view'), ['grid', 'list'], true) ? request('view') : 'grid';
     $query = mb_strtolower(trim((string) request('q', '')));
-    $categories = ['all' => 'All Products', 'fashion' => 'Fashion', 'electronics' => 'Electronics', 'home' => 'Home & Living', 'books' => 'Books', 'beauty' => 'Beauty', 'sports' => 'Sports', 'toys' => 'Toys', 'automotive' => 'Automotive'];
     $catalogRouteName = request()->routeIs('guest.home') ? 'guest.home' : 'products';
-    $categoryKey = function ($product) {
-        $slug = \Illuminate\Support\Str::slug((string) data_get($product, 'category', ''));
-        foreach (['fashion','electronics','home','books','beauty','sports','toys','automotive'] as $key) {
-            if (str_contains($slug, $key)) return $key;
-        }
-        return in_array($slug, ['bags','accessories'], true) ? 'fashion' : $slug;
-    };
-    $visibleProducts = $collection->filter(function ($product) use ($activeCategory, $query, $categoryKey) {
+    $productCategorySlug = fn ($product) => (string) (data_get($product, 'category_slug') ?: \Illuminate\Support\Str::slug((string) data_get($product, 'category', 'uncategorized')));
+    $productParentSlug = fn ($product) => (string) (data_get($product, 'parent_category_slug') ?: $productCategorySlug($product));
+    $matchesCategory = fn ($product) => $activeCategory === 'all'
+        || $productCategorySlug($product) === $activeCategory
+        || $productParentSlug($product) === $activeCategory;
+    $categoryRows = $collection
+        ->groupBy(fn ($product) => $productParentSlug($product))
+        ->map(function ($products, $parentSlug) use ($productCategorySlug, $activeCategory) {
+            $first = $products->first();
+            $parentLabel = data_get($first, 'parent_category') ?: data_get($first, 'category', 'Uncategorized');
+            $children = $products
+                ->groupBy(fn ($product) => $productCategorySlug($product))
+                ->map(function ($childProducts, $childSlug) use ($parentSlug) {
+                    $firstChild = $childProducts->first();
+
+                    if ($childSlug === $parentSlug) {
+                        return null;
+                    }
+
+                    return [
+                        'slug' => $childSlug,
+                        'label' => data_get($firstChild, 'category', 'Uncategorized'),
+                        'count' => $childProducts->count(),
+                    ];
+                })
+                ->filter()
+                ->sortBy('label')
+                ->values()
+                ->all();
+
+            return [
+                'slug' => $parentSlug,
+                'label' => $parentLabel,
+                'count' => $products->count(),
+                'children' => $children,
+                'open' => $activeCategory === $parentSlug || collect($children)->contains(fn ($child) => $child['slug'] === $activeCategory),
+            ];
+        })
+        ->sortBy('label')
+        ->values();
+    $visibleProducts = $collection->filter(function ($product) use ($matchesCategory, $query) {
         $haystack = mb_strtolower(implode(' ', [data_get($product,'name'), data_get($product,'category'), data_get($product,'seller'), data_get($product,'location')]));
-        return ($activeCategory === 'all' || $categoryKey($product) === $activeCategory)
+        return $matchesCategory($product)
             && ($query === '' || str_contains($haystack, $query));
     });
     $visibleProducts = (match($activeSort) {
@@ -29,16 +140,16 @@
     $catalogUrl = fn(array $changes = []) => route($catalogRouteName, array_filter(array_merge(request()->only(['q','category','sort','view']), $changes), fn($value) => $value !== '' && $value !== null));
 @endphp
 
-<div class="lk-page">
+<div class="lk-page lk-guest-products-page">
     <header class="lk-page-title">
         <div><span class="lk-kicker">Marketplace</span><h1>Browse Products</h1><p>Find quality products from trusted local sellers.</p></div>
         <div class="lk-note-chip">Guest browsing only</div>
     </header>
 
-    <div class="lk-products-layout">
-        <aside class="lk-products-sidebar" aria-label="Product filters">
+    <div class="lk-products-layout lk-guest-products-layout">
+        <aside class="lk-products-sidebar lk-guest-products-sidebar" aria-label="Product filters">
             <form action="{{ route($catalogRouteName) }}" method="GET" class="grid gap-3">
-                <div class="lk-filter-card"><div class="lk-filter-heading"><h2 id="categories-heading">Categories</h2></div><nav class="lk-category-list">@foreach($categories as $key => $label)<a href="{{ $catalogUrl(['category' => $key]) }}" class="lk-category-item {{ $activeCategory === $key ? 'is-active' : '' }}"><span>{{ $label }}</span><small>{{ $key === 'all' ? $collection->count() : $collection->filter(fn($product) => $categoryKey($product) === $key)->count() }}</small></a>@endforeach</nav></div>
+                <div class="lk-filter-card lk-guest-category-card"><div class="lk-filter-heading"><h2 id="categories-heading">Categories</h2></div><nav class="lk-category-list lk-guest-category-list"><a href="{{ $catalogUrl(['category' => 'all']) }}" class="lk-category-item lk-guest-category-item {{ $activeCategory === 'all' ? 'is-active' : '' }}"><span>All Products</span><small>{{ $collection->count() }}</small></a>@foreach($categoryRows as $category)<details class="lk-category-group" @if($category['open']) open @endif><summary class="lk-category-item lk-guest-category-item {{ $activeCategory === $category['slug'] ? 'is-active' : '' }}"><span>{{ $category['label'] }}</span><small>{{ $category['count'] }}</small></summary><div class="lk-category-sublist"><a href="{{ $catalogUrl(['category' => $category['slug']]) }}" class="lk-category-subitem {{ $activeCategory === $category['slug'] ? 'is-active' : '' }}">All {{ $category['label'] }}</a>@foreach($category['children'] as $child)<a href="{{ $catalogUrl(['category' => $child['slug']]) }}" class="lk-category-subitem {{ $activeCategory === $child['slug'] ? 'is-active' : '' }}"><span>{{ $child['label'] }}</span><small>{{ $child['count'] }}</small></a>@endforeach</div></details>@endforeach</nav></div>
             </form>
         </aside>
 

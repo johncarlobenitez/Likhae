@@ -4,8 +4,8 @@
     $buyer = auth()->user();
     $demoUser = session('demo_user');
 
-    $cartCount = $cartCount ?? session('cart_count', 2);
-    $messageCount = $messageCount ?? session('message_count', 2);
+    $cartCount = $cartCount ?? (int) data_get($buyerUiCounts ?? [], 'cart', 0);
+    $messageCount = $messageCount ?? (int) data_get($buyerUiCounts ?? [], 'messages', 0);
 
     $buyerName = data_get($buyer, 'name')
         ?? data_get($demoUser, 'name')
@@ -17,8 +17,13 @@
         ->map(fn ($word) => mb_strtoupper(mb_substr($word, 0, 1)))
         ->implode('') ?: 'BA';
 
-    $avatar = data_get($buyer, 'profile_photo_url')
+    $profilePhoto = data_get($buyer, 'profile_photo_path')
+        ?? data_get($buyer, 'profile_photo_url')
         ?? data_get($buyer, 'avatar_url');
+
+    $avatar = $profilePhoto
+        ? (\Illuminate\Support\Str::startsWith($profilePhoto, ['http://', 'https://']) ? $profilePhoto : \Illuminate\Support\Facades\Storage::url($profilePhoto))
+        : null;
 
     $orderStatus = request('status', 'all');
     $rewardTab = request('tab', 'vouchers');
@@ -72,6 +77,19 @@
         'account' => '
             <circle cx="12" cy="8" r="4"></circle>
             <path d="M4 21a8 8 0 0 1 16 0"></path>
+        ',
+
+        'shop' => '
+            <path d="M3 9h18l-2-5H5z"></path>
+            <path d="M5 9v11h14V9"></path>
+            <path d="M9 20v-6h6v6"></path>
+        ',
+
+        'partner' => '
+            <path d="M8 12h8"></path>
+            <path d="M10 7 7 4 4 7l3 3"></path>
+            <path d="m14 17 3 3 3-3-3-3"></path>
+            <path d="m7 10 3 3m7 1-3-3"></path>
         ',
 
         'logout' => '
@@ -130,9 +148,6 @@
         'profile' => 'Profile',
         'addresses' => 'Addresses',
         'password' => 'Change Password',
-        'privacy' => 'Privacy Settings',
-        'deletion' => 'Account Deletion',
-        'notifications' => 'Notification Settings',
     ];
 @endphp
 
@@ -166,7 +181,7 @@
     .lk-sidebar {
         position: fixed;
         inset: 0 auto 0 0;
-        z-index: 60;
+        z-index: 90;
         display: flex;
         width: var(--buyer-side-width);
         height: 100vh;
@@ -311,8 +326,10 @@
 
     .lk-sidebar-scroll {
         flex: 1;
+        min-height: 0;
         overflow-y: auto;
         padding: 4px 8px 14px;
+        overscroll-behavior: contain;
         scrollbar-width: thin;
         scrollbar-color: #D8C2B1 transparent;
     }
@@ -501,8 +518,9 @@
 
     .lk-sidebar-foot {
         display: grid;
+        flex: 0 0 auto;
         gap: 2px;
-        padding: 7px 8px 9px;
+        padding: 7px 8px max(9px, env(safe-area-inset-bottom));
         border-top: 1px solid var(--buyer-line);
         background: var(--buyer-bg);
     }
@@ -681,10 +699,13 @@
         .lk-sidebar,
         .lk-sidebar.is-collapsed {
             width: var(--buyer-side-width);
+            height: 100dvh;
+            max-height: 100dvh;
             transform: translateX(-100%);
         }
 
-        .lk-sidebar.is-open {
+        .lk-sidebar.is-open,
+        .lk-sidebar.lk-sidebar-open {
             transform: translateX(0);
         }
 
@@ -1011,6 +1032,37 @@
             </div>
         </div>
 
+        {{-- Partner With LIKHAE --}}
+        <div class="lk-nav-section">
+            <span class="lk-nav-section-title">
+                Partner With LIKHAE
+            </span>
+
+            <a href="{{ route('sell.create') }}" class="lk-nav-link">
+                <span class="lk-nav-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        {!! $icons['shop'] !!}
+                    </svg>
+                </span>
+
+                <span class="lk-nav-text">
+                    Open a Shop
+                </span>
+            </a>
+
+            <a href="{{ route('partner.create') }}" class="lk-nav-link">
+                <span class="lk-nav-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        {!! $icons['partner'] !!}
+                    </svg>
+                </span>
+
+                <span class="lk-nav-text">
+                    Become a Logistics Partner
+                </span>
+            </a>
+        </div>
+
     </nav>
 
     <div class="lk-sidebar-foot">
@@ -1063,10 +1115,9 @@
                 </button>
             </form>
         @else
-            <button
-                type="button"
+            <a
+                href="{{ Route::has('login') ? route('login') : url('/login') }}"
                 class="lk-nav-link lk-logout"
-                data-demo-action="Connect this button to your logout route"
                 data-title="Logout"
             >
                 <span class="lk-nav-icon">
@@ -1078,166 +1129,8 @@
                 <span class="lk-nav-text">
                     Logout
                 </span>
-            </button>
+            </a>
         @endif
 
     </div>
 </aside>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const sidebar =
-        document.querySelector('[data-lk-sidebar]');
-
-    const sidebarToggle =
-        document.querySelector('[data-lk-sidebar-toggle]');
-
-    const themeToggle =
-        document.getElementById('themeToggle');
-
-    const themeBadge =
-        document.getElementById('themeToggleBadge');
-
-    const root =
-        document.documentElement;
-
-
-    function syncThemeBadge() {
-        const dark =
-            root.classList.contains('dark');
-
-        if (!themeBadge) {
-            return;
-        }
-
-        themeBadge.textContent =
-            dark ? 'ON' : 'OFF';
-
-        themeBadge.style.background =
-            dark ? '#A84538' : '#E3E3E2';
-
-        themeBadge.style.color =
-            dark ? '#FFFFFF' : '#494644';
-    }
-
-
-    function toggleSidebar() {
-        if (!sidebar) {
-            return;
-        }
-
-        const collapsed =
-            sidebar.classList.toggle('is-collapsed');
-
-        sidebarToggle?.setAttribute(
-            'aria-expanded',
-            collapsed ? 'false' : 'true'
-        );
-
-        localStorage.setItem(
-            'likhae-buyer-sidebar',
-            collapsed ? 'collapsed' : 'expanded'
-        );
-
-        window.dispatchEvent(
-            new CustomEvent(
-                'likhae:buyer-sidebar',
-                {
-                    detail: {
-                        collapsed: collapsed,
-                        width: collapsed ? 76 : 252
-                    }
-                }
-            )
-        );
-    }
-
-
-    function restoreSidebarState() {
-        if (!sidebar || window.innerWidth < 1024) {
-            return;
-        }
-
-        const collapsed =
-            localStorage.getItem('likhae-buyer-sidebar') === 'collapsed';
-
-        sidebar.classList.toggle(
-            'is-collapsed',
-            collapsed
-        );
-
-        sidebarToggle?.setAttribute(
-            'aria-expanded',
-            collapsed ? 'false' : 'true'
-        );
-    }
-
-
-    sidebarToggle?.addEventListener(
-        'click',
-        toggleSidebar
-    );
-
-
-    document
-        .querySelectorAll('[data-nav-toggle]')
-        .forEach(function (toggle) {
-            toggle.addEventListener(
-                'click',
-                function () {
-                    const submenu =
-                        toggle.parentElement
-                            ?.querySelector('[data-nav-submenu]');
-
-                    if (!submenu) {
-                        return;
-                    }
-
-                    const willOpen =
-                        submenu.hasAttribute('hidden');
-
-                    if (willOpen) {
-                        submenu.removeAttribute('hidden');
-                    } else {
-                        submenu.setAttribute('hidden', '');
-                    }
-
-                    toggle.classList.toggle(
-                        'is-open',
-                        willOpen
-                    );
-
-                    toggle.setAttribute(
-                        'aria-expanded',
-                        willOpen ? 'true' : 'false'
-                    );
-                }
-            );
-        });
-
-
-    themeToggle?.addEventListener(
-        'click',
-        function () {
-            const dark =
-                !root.classList.contains('dark');
-
-            root.classList.toggle(
-                'dark',
-                dark
-            );
-
-            localStorage.setItem(
-                'likhae-theme',
-                dark ? 'dark' : 'light'
-            );
-
-            syncThemeBadge();
-        }
-    );
-
-
-    restoreSidebarState();
-    syncThemeBadge();
-});
-</script>

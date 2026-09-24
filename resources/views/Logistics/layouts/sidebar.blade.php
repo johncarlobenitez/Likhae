@@ -94,6 +94,12 @@
                     'icon' => 'parcel',
                 ],
                 [
+                    'label' => 'Pickup Requests',
+                    'href' => route('logistics.pickups'),
+                    'active' => ['logistics.pickups', 'logistics.pickups.*'],
+                    'icon' => 'truck',
+                ],
+                [
                     'label' => 'Receive Parcel',
                     'href' => route('logistics.parcels.receive'),
                     'active' => ['logistics.parcels.receive'],
@@ -104,14 +110,12 @@
                     'href' => route('logistics.sorting'),
                     'active' => ['logistics.sorting', 'logistics.sorting.*'],
                     'icon' => 'sort',
-                    'badge' => '34',
                 ],
                 [
                     'label' => 'Rider Assignment',
-                    'href' => route('logistics.assignments'),
-                    'active' => ['logistics.assignments', 'logistics.assignments.*'],
+                    'href' => route('logistics.dispatch'),
+                    'active' => ['logistics.dispatch'],
                     'icon' => 'assignment',
-                    'badge' => '18',
                 ],
                 [
                     'label' => 'Parcel Tracking',
@@ -129,14 +133,6 @@
                     'href' => route('logistics.riders'),
                     'active' => ['logistics.riders', 'logistics.riders.show'],
                     'icon' => 'riders',
-                ],
-                [
-                    'label' => 'Rider Applications',
-                    'href' => route('logistics.riders.applications'),
-                    'active' => ['logistics.riders.applications', 'logistics.rider-applications'],
-                    'icon' => 'application',
-                    'badge' => '5',
-                    'badgeTone' => 'danger',
                 ],
                 [
                     'label' => 'Delivery Areas',
@@ -202,6 +198,8 @@
     #logisticsSidebar,
     .logi-sidebar {
         width: 252px !important;
+        height: 100vh;
+        overflow: hidden;
         background:
             radial-gradient(circle at 12% 5%, rgba(193, 151, 113, 0.18), transparent 26%),
             radial-gradient(circle at 100% 30%, rgba(255, 253, 249, 0.07), transparent 34%),
@@ -357,6 +355,8 @@
         min-height: 0;
         flex: 1;
         flex-direction: column;
+        overflow-y: auto;
+        overscroll-behavior: contain;
         padding: 0 12px 18px;
     }
 
@@ -491,9 +491,22 @@
     }
 
     .logi-footer-group {
-        margin-top: 18px;
+        margin-top: 0;
         padding-top: 18px;
         border-top: 1px solid rgba(255, 255, 255, 0.10);
+    }
+
+    .logi-sidebar-foot {
+        flex: 0 0 auto;
+        padding: 0 12px max(18px, env(safe-area-inset-bottom));
+    }
+
+    @media (max-width: 1023px) {
+        #logisticsSidebar,
+        .logi-sidebar {
+            height: 100dvh;
+            max-height: 100dvh;
+        }
     }
 
     .logi-theme-toggle {
@@ -625,7 +638,7 @@
 
 <aside
     id="logisticsSidebar"
-    class="logi-sidebar fixed inset-y-0 left-0 z-50 flex -translate-x-full flex-col overflow-y-auto transition-transform duration-300 ease-out lg:translate-x-0"
+    class="logi-sidebar fixed inset-y-0 left-0 z-50 flex -translate-x-full flex-col transition-transform duration-300 ease-out lg:translate-x-0"
 >
     <div class="logi-brand">
         <a href="{{ route('logistics.dashboard') }}" class="logi-brand-link">
@@ -729,8 +742,9 @@
             </div>
         @endforeach
 
-        <div class="logi-spacer"></div>
+    </nav>
 
+    <div class="logi-sidebar-foot">
         <div class="logi-footer-group">
             <p class="logi-nav-title">
                 Appearance
@@ -801,5 +815,5 @@
                 </button>
             </form>
         </div>
-    </nav>
+    </div>
 </aside>

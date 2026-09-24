@@ -90,7 +90,7 @@
             SIDEBAR
         ================================================== --}}
 
-        @include('logistics.layouts.sidebar')
+        @include('Logistics.layouts.sidebar')
 
 
         {{-- =================================================

@@ -5,6 +5,8 @@
 ])
 
 @php
+    $productId = data_get($product, 'db_id', data_get($product, 'id'));
+
     $slug = data_get($product, 'slug', data_get($product, 'id', 'product'));
 
     $name = (string) data_get($product, 'name', 'Product');
@@ -1282,14 +1284,23 @@
                             data-variation-name="{{ $variationName }}"
                         >
                             @foreach((array) $options as $option)
+                                @php
+                                    $optionId = is_array($option) ? data_get($option, 'id') : null;
+                                    $optionValue = is_array($option) ? data_get($option, 'value') : $option;
+                                    $optionStock = is_array($option) ? (int) data_get($option, 'stock', 0) : null;
+                                    $optionPrice = is_array($option) ? data_get($option, 'price') : null;
+                                @endphp
                                 <button
                                     type="button"
                                     class="lk-detail-option-btn {{ $loop->first ? 'is-selected' : '' }}"
                                     data-variation-option
-                                    data-variation-value="{{ $option }}"
+                                    data-variation-id="{{ $optionId }}"
+                                    data-variation-value="{{ $optionValue }}"
+                                    @if($optionStock !== null) data-variation-stock="{{ $optionStock }}" @endif
+                                    @if($optionPrice !== null) data-variation-price="{{ $optionPrice }}" @endif
                                     aria-pressed="{{ $loop->first ? 'true' : 'false' }}"
                                 >
-                                    {{ $option }}
+                                    {{ $optionValue }}
                                 </button>
                             @endforeach
                         </div>
@@ -1391,7 +1402,7 @@
                         type="button"
                         class="lk-btn lk-btn-light lk-btn-full lk-detail-wide"
                         data-wishlist
-                        data-product-id="{{ $slug }}"
+                        data-product-id="{{ $productId ?? $slug }}"
                     >
                         ♡ Save to Wishlist
                     </button>

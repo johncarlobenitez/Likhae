@@ -1,73 +1,46 @@
 <?php
 
+use App\Http\Controllers\RiderController;
+use App\Http\Controllers\RiderShipmentController;
 use Illuminate\Support\Facades\Route;
 
 
 Route::prefix('rider')
     ->name('rider.')
-    ->middleware(['auth', \App\Http\Middleware\EnsureWorkspaceRole::class.':rider'])
+    ->middleware(['auth', 'verified', \App\Http\Middleware\EnsureWorkspaceRole::class.':rider', 'rider.active'])
     ->group(function () {
 
         Route::get('/', function () {
             return redirect()->route('rider.dashboard');
         })->name('home');
 
-        Route::get('/dashboard', function () {
-            return view('rider.dashboard');
-        })->name('dashboard');
-
-        Route::get('/parcels', function () {
-            return view('rider.parcels.index');
-        })->name('parcels.index');
-
-        Route::get('/parcels/{tracking}', function ($tracking) {
-            return view('rider.parcels.show', ['tracking' => $tracking]);
-        })->name('parcels.show');
+        Route::get('/dashboard', [RiderController::class, 'dashboard'])->name('dashboard');
+        Route::get('/shipments', [RiderShipmentController::class,'index'])->name('shipments');
+        Route::patch('/shipments/{shipment}', [RiderShipmentController::class,'transition'])->name('shipments.transition');
+        Route::get('/parcels', [RiderController::class, 'pickups'])->name('parcels.index');
+        Route::get('/parcels/{shipment}', [RiderController::class, 'pickupShow'])->name('parcels.show');
 
         // PICKUPS
-        Route::get('/pickups', function () {
-            return view('rider.pickups.index');
-        })->name('pickups');
-
-        Route::get('/pickups/scan', function () {
-            return view('rider.pickups.scan');
-        })->name('pickups.scan');
-
-        Route::get('/pickups/{id}', function ($id) {
-            return view('rider.pickups.show', ['id' => $id]);
-        })->name('pickups.show');
+        Route::get('/pickups', [RiderController::class, 'pickups'])->name('pickups');
+        Route::get('/pickups/scan', [RiderController::class, 'pickups'])->name('pickups.scan');
+        Route::get('/pickups/{shipment}', [RiderController::class, 'pickupShow'])->name('pickups.show');
 
         // DELIVERIES
-        Route::get('/deliveries', function () {
-            return view('rider.deliveries.index');
-        })->name('deliveries');
-
-        Route::get('/deliveries/{id}', function ($id) {
-            return view('rider.deliveries.show', ['id' => $id]);
-        })->name('deliveries.show');
-
-        Route::get('/deliveries/{id}/tracking', function ($id) {
-            return view('rider.deliveries.tracking', ['id' => $id]);
-        })->name('deliveries.tracking');
+        Route::get('/deliveries', [RiderController::class, 'deliveries'])->name('deliveries');
+        Route::get('/deliveries/{shipment}', [RiderController::class, 'deliveryShow'])->name('deliveries.show');
 
         // EARNINGS
-        Route::get('/earnings', function () {
-            return view('rider.earnings.index');
-        })->name('earnings');
+        Route::get('/earnings', [RiderController::class, 'earnings'])->name('earnings');
 
         // HISTORY
-        Route::get('/history', function () {
-            return view('rider.history.index');
-        })->name('history');
+        Route::get('/history', [RiderController::class, 'history'])->name('history');
 
         // PROFILE
-        Route::get('/profile', function () {
-            return view('rider.profile.index');
-        })->name('profile');
+        Route::get('/profile', [RiderController::class, 'profile'])->name('profile');
+        Route::get('/messages', [RiderController::class, 'messages'])->name('messages');
+        Route::post('/messages', [RiderController::class, 'sendMessage'])->name('messages.send');
 
         // ACCOUNT (alias for profile, used by sidebar)
-        Route::get('/account', function () {
-            return view('rider.profile.index');
-        })->name('account');
+        Route::get('/account', [RiderController::class, 'profile'])->name('account');
 
     });

@@ -20,7 +20,7 @@ class AdminDashboardTest extends TestCase
     {
         $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
 
-        foreach (User::PUBLIC_ROLES as $role) {
+        foreach (User::MANAGED_ROLES as $role) {
             User::factory()->create(['role' => $role, 'status' => 'pending']);
             User::factory()->create(['role' => $role, 'status' => 'active']);
             User::factory()->create(['role' => $role, 'status' => 'rejected']);
@@ -32,8 +32,8 @@ class AdminDashboardTest extends TestCase
         $this->actingAs($admin)->get(route('admin.dashboard'))
             ->assertOk()
             ->assertViewHas('accountStats', [
-                'pending' => count(User::PUBLIC_ROLES),
-                'active' => count(User::PUBLIC_ROLES),
+                'pending' => count(User::MANAGED_ROLES),
+                'active' => count(User::MANAGED_ROLES),
                 'pending_older_than_day' => 0,
             ])
             ->assertSee('Awaiting administrator review')

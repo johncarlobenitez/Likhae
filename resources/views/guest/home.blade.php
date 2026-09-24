@@ -33,11 +33,7 @@
         ['n' => '04', 'title' => 'Receive',     'text' => 'Get your items delivered fast and start enjoying them.',        'icon' => 'box'],
     ];
 
-    $testimonials = [
-        ['name' => 'Steph Curry',  'quote' => 'Grabe, ang bilis ng delivery! Nag-order ako ng shoes tapos kinabukasan nandito na. Sulit na sulit, highly recommend ko sa lahat!',  'img' => '/images/reviewer-steph.jpg'],
-        ['name' => 'LeBron James', 'quote' => 'Dati nag-aatubili akong mag-online shop pero sa LIKHAE parang nag-shopping ka sa totoong tindahan. Legit ang mga sellers dito!',         'img' => '/images/reviewer-lebron.jpg'],
-        ['name' => 'Kai Sotto',    'quote' => 'Bilang Pilipino, masaya akong sumuporta sa local sellers. Maganda ang kalidad ng products at ang presyo ay talagang abot-kaya.',        'img' => '/images/reviewer-kai.jpg'],
-    ];
+    $testimonials = collect();
 @endphp
 
 <div class="lk-ed-page">
@@ -220,6 +216,7 @@
     {{-- ══════════════════════════════════════════════════════
          TESTIMONIALS
     ══════════════════════════════════════════════════════ --}}
+    @if($testimonials->isNotEmpty())
     <section class="lk-ed-section" aria-labelledby="lk-testi-heading">
         <div class="lk-ed-section-head">
             <div>
@@ -244,6 +241,7 @@
             @endforeach
         </div>
     </section>
+    @endif
 
     {{-- ══════════════════════════════════════════════════════
          NEWSLETTER

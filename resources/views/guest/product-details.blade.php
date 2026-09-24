@@ -11,8 +11,6 @@
     $sellerAvatar = data_get($product, 'seller_avatar', 'https://ui-avatars.com/api/?name='.urlencode($seller).'&background=7f1d1d&color=fff');
     $images = collect(data_get($product, 'gallery', []))->filter()->values();
     if ($images->isEmpty()) $images = collect([data_get($product, 'image')]);
-    $specs = collect(data_get($product, 'specs', []));
-    $variations = collect(data_get($product, 'variations', []));
     $related = collect($buyerProducts ?? [])->where('category', $category)->where('slug', '!=', $slug)->take(4);
     if ($related->count() < 4) $related = collect($buyerProducts ?? [])->where('slug', '!=', $slug)->take(4);
 @endphp
@@ -45,23 +43,15 @@
             </div>
             <h1 class="mt-3 text-2xl font-bold leading-tight text-stone-950 sm:text-3xl">{{ $name }}</h1>
 
-            <div class="mt-5 space-y-4">
-                @foreach($variations as $variationName => $options)
-                    <div>
-                        <span class="mb-2 block text-xs font-semibold text-stone-700">{{ $variationName }}</span>
-                        <div class="flex flex-wrap gap-2">
-                            @foreach((array) $options as $option)
-                                <span class="rounded-lg border border-stone-300 px-3 py-2 text-xs font-medium text-stone-700">{{ $option }}</span>
-                            @endforeach
-                        </div>
-                    </div>
-                @endforeach
+            <div class="mt-5 rounded-xl border border-red-100 bg-red-50 p-4">
+                <strong class="block text-sm text-red-950">Login to view price and purchase</strong>
+                <p class="mt-1 text-xs leading-5 text-red-900/80">Create or sign in to a Buyer account to see price, stock, variations, reviews, and checkout options.</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <a href="{{ route('login') }}" class="lk-btn lk-btn-red">Sign In</a>
+                    <a href="{{ route('register', ['role' => 'buyer']) }}" class="lk-btn lk-btn-light">Register as Buyer</a>
+                </div>
             </div>
 
-            <div class="mt-5 grid gap-2 rounded-xl border border-stone-200 p-4 text-xs text-stone-600 sm:grid-cols-2">
-                <div><strong class="block text-stone-800">Delivery</strong>{{ data_get($product, 'shipping', 'Metro Manila: 1-3 days') }}</div>
-                <div><strong class="block text-stone-800">Buyer protection</strong>Payment held until receipt</div>
-            </div>
         </div>
     </section>
 
@@ -70,14 +60,10 @@
         <div class="min-w-0 flex-1"><span class="text-[10px] font-bold uppercase tracking-widest text-red-800">Official seller</span><h2 class="truncate text-lg font-bold text-stone-900">{{ $seller }}</h2><p class="text-xs text-stone-500">{{ data_get($product, 'location', 'Philippines') }}</p></div>
     </section>
 
-    <div class="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+    <div class="mt-5 grid gap-5">
         <section class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
             <h2 class="text-lg font-bold text-stone-900">Description</h2>
             <div class="mt-3 whitespace-pre-line text-sm leading-7 text-stone-600">{{ data_get($product, 'description', 'A carefully selected product from a trusted LIKHAE seller. Built for everyday use and covered by marketplace buyer protection.') }}</div>
-        </section>
-        <section class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 class="text-lg font-bold text-stone-900">Specifications</h2>
-            <dl class="mt-3 divide-y divide-stone-100 text-xs">@forelse($specs as $label => $value)<div class="grid grid-cols-[110px_1fr] gap-3 py-2.5"><dt class="text-stone-500">{{ $label }}</dt><dd class="font-medium text-stone-800">{{ $value }}</dd></div>@empty<div class="py-3 text-stone-500">Seller has not added specifications yet.</div>@endforelse</dl>
         </section>
     </div>
 

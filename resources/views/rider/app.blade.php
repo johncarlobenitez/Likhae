@@ -28,7 +28,8 @@
     </script>
 
     @vite([
-        'resources/css/logistic/app.css'
+        'resources/css/logistic/app.css',
+        'resources/js/rider.js'
     ])
 
     <style>
@@ -87,8 +88,9 @@
             z-index: 60;
             display: flex;
             width: 248px;
+            height: 100vh;
             flex-direction: column;
-            overflow-y: auto;
+            overflow: hidden;
             border-right: 1px solid var(--ra-line);
             background: rgba(255, 253, 249, .97);
             box-shadow: 8px 0 26px rgba(74, 35, 27, .035);
@@ -201,6 +203,9 @@
 
         .rider-nav {
             flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
             padding: 12px 10px 18px;
         }
 
@@ -276,8 +281,9 @@
 
         .rider-sidebar-footer {
             display: grid;
+            flex: 0 0 auto;
             gap: 7px;
-            padding: 11px 10px 13px;
+            padding: 11px 10px max(13px, env(safe-area-inset-bottom));
             border-top: 1px solid var(--ra-line);
         }
 
@@ -466,6 +472,8 @@
 
         @media (max-width: 1023px) {
             .rider-sidebar {
+                height: 100dvh;
+                max-height: 100dvh;
                 transform: translateX(-100%);
             }
 
@@ -612,6 +620,17 @@
     </style>
 </head>
 
+@php
+    $riderUser = auth()->user();
+    $riderName = $riderUser?->name ?? 'Rider';
+    $riderInitials = collect(explode(' ', trim($riderName)))
+        ->filter()
+        ->take(2)
+        ->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))
+        ->implode('') ?: 'R';
+    $riderStatus = \Illuminate\Support\Str::headline($riderUser?->status ?? 'active');
+@endphp
+
 <body class="rider-shell">
     <div class="rider-layout">
 
@@ -638,17 +657,17 @@
             <section class="rider-profile-card">
                 <div class="rider-profile-top">
                     <span class="rider-avatar">
-                        JD
+                        {{ $riderInitials }}
                     </span>
 
                     <div class="rider-profile-copy">
-                        <strong>Juan Dela Cruz</strong>
-                        <span>Verified Rider</span>
+                        <strong>{{ $riderName }}</strong>
+                        <span>{{ $riderStatus }} Rider</span>
                     </div>
                 </div>
             </section>
 
-            <nav class="rider-nav">
+            <nav class="rider-nav"><a href="{{ route('rider.messages') }}" class="rider-nav-link">Messages</a>
                 <span class="rider-nav-label">
                     Operations
                 </span>

@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $pageTitle }} Â· LIKHAE Marketplace</title>
+    <title>{{ $pageTitle }} &middot; LIKHAE Marketplace</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,700;0,800;1,700&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet">
@@ -31,8 +31,8 @@
                 <nav class="lk-guest-nav" aria-label="Main navigation">
                     <a class="is-active" href="{{ route('home') }}">Home</a>
                     <a href="{{ route('products') }}">Categories</a>
-                    <a href="{{ route('products', ['sort' => 'best-selling']) }}">Deals</a>
-                    <a href="#about-likhae">About</a>
+                    <a href="{{ route('sell.create') }}">Seller Centre</a>
+                    <a href="{{ route('logistics.home') }}">Logistics Centre</a>
                 </nav>
             </div>
 
@@ -60,7 +60,7 @@
     </div>
     <dialog class="lk-auth-dialog" data-auth-dialog>
         <form method="dialog" class="lk-auth-dialog-card">
-            <button class="lk-auth-dialog-close" value="cancel" aria-label="Close">Ã—</button>
+            <button class="lk-auth-dialog-close" value="cancel" aria-label="Close">&times;</button>
             <span class="lk-auth-dialog-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg></span>
             <h2>Sign in to continue</h2>
             <p data-auth-message>Create a LIKHAE Buyer account or sign in to use this marketplace action.</p>

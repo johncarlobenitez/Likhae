@@ -39,6 +39,13 @@ return [
         'token' => env('PSGC_API_TOKEN'),
         'version' => env('PSGC_API_VERSION', 'Q2_2024'),
         'verify_ssl' => env('PSGC_VERIFY_SSL', true),
+        'local_first' => env('PSGC_LOCAL_FIRST', true),
+    ],
+
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
     ],
 
 ];

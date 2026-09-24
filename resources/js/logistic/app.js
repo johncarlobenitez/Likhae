@@ -1,3 +1,5 @@
+import { initializeParcelScanners } from '../parcel-scanner';
+
 document.addEventListener('DOMContentLoaded', () => {
 
     const root = document.documentElement;
@@ -140,6 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     updateThemeButton();
+
+    initializeParcelScanners();
 
 
     logoutButton?.addEventListener('click', () => {

@@ -95,8 +95,8 @@
                         <li>Monitor parcel progress and operations</li>
                     </ul>
                     <div class="lp-role__actions">
-                        <a href="{{ route('register.role', ['role' => 'logistics']) }}" class="lp-button lp-button--primary">
-                            Register a center
+                        <a href="{{ route('partner.create') }}" class="lp-button lp-button--primary">
+                            Apply as a center
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
                         </a>
                         <a href="{{ route('logistics.login') }}" class="lp-text-link" aria-label="Sign in to your logistics center account">Sign in <span aria-hidden="true">↗</span></a>
@@ -115,8 +115,8 @@
                         <li>Review your delivery history and earnings</li>
                     </ul>
                     <div class="lp-role__actions">
-                        <a href="{{ route('register.role', ['role' => 'rider']) }}" class="lp-button lp-button--primary">
-                            Join as a rider
+                        <a href="{{ route('logistics.login') }}" class="lp-button lp-button--primary">
+                            Rider sign in
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
                         </a>
                         <a href="{{ route('logistics.login') }}" class="lp-text-link" aria-label="Sign in to your rider account">Sign in <span aria-hidden="true">↗</span></a>

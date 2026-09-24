@@ -4,15 +4,7 @@
 @section('subtitle', 'Platform health, risk signals, and operational priorities at a glance.')
 @section('active', 'dashboard')
 
-@php
-    $recentOrders = [
-        ['id' => '#LK-10482', 'buyer' => 'Angela Cruz', 'seller' => 'LIKHA Studio', 'total' => 12990, 'delivery' => 'J&T Express', 'status' => 'Processing'],
-        ['id' => '#LK-10481', 'buyer' => 'Marco Reyes', 'seller' => 'North & Pine', 'total' => 5580, 'delivery' => 'Flash Express', 'status' => 'Shipping'],
-        ['id' => '#LK-10480', 'buyer' => 'Sarah Lim', 'seller' => 'MNL Tech', 'total' => 1490, 'delivery' => 'LBC', 'status' => 'Delivered'],
-        ['id' => '#LK-10479', 'buyer' => 'Daniel Tan', 'seller' => 'Casa Local', 'total' => 3490, 'delivery' => 'Local Courier', 'status' => 'Completed'],
-        ['id' => '#LK-10478', 'buyer' => 'Patricia Go', 'seller' => 'Paper & Loom', 'total' => 1980, 'delivery' => 'J&T Express', 'status' => 'Under Review'],
-    ];
-@endphp
+
 
 @section('content')
 <style>
@@ -884,39 +876,36 @@
         />
 
         <x-admin.stat-card
-            label="Platform reports"
-            value="14"
-            trend="+2"
-            detail="generated this week"
+            label="Products"
+            :value="number_format($productStats['total'])"
+            detail="Current marketplace listings"
             icon="reports"
-            :href="route('admin.reports')"
+            :href="route('admin.products')"
         />
 
         <x-admin.stat-card
             label="Flagged products"
-            value="17"
-            trend="5 high risk"
-            detail="human review needed"
+            :value="number_format($productStats['flagged'])"
+            detail="Human review needed"
             icon="flag"
             tone="danger"
             :href="route('admin.products', ['view' => 'monitor'])"
         />
 
         <x-admin.stat-card
-            label="Open disputes"
-            value="11"
-            trend="3 urgent"
-            detail="awaiting decision"
+            label="Open refunds / disputes"
+            :value="number_format($refundStats['open'])"
+            detail="Awaiting a final outcome"
             icon="case"
             tone="warning"
             :href="route('admin.complaints')"
         />
 
         <x-admin.stat-card
-            label="Platform revenue"
-            value="PHP 420K"
-            trend="10%"
-            detail="commission rate"
+            label="Platform commission"
+            :value="'PHP '.number_format($platformCommission, 2)"
+            :trend="rtrim(rtrim(number_format($commissionRate * 100, 2), '0'), '.').'%'"
+            detail="From paid/completed transactions"
             icon="money"
             :href="route('admin.finance')"
         />
@@ -954,14 +943,11 @@
                         </small>
 
                         <strong>
-                            PHP 4,206,500
+                            PHP {{ number_format($sevenDayGross, 2) }}
                         </strong>
 
                         <small>
-                            <span class="ad-chart-trend">
-                                Up 6.4%
-                            </span>
-                            vs previous week
+                            Database total for the displayed seven-day period
                         </small>
                     </div>
 
@@ -979,13 +965,10 @@
                 </div>
 
                 <div class="ad-bar-chart" aria-label="Revenue bar chart">
-                    @foreach([45, 62, 51, 74, 66, 86, 78] as $height)
-                        <div class="ad-bar">
-                            <i style="height: {{ $height }}%"></i>
-
-                            <span>
-                                {{ ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'][$loop->index] }}
-                            </span>
+                    @foreach($revenueChart as $point)
+                        <div class="ad-bar" title="{{ $point['date'] }} — PHP {{ number_format($point['total'], 2) }}">
+                            <i style="height: {{ $point['height'] }}%"></i>
+                            <span>{{ $point['label'] }}</span>
                         </div>
                     @endforeach
                 </div>
@@ -1004,7 +987,7 @@
                     </h2>
 
                     <p>
-                        386 orders placed today.
+                        {{ number_format($orderStats['today']) }} orders placed today.
                     </p>
                 </div>
 
@@ -1016,7 +999,7 @@
             <div class="ad-card-body ad-donut-wrap">
                 <div class="ad-donut">
                     <strong>
-                        386
+                        {{ number_format($orderStats['today']) }}
                         <small>orders</small>
                     </strong>
                 </div>
@@ -1025,25 +1008,25 @@
                     <div>
                         <i></i>
                         <span>Processing</span>
-                        <b>162</b>
+                        <b>{{ number_format($orderStats['processing']) }}</b>
                     </div>
 
                     <div>
                         <i></i>
                         <span>Shipping</span>
-                        <b>93</b>
+                        <b>{{ number_format($orderStats['shipping']) }}</b>
                     </div>
 
                     <div>
                         <i></i>
                         <span>Delivered</span>
-                        <b>69</b>
+                        <b>{{ number_format($orderStats['delivered']) }}</b>
                     </div>
 
                     <div>
                         <i></i>
                         <span>Completed / other</span>
-                        <b>62</b>
+                        <b>{{ number_format($orderStats['completed_other']) }}</b>
                     </div>
                 </div>
             </div>
@@ -1091,27 +1074,27 @@
                             <tr>
                                 <td>
                                     <strong>
-                                        {{ $order['id'] }}
+                                        {{ $order->order?->reference ?: 'ORD-'.$order->id }}
                                     </strong>
                                 </td>
 
-                                <td>{{ $order['buyer'] }}</td>
+                                <td>{{ $order->order?->buyer?->name ?: 'Unknown buyer' }}</td>
 
-                                <td>{{ $order['seller'] }}</td>
+                                <td>{{ $order->seller?->name ?: 'Unknown seller' }}</td>
 
                                 <td>
                                     <strong>
-                                        ₱{{ number_format($order['total'], 2) }}
+                                        ₱{{ number_format(($order->subtotal_minor + $order->shipping_fee_minor) / 100, 2) }}
                                     </strong>
                                 </td>
 
                                 <td>
-                                    {{ $order['delivery'] }}
+                                    {{ $order->shipment?->provider?->name ?: $order->shipment?->tracking_code ?: 'Not assigned' }}
                                 </td>
 
                                 <td>
-                                    <span class="ad-status is-{{ strtolower(str_replace(' ', '-', $order['status'])) }}">
-                                        {{ $order['status'] }}
+                                    <span class="ad-status is-{{ \Illuminate\Support\Str::slug($order->status) }}">
+                                        {{ \Illuminate\Support\Str::headline($order->status) }}
                                     </span>
                                 </td>
 
@@ -1149,7 +1132,7 @@
                     href="{{ route('admin.products', ['view' => 'monitor']) }}"
                     class="ad-queue-item is-danger"
                 >
-                    <span class="ad-queue-icon">5</span>
+                    <span class="ad-queue-icon">{{ number_format($productStats['flagged']) }}</span>
 
                     <span class="ad-queue-copy">
                         <strong>
@@ -1187,7 +1170,7 @@
                     href="{{ route('admin.complaints') }}"
                     class="ad-queue-item is-warning"
                 >
-                    <span class="ad-queue-icon">3</span>
+                    <span class="ad-queue-icon">{{ number_format($refundStats['open']) }}</span>
 
                     <span class="ad-queue-copy">
                         <strong>
