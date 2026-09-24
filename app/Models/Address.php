@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Address extends Model
 {
-    protected $fillable = ['user_id', 'label', 'recipient', 'phone', 'line1', 'region', 'barangay', 'city', 'province', 'postal_code', 'landmark', 'is_default'];
+    protected $fillable = ['user_id', 'label', 'recipient', 'phone', 'line1', 'region', 'region_code', 'barangay', 'barangay_code', 'city', 'city_code', 'province', 'province_code', 'postal_code', 'landmark', 'is_default'];
 
     protected function casts(): array
     {

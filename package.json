@@ -19,6 +19,7 @@
         "@laravel/multiplex": "0.4.2"
     },
     "dependencies": {
-        "@zxing/browser": "^0.2.1"
+        "@zxing/browser": "^0.2.1",
+        "use-postal-ph": "^1.1.14"
     }
 }

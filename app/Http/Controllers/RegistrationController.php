@@ -25,6 +25,11 @@ class RegistrationController extends Controller
     {
         abort_unless((bool) PlatformSetting::valueOf('registration_enabled', true), 403, 'New registrations are temporarily disabled.');
         $request->merge(['email' => mb_strtolower(trim((string) $request->input('email')))]);
+        $phone = preg_replace('/[\s().-]+/', '', (string) $request->input('contact_number', ''));
+        if (preg_match('/^9\d{9}$/', $phone)) $phone = '+63'.$phone;
+        elseif (preg_match('/^09\d{9}$/', $phone)) $phone = '+63'.substr($phone, 1);
+        elseif (preg_match('/^639\d{9}$/', $phone)) $phone = '+'.$phone;
+        $request->merge(['contact_number' => $phone]);
         $google = $request->session()->get('google_buyer_registration');
         if (is_array($google)) $request->merge(['email' => $google['email'] ?? null]);
 
@@ -37,13 +42,17 @@ class RegistrationController extends Controller
             'municipality'=>['required','string','max:120'], 'municipality_code'=>['required','string','max:20'],
             'barangay'=>['required','string','max:120'], 'barangay_code'=>['required','string','max:20'],
             'house_number'=>['nullable','string','max:120'], 'street'=>['required','string','max:255'],
-            'postal_code'=>['required','string','max:20'], 'landmark'=>['nullable','string','max:255'],
+            'postal_code'=>['nullable','string','max:20'], 'landmark'=>['nullable','string','max:255'],
             'valid_id'=>['required','file','mimes:jpg,jpeg,png,pdf','max:5120'],
             'password'=>['required','confirmed','max:72',Password::min(8)->mixedCase()->numbers()], 'terms'=>['accepted'],
         ]);
 
         abort_unless(PhilippineAddressController::selectionIsValid((string)$data['region_code'],(string)$data['region'],(string)$data['province_code'],(string)$data['province'],(string)$data['municipality_code'],(string)$data['municipality'],(string)$data['barangay_code'],(string)$data['barangay']), 422, 'The selected Philippine address is invalid.');
         $expected = PhilippineAddressController::expectedPostalCodeFor((string)$data['province_code'],(string)$data['municipality_code'],(string)$data['province'],(string)$data['municipality']);
+        if (blank($data['postal_code'])) {
+            if ($expected === null) return back()->withErrors(['postal_code'=>'We could not determine the postal code for this location. Please try another address.'])->withInput();
+            $data['postal_code'] = $expected;
+        }
         if ($expected !== null && $data['postal_code'] !== $expected) return back()->withErrors(['postal_code'=>'The postal code does not match the selected Philippine address.'])->withInput();
 
         $idPath = $request->file('valid_id')->store('registration/identity', 'registrations');
