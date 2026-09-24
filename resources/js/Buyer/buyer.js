@@ -1,3 +1,5 @@
+import { initPostalAddressForm } from '../address/postal-code.js';
+
 document.addEventListener('DOMContentLoaded', () => {
     const one = (selector, root = document) => root.querySelector(selector);
     const all = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -9,6 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const toast = one('#lkBuyerToast');
     const desktop = window.matchMedia('(min-width: 1024px)');
     const storageKey = 'likhae-buyer-sidebar-collapsed';
+
+    all('[data-postal-address]').forEach(initPostalAddressForm);
 
     const showToast = (message) => {
         if (!toast || !message) return;

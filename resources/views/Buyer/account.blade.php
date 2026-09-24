@@ -368,7 +368,7 @@
                             <p class="text-sm text-stone-500">No saved delivery address yet.</p>
                         @endforelse
 
-                        <form method="POST" action="{{ route('buyer.account.addresses.store') }}" class="grid gap-4 rounded-xl border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2">
+                        <form method="POST" action="{{ route('buyer.account.addresses.store') }}" class="grid gap-4 rounded-xl border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2" data-postal-address data-postal-base="{{ url()->to('/address/philippines', [], false) }}">
                             @csrf
                             <div class="sm:col-span-2"><h3 class="text-sm font-semibold text-stone-900">Add delivery address</h3></div>
                             <input required name="label" value="{{ old('label','Home') }}" placeholder="Label (Home, Work)" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
@@ -376,11 +376,16 @@
                             <input required name="contact_number" value="{{ old('contact_number',$buyerPhone) }}" placeholder="Contact number" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
                             <input name="house_number" value="{{ old('house_number') }}" placeholder="House / unit number" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
                             <input name="street" value="{{ old('street') }}" placeholder="Street" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
-                            <input name="barangay" value="{{ old('barangay') }}" placeholder="Barangay" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
-                            <input name="municipality" value="{{ old('municipality') }}" placeholder="Municipality / City" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
-                            <input name="province" value="{{ old('province') }}" placeholder="Province" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
-                            <input name="region" value="{{ old('region') }}" placeholder="Region" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
-                            <input name="postal_code" value="{{ old('postal_code') }}" placeholder="Postal code" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
+                            <input type="hidden" name="region_code" value="{{ old('region_code') }}" data-postal-region-code>
+                            <select required name="region" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm" data-postal-region data-old-value="{{ old('region') }}" data-old-code="{{ old('region_code') }}"><option value="">Loading regions...</option></select>
+                            <input type="hidden" name="province_code" value="{{ old('province_code') }}" data-postal-province-code>
+                            <select required name="province" disabled class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm" data-postal-province data-old-value="{{ old('province') }}" data-old-code="{{ old('province_code') }}"><option value="">Select province</option></select>
+                            <input type="hidden" name="municipality_code" value="{{ old('municipality_code') }}" data-postal-municipality-code>
+                            <select required name="municipality" disabled class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm" data-postal-municipality data-old-value="{{ old('municipality') }}" data-old-code="{{ old('municipality_code') }}"><option value="">Select municipality / city</option></select>
+                            <input type="hidden" name="barangay_code" value="{{ old('barangay_code') }}" data-postal-barangay-code>
+                            <select required name="barangay" disabled class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm" data-postal-barangay data-old-value="{{ old('barangay') }}" data-old-code="{{ old('barangay_code') }}"><option value="">Select barangay</option></select>
+                            <input readonly required name="postal_code" value="{{ old('postal_code') }}" placeholder="Auto-filled after barangay selection" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm" data-postal-code>
+                            <p class="text-xs text-stone-500 sm:col-span-2" data-postal-status aria-live="polite">Postal code will fill after you select a barangay.</p>
                             <input name="landmark" value="{{ old('landmark') }}" placeholder="Landmark" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm sm:col-span-2">
                             <label class="flex items-center gap-2 text-xs font-semibold text-stone-700 sm:col-span-2"><input type="checkbox" name="is_default" value="1"> Set as default address</label>
                             <div class="sm:col-span-2"><button type="submit" class="rounded-xl bg-red-900 px-5 py-2.5 text-xs font-semibold text-white">Save Address</button></div>

@@ -769,7 +769,7 @@
                             {{-- CONTACT --}}
                             <div class="register-field">
 
-                                <label for="contact_no">
+                                <label for="contact_number">
                                     Contact Number
                                     <span>*</span>
                                 </label>
@@ -783,10 +783,10 @@
 
 
                                     <input
-                                        id="contact_no"
-                                        name="contact_no"
+                                        id="contact_number"
+                                        name="contact_number"
                                         type="tel"
-                                        value="{{ old('contact_no') }}"
+                                        value="{{ preg_replace('/^(?:\+63|0)/', '', old('contact_number', '')) }}"
                                         placeholder="917 123 4567"
                                         inputmode="numeric"
                                         autocomplete="tel"

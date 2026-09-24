@@ -1,3 +1,5 @@
+import { postalCodeFromAddress } from '../address/postal-code.js';
+
 document.addEventListener('DOMContentLoaded', () => {
 
     /*
@@ -1916,6 +1918,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'change',
         async () => {
 
+            abortAddressRequest('postalCode');
             resetPostalCode();
             if (barangayCode) barangayCode.value = barangay.selectedOptions[0]?.dataset.code ?? '';
 
@@ -1926,6 +1929,18 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
 
                 resetPostalCode('Loading...');
+
+                const packagePostalCode = postalCodeFromAddress({
+                    region: selectedLabel(region),
+                    province: selectedLabel(province),
+                    municipality: selectedLabel(municipality),
+                    barangay: selectedLabel(barangay),
+                });
+
+                if (packagePostalCode) {
+                    postalCode.value = packagePostalCode;
+                    return;
+                }
 
                 const params =
                     new URLSearchParams({

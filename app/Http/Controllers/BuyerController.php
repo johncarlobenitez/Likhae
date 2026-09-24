@@ -431,7 +431,44 @@ class BuyerController extends Controller
 
     public function saveAddress(Request $request): RedirectResponse
     {
-        $validated = $request->validate(['label' => ['required', 'string', 'max:80'], 'recipient_name' => ['required', 'string', 'max:160'], 'contact_number' => ['required', 'string', 'max:40'], 'region' => ['nullable', 'string', 'max:160'], 'province' => ['required', 'string', 'max:160'], 'municipality' => ['required', 'string', 'max:160'], 'barangay' => ['required', 'string', 'max:160'], 'house_number' => ['nullable', 'string', 'max:80'], 'street' => ['nullable', 'string', 'max:255'], 'postal_code' => ['required', 'string', 'max:20'], 'landmark' => ['nullable', 'string', 'max:255'], 'is_default' => ['nullable', 'boolean']]);
+        $validated = $request->validate([
+            'label' => ['required', 'string', 'max:80'],
+            'recipient_name' => ['required', 'string', 'max:160'],
+            'contact_number' => ['required', 'string', 'max:40'],
+            'region' => ['required', 'string', 'max:160'],
+            'region_code' => ['required', 'string', 'max:20'],
+            'province' => ['required', 'string', 'max:160'],
+            'province_code' => ['required', 'string', 'max:20'],
+            'municipality' => ['required', 'string', 'max:160'],
+            'municipality_code' => ['required', 'string', 'max:20'],
+            'barangay' => ['required', 'string', 'max:160'],
+            'barangay_code' => ['required', 'string', 'max:20'],
+            'house_number' => ['nullable', 'string', 'max:80'],
+            'street' => ['nullable', 'string', 'max:255'],
+            'postal_code' => ['nullable', 'string', 'max:20'],
+            'landmark' => ['nullable', 'string', 'max:255'],
+            'is_default' => ['nullable', 'boolean'],
+        ]);
+
+        if (! PhilippineAddressController::selectionIsValid(
+            $validated['region_code'], $validated['region'],
+            $validated['province_code'], $validated['province'],
+            $validated['municipality_code'], $validated['municipality'],
+            $validated['barangay_code'], $validated['barangay'],
+        )) {
+            return back()->withErrors(['barangay' => 'The selected Philippine address is invalid.'])->withInput();
+        }
+
+        $expectedPostalCode = PhilippineAddressController::expectedPostalCodeFor(
+            $validated['province_code'], $validated['municipality_code'],
+            $validated['province'], $validated['municipality'],
+        );
+        if ($expectedPostalCode !== null) {
+            $validated['postal_code'] = $expectedPostalCode;
+        } elseif (blank($validated['postal_code'])) {
+            return back()->withErrors(['postal_code' => 'We could not determine the postal code for this location. Please try another address.'])->withInput();
+        }
+
         if ($request->boolean('is_default')) {
             Address::where('user_id', $request->user()->id)->update(['is_default' => false]);
         }
@@ -439,8 +476,10 @@ class BuyerController extends Controller
             'user_id' => $request->user()->id, 'label' => $validated['label'],
             'recipient' => $validated['recipient_name'], 'phone' => $validated['contact_number'],
             'line1' => trim(collect([$validated['house_number'] ?? null, $validated['street'] ?? null])->filter()->implode(' ')),
-            'region' => $validated['region'] ?? null, 'province' => $validated['province'],
+            'region' => $validated['region'], 'region_code' => $validated['region_code'],
+            'province' => $validated['province'], 'province_code' => $validated['province_code'],
             'city' => $validated['municipality'], 'barangay' => $validated['barangay'],
+            'city_code' => $validated['municipality_code'], 'barangay_code' => $validated['barangay_code'],
             'postal_code' => $validated['postal_code'], 'landmark' => $validated['landmark'] ?? null,
             'is_default' => $request->boolean('is_default') || ! Address::where('user_id', $request->user()->id)->exists(),
         ]);
