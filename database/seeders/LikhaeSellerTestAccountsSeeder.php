@@ -2,14 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\Category;
-use App\Models\Address;
-use App\Models\Product;
-use App\Models\Seller as Shop;
-use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class LikhaeSellerTestAccountsSeeder extends Seeder
@@ -252,56 +247,45 @@ class LikhaeSellerTestAccountsSeeder extends Seeder
 
     public function run(): void
     {
-        $categoryIds = $this->seedCategories();
+        DB::transaction(function (): void {
+            $categories = $this->seedCategories();
+            $buyerRole = DB::table('roles')->where('code', 'buyer')->value('id');
+            $sellerRole = DB::table('roles')->where('code', 'seller')->value('id');
+            $adminId = DB::table('users')->where('email', 'admin@likhae.com')->value('id');
+            $barangayId = DB::table('geo_barangays')->where('code', 'PH-DEV-BRGY')->value('id');
 
-        foreach (self::SELLERS as $index => $row) {
-            $birthday = now()->subYears(30 + $index)->subMonths($index % 12)->toDateString();
-            $paths = $this->documents($row['email']);
-
-            $seller = User::updateOrCreate(
-                ['email' => $row['email']],
-                [
-                    'name' => $row['first'].' '.$row['last'],
-                    'password' => Hash::make(self::PASSWORD),
-                    'status' => 'active',
-                    'email_verified_at' => now(),
-                    'first_name' => $row['first'],
-                    'last_name' => $row['last'],
-                    'middle_initial' => chr(65 + $index),
-                    'sex' => $index % 2 === 0 ? 'female' : 'male',
-                    'birthday' => $birthday,
+            foreach (self::SELLERS as $index => $row) {
+                $now = now();
+                $userId = $this->upsert('users', ['email' => $row['email']], [
+                    'first_name' => $row['first'], 'last_name' => $row['last'], 'middle_initial' => chr(65 + $index),
+                    'sex' => $index % 2 === 0 ? 'FEMALE' : 'MALE',
+                    'birthday' => now()->subYears(30 + $index)->subMonths($index % 12)->toDateString(),
                     'contact_number' => '0917'.str_pad((string) (1000000 + $index), 7, '0', STR_PAD_LEFT),
-                    'valid_id_path' => $paths['valid_id_path'],
-                ]
-            );
-            $seller->grant('buyer');
-            $seller->grant('seller');
-            $pickup = Address::updateOrCreate(['user_id' => $seller->id, 'label' => 'Seller pickup'], [
-                'recipient' => $seller->name, 'phone' => $seller->contact_number,
-                'line1' => 'Unit '.str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT).' LIKHAE Test Street',
-                'region' => 'Development Region', 'province' => $row['province'], 'city' => $row['municipality'],
-                'barangay' => $row['barangay'], 'postal_code' => $row['postal'],
-                'landmark' => 'Development test address', 'is_default' => true,
-            ]);
-            $shop = Shop::updateOrCreate(['user_id' => $seller->id], [
-                'name' => $row['business'], 'slug' => Str::slug($row['business']).'-'.$seller->id,
-                'description' => $row['category'].' development seller', 'status' => 'approved',
-                'commission_bps' => 800, 'approved_at' => now(), 'pickup_address_id' => $pickup->id,
-                'permit_path' => $paths['business_permit_path'],
-                'settings' => [
-                    'line_of_business_category_id' => $categoryIds[$row['category']],
-                    'business_name' => $row['business'], 'business_type' => 'Sole Proprietorship',
-                    'dti_sec_number' => 'DEV-DTI-'.str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
-                    'tin' => '000-000-'.str_pad((string) ($index + 1), 3, '0', STR_PAD_LEFT),
-                    'tagline' => $row['category'].' development seller',
-                    'location' => $row['municipality'].', '.$row['province'],
-                    'business_days' => 'Monday to Saturday', 'business_hours' => '9:00 AM - 6:00 PM',
-                    'processing_days' => 2, 'store_visibility' => true, 'vacation_mode' => false,
-                ],
-            ]);
-
-            $this->seedProduct($seller, $shop, $row['category']);
-        }
+                    'password' => Hash::make(self::PASSWORD), 'status' => 'ACTIVE', 'email_verified_at' => $now,
+                    'created_at' => $now, 'updated_at' => $now,
+                ]);
+                foreach ([$buyerRole, $sellerRole] as $roleId) {
+                    DB::table('user_roles')->updateOrInsert(['user_id' => $userId, 'role_id' => $roleId], [
+                        'assigned_by_user_id' => $adminId, 'is_active' => true, 'assigned_at' => $now,
+                        'revoked_at' => null, 'created_at' => $now, 'updated_at' => $now,
+                    ]);
+                }
+                $addressId = $this->upsert('addresses', ['user_id' => $userId, 'label' => 'Seller pickup'], [
+                    'barangay_id' => $barangayId, 'recipient_name' => $row['first'].' '.$row['last'],
+                    'contact_number' => '0917'.str_pad((string) (1000000 + $index), 7, '0', STR_PAD_LEFT),
+                    'street_address' => 'Unit '.str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT).' LIKHAE Test Street',
+                    'landmark' => $row['municipality'].', '.$row['province'].' '.$row['postal'],
+                    'latitude' => null, 'longitude' => null, 'is_default' => true, 'created_at' => $now, 'updated_at' => $now,
+                ]);
+                $profileId = $this->upsert('seller_profiles', ['user_id' => $userId], [
+                    'primary_category_id' => $categories[$row['category']], 'business_address_id' => $addressId,
+                    'business_name' => $row['business'], 'business_registration_number' => 'DEV-DTI-'.str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
+                    'status' => 'ACTIVE', 'approved_by_user_id' => $adminId, 'approved_at' => $now,
+                    'created_at' => $now, 'updated_at' => $now,
+                ]);
+                $this->seedProduct($profileId, $row['category']);
+            }
+        });
     }
 
     private function seedCategories(): array
@@ -309,34 +293,21 @@ class LikhaeSellerTestAccountsSeeder extends Seeder
         $ids = [];
 
         foreach (self::CATEGORIES as $category => $children) {
-            $parent = Category::updateOrCreate(
-                ['slug' => Str::slug($category)],
-                ['name' => $category, 'parent_id' => null, 'status' => 'active', 'source' => 'system']
-            );
-            $ids[$category] = $parent->id;
+            $parentId = $this->upsert('categories', ['slug' => Str::slug($category)], [
+                'name' => $category, 'parent_id' => null, 'description' => null, 'is_active' => true,
+                'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $ids[$category] = $parentId;
 
             foreach ($children as $child) {
-                Category::updateOrCreate(
-                    ['slug' => $this->categorySlug($child, $parent->id)],
-                    ['name' => $child, 'parent_id' => $parent->id, 'status' => 'active', 'source' => 'system']
-                );
+                $this->upsert('categories', ['slug' => $this->categorySlug($child, $parentId)], [
+                    'name' => $child, 'parent_id' => $parentId, 'description' => null, 'is_active' => true,
+                    'created_at' => now(), 'updated_at' => now(),
+                ]);
             }
         }
 
         return $ids;
-    }
-
-    private function documents(string $email): array
-    {
-        $slug = Str::slug(Str::before($email, '@'));
-        $base = 'registration/dev-sellers/'.$slug;
-        $validId = $base.'/valid-id.txt';
-        $permit = $base.'/business-permit.txt';
-
-        Storage::disk('registrations')->put($validId, "LIKHAE development placeholder valid ID for {$email}.\n");
-        Storage::disk('registrations')->put($permit, "LIKHAE development placeholder business permit for {$email}.\n");
-
-        return ['valid_id_path' => $validId, 'business_permit_path' => $permit];
     }
 
     private function categorySlug(string $name, int $parentId): string
@@ -344,7 +315,7 @@ class LikhaeSellerTestAccountsSeeder extends Seeder
         return Str::slug($name).'-'.$parentId;
     }
 
-    private function seedProduct(User $seller, Shop $shop, string $categoryName): void
+    private function seedProduct(int $sellerProfileId, string $categoryName): void
     {
         $data = self::PRODUCTS[$categoryName] ?? null;
 
@@ -352,53 +323,39 @@ class LikhaeSellerTestAccountsSeeder extends Seeder
             return;
         }
 
-        $parent = Category::where('slug', Str::slug($categoryName))->first();
-        $category = Category::where('parent_id', $parent?->id)
-            ->where('name', $data['subcategory'])
-            ->first();
+        $parentId = DB::table('categories')->where('slug', Str::slug($categoryName))->value('id');
+        $categoryId = DB::table('categories')->where('parent_id', $parentId)->where('name', $data['subcategory'])->value('id');
+        $slug = Str::slug($data['name']);
+        $productId = $this->upsert('products', ['seller_profile_id' => $sellerProfileId, 'slug' => $slug], [
+            'category_id' => $categoryId, 'name' => $data['name'], 'description' => $data['description'],
+            'base_price' => $data['price'], 'status' => 'ACTIVE', 'published_at' => now(), 'archived_at' => null,
+            'deleted_at' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+        DB::table('product_images')->updateOrInsert(['product_id' => $productId, 'file_path' => $data['image']], [
+            'alt_text' => $data['name'], 'is_primary' => true, 'sort_order' => 0, 'created_at' => now(), 'updated_at' => now(),
+        ]);
 
-        $slug = Str::slug($shop->name.' '.$data['name']);
-        $minPriceMinor = (int) round(collect($data['variations'])->min('price') * 100);
-
-        $product = Product::updateOrCreate(
-            ['slug' => $slug],
-            [
-                'seller_id' => $shop->id,
-                'category_id' => $category?->id,
-                'name' => $data['name'],
-                'description' => $data['description'],
-                'min_price_minor' => $minPriceMinor,
-                'is_active' => true,
-            ]
-        );
-
-        $product->images()->updateOrCreate(
-            ['path' => $data['image']],
-            ['sort_order' => 0]
-        );
-
-        $product->variants()->delete();
+        DB::table('product_variant_values')->whereIn('product_variant_id', DB::table('product_variants')->where('product_id', $productId)->select('id'))->delete();
+        DB::table('inventories')->whereIn('product_variant_id', DB::table('product_variants')->where('product_id', $productId)->select('id'))->delete();
+        DB::table('product_variants')->where('product_id', $productId)->delete();
         foreach ($data['variations'] as $variation) {
             $price = $variation['price'] ?? $data['price'];
-            $name = (string) ($variation['name'] ?? 'Default');
-            $value = (string) ($variation['value'] ?? '');
-            $product->variants()->create([
-                'name' => $value !== '' ? $name.' / '.$value : $name,
-                'options' => $value !== '' ? [$name => $value] : [],
-                'sku' => $variation['sku'] ?? null,
-                'stock' => (int) ($variation['stock'] ?? 0),
-                'price_minor' => (int) round($price * 100),
-                'weight_grams' => $variation['weight_grams'] ?? 500,
-                'is_active' => true,
+            $variantId = DB::table('product_variants')->insertGetId([
+                'product_id' => $productId, 'sku' => $variation['sku'], 'price' => $price,
+                'is_default' => false, 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
             ]);
+            DB::table('inventories')->insert(['product_variant_id' => $variantId, 'quantity_on_hand' => (int) ($variation['stock'] ?? 0), 'quantity_reserved' => 0, 'reorder_level' => 0, 'created_at' => now(), 'updated_at' => now()]);
         }
 
-        $product->specifications()->delete();
+        DB::table('product_specifications')->where('product_id', $productId)->delete();
         foreach ($data['specs'] as $name => $value) {
-            $product->specifications()->create([
-                'name' => $name,
-                'value' => $value,
-            ]);
+            DB::table('product_specifications')->insert(['product_id' => $productId, 'name' => $name, 'value' => $value, 'sort_order' => 0, 'created_at' => now(), 'updated_at' => now()]);
         }
+    }
+
+    private function upsert(string $table, array $identity, array $values): int
+    {
+        DB::table($table)->updateOrInsert($identity, $values);
+        return (int) DB::table($table)->where($identity)->value('id');
     }
 }

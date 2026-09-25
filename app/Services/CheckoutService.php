@@ -2,14 +2,14 @@
 
 namespace App\Services;
 
-use App\Models\Address;
-use App\Models\Cart;
-use App\Models\Order;
-use App\Models\Payment;
-use App\Models\ProductVariant;
-use App\Models\ServiceArea;
+use App\Models\Buyer\Address;
+use App\Models\Buyer\Cart;
+use App\Models\Buyer\Order;
+use App\Models\Buyer\Payment;
+use App\Models\Seller\ProductVariant;
+use App\Models\Logistics\ServiceArea;
 use App\Models\User;
-use App\Models\PlatformSetting;
+use App\Models\Admin\PlatformSetting;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;

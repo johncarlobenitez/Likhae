@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use App\Models\LedgerEntry;
-use App\Models\Payout;
-use App\Models\ReturnRequest;
-use App\Models\Seller;
-use App\Models\SellerOrder;
+use App\Models\Admin\LedgerEntry;
+use App\Models\Seller\Payout;
+use App\Models\Buyer\ReturnRequest;
+use App\Models\Seller\Seller;
+use App\Models\Seller\SellerOrder;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;

@@ -223,8 +223,6 @@
                     role="radiogroup"
                     aria-label="Account type"
                 >
-                    <style>.account-type-option:not([data-account-type="buyer"]){display:none!important}.account-type-toggle{grid-template-columns:1fr!important}</style>
-
                     {{-- BUYER --}}
                     <button
                         type="button"
@@ -524,6 +522,14 @@
                 @csrf
 
 
+                <input
+                    type="hidden"
+                    name="account_type"
+                    id="accountType"
+                    value="{{ old('account_type', ($preselectedRole ?? 'buyer') === 'courier' ? 'rider' : ($preselectedRole ?? 'buyer')) }}"
+                >
+
+
                 {{-- =================================================
                     STEP 1 — PERSONAL INFORMATION
                 ================================================== --}}
@@ -769,7 +775,7 @@
                             {{-- CONTACT --}}
                             <div class="register-field">
 
-                                <label for="contact_no">
+                                <label for="contact_number">
                                     Contact Number
                                     <span>*</span>
                                 </label>
@@ -783,10 +789,10 @@
 
 
                                     <input
-                                        id="contact_no"
-                                        name="contact_no"
+                                        id="contact_number"
+                                        name="contact_number"
                                         type="tel"
-                                        value="{{ old('contact_no') }}"
+                                        value="{{ preg_replace('/^(?:\+63|0)/', '', old('contact_number', '')) }}"
                                         placeholder="917 123 4567"
                                         inputmode="numeric"
                                         autocomplete="tel"

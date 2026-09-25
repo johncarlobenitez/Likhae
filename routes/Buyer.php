@@ -1,8 +1,8 @@
 <?php
 
-use App\Http\Controllers\BuyerController;
-use App\Http\Controllers\BuyerOrderController;
-use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\Buyer\BuyerController;
+use App\Http\Controllers\Buyer\BuyerOrderController;
+use App\Http\Controllers\Buyer\CheckoutController;
 use App\Http\Middleware\EnsureWorkspaceRole;
 use Illuminate\Support\Facades\Route;
 

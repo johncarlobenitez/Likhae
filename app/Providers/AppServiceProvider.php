@@ -2,9 +2,9 @@
 
 namespace App\Providers;
 
-use App\Models\Message;
-use App\Models\SellerOrder;
-use App\Models\WorkspaceNotification;
+use App\Models\Seller\Message;
+use App\Models\Seller\SellerOrder;
+use App\Models\Seller\WorkspaceNotification;
 use App\Support\BuyerMarketplace;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
@@ -14,7 +14,6 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
     }
 
     public function boot(): void

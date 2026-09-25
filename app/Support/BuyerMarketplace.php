@@ -2,13 +2,13 @@
 
 namespace App\Support;
 
-use App\Models\Cart;
-use App\Models\CartItem;
-use App\Models\Message;
-use App\Models\Order;
-use App\Models\Product;
+use App\Models\Buyer\Cart;
+use App\Models\Buyer\CartItem;
+use App\Models\Seller\Message;
+use App\Models\Buyer\Order;
+use App\Models\Seller\Product;
 use App\Models\User;
-use App\Models\WorkspaceNotification;
+use App\Models\Seller\WorkspaceNotification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -113,7 +113,7 @@ class BuyerMarketplace
         ];
     }
 
-    public static function sellerOrder(\App\Models\SellerOrder $sellerOrder): array
+    public static function sellerOrder(\App\Models\Seller\SellerOrder $sellerOrder): array
     {
         $order = $sellerOrder->order;
         $shipment = $sellerOrder->shipment;

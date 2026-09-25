@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\AuthenticationController;
-use App\Http\Controllers\LogisticsPortalController;
-use App\Http\Controllers\ProviderRiderController;
-use App\Http\Controllers\DispatchController;
+use App\Http\Controllers\Auth\AuthenticationController;
+use App\Http\Controllers\Logistics\LogisticsPortalController;
+use App\Http\Controllers\Logistics\ProviderRiderController;
+use App\Http\Controllers\Logistics\DispatchController;
 use App\Http\Middleware\EnsureWorkspaceRole;
 use Illuminate\Support\Facades\Route;
 

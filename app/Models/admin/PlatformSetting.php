@@ -1,14 +1,14 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Admin;
 
 use Illuminate\Database\Eloquent\Model;
 
 class PlatformSetting extends Model
 {
-    protected $table = 'settings';
+    protected $table = 'platform_settings';
 
-    protected $fillable = ['key', 'value', 'type', 'updated_by'];
+    protected $fillable = ['key', 'value', 'value_type', 'updated_by_user_id'];
 
     public static function valueOf(string $key, mixed $default = null): mixed
     {
@@ -17,26 +17,31 @@ class PlatformSetting extends Model
             return $default;
         }
 
-        return match ($setting->type) {
-            'boolean' => filter_var($setting->value, FILTER_VALIDATE_BOOLEAN),
-            'integer' => (int) $setting->value,
-            'float' => (float) $setting->value,
-            'json' => json_decode((string) $setting->value, true) ?? $default,
+        return match ($setting->value_type) {
+            'BOOLEAN' => filter_var($setting->value, FILTER_VALIDATE_BOOLEAN),
+            'INTEGER' => (int) $setting->value,
+            'DECIMAL' => (float) $setting->value,
             default => $setting->value,
         };
     }
 
     public static function put(string $key, mixed $value, string $type = 'string', ?int $updatedBy = null): self
     {
-        $stored = match ($type) {
+        $stored = match (strtolower($type)) {
             'boolean' => $value ? '1' : '0',
-            'json' => json_encode($value, JSON_THROW_ON_ERROR),
             default => (string) $value,
+        };
+
+        $valueType = match (strtolower($type)) {
+            'boolean' => 'BOOLEAN',
+            'integer' => 'INTEGER',
+            'float', 'decimal' => 'DECIMAL',
+            default => 'STRING',
         };
 
         return static::query()->updateOrCreate(
             ['key' => $key],
-            ['value' => $stored, 'type' => $type, 'updated_by' => $updatedBy]
+            ['value' => $stored, 'value_type' => $valueType, 'updated_by_user_id' => $updatedBy]
         );
     }
 

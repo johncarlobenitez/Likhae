@@ -2,7 +2,7 @@
 
 namespace App\Policies;
 
-use App\Models\Shipment;
+use App\Models\Logistics\Shipment;
 use App\Models\User;
 
 class ShipmentPolicy

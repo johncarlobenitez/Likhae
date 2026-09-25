@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\AdminAnnouncement;
+use App\Models\Admin\AdminAnnouncement;
 use Illuminate\Console\Command;
 
 class PublishScheduledAnnouncements extends Command

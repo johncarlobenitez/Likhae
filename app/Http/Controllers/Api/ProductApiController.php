@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Product;
-use App\Models\Seller;
+use App\Models\Seller\Product;
+use App\Models\Seller\Seller;
 use App\Support\BuyerMarketplace;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;

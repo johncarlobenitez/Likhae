@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\LogisticsProvider;
-use App\Models\Rider;
+use App\Models\Logistics\LogisticsProvider;
+use App\Models\Rider\Rider;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;

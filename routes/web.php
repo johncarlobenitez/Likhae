@@ -1,16 +1,16 @@
 <?php
 
-use App\Http\Controllers\AuthenticationController;
-use App\Http\Controllers\GuestMarketplaceController;
-use App\Http\Controllers\GoogleAuthenticationController;
-use App\Http\Controllers\PhilippineAddressController;
-use App\Http\Controllers\RegistrationController;
-use App\Http\Controllers\SellerApplicationController;
-use App\Http\Controllers\TrackingController;
-use App\Http\Controllers\AccountRecoveryController;
+use App\Http\Controllers\Auth\AuthenticationController;
+use App\Http\Controllers\Buyer\GuestMarketplaceController;
+use App\Http\Controllers\Auth\GoogleAuthenticationController;
+use App\Http\Controllers\Auth\PhilippineAddressController;
+use App\Http\Controllers\Auth\RegistrationController;
+use App\Http\Controllers\Auth\SellerApplicationController;
+use App\Http\Controllers\Buyer\TrackingController;
+use App\Http\Controllers\Auth\AccountRecoveryController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
-use App\Http\Controllers\LogisticsProviderApplicationController;
-use App\Models\Category;
+use App\Http\Controllers\Auth\LogisticsProviderApplicationController;
+use App\Models\Seller\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 

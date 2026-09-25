@@ -2,19 +2,19 @@
 
 namespace Tests\Feature;
 
-use App\Models\Address;
-use App\Models\Cart;
-use App\Models\Category;
-use App\Models\LogisticsProvider;
-use App\Models\Product;
-use App\Models\ProductVariant;
-use App\Models\Seller;
-use App\Models\ServiceArea;
-use App\Models\Rider;
+use App\Models\Buyer\Address;
+use App\Models\Buyer\Cart;
+use App\Models\Seller\Category;
+use App\Models\Logistics\LogisticsProvider;
+use App\Models\Seller\Product;
+use App\Models\Seller\ProductVariant;
+use App\Models\Seller\Seller;
+use App\Models\Logistics\ServiceArea;
+use App\Models\Rider\Rider;
 use App\Models\User;
 use App\Services\CheckoutService;
 use App\Services\LedgerService;
-use App\Models\ReturnRequest;
+use App\Models\Buyer\ReturnRequest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

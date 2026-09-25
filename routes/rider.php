@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\RiderController;
-use App\Http\Controllers\RiderShipmentController;
+use App\Http\Controllers\Rider\RiderController;
+use App\Http\Controllers\Rider\RiderShipmentController;
 use Illuminate\Support\Facades\Route;
 
 

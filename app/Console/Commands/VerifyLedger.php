@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Models\LedgerEntry;
+use App\Models\Admin\LedgerEntry;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 

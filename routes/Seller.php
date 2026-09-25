@@ -2,12 +2,12 @@
 
 use App\Http\Middleware\EnsureWorkspaceRole;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\SellerApplicationController;
-use App\Http\Controllers\SellerOrderController;
-use App\Http\Controllers\SellerProductController;
-use App\Http\Controllers\SellerOperationsController;
-use App\Http\Controllers\SellerAccountController;
-use App\Http\Controllers\SellerEngagementController;
+use App\Http\Controllers\Auth\SellerApplicationController;
+use App\Http\Controllers\Seller\SellerOrderController;
+use App\Http\Controllers\Seller\SellerProductController;
+use App\Http\Controllers\Seller\SellerOperationsController;
+use App\Http\Controllers\Seller\SellerAccountController;
+use App\Http\Controllers\Seller\SellerEngagementController;
 
 Route::get('/seller', [SellerApplicationController::class, 'entry'])->middleware('auth')->name('seller.entry');
 

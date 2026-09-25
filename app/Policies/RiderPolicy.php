@@ -2,7 +2,7 @@
 
 namespace App\Policies;
 
-use App\Models\Rider;
+use App\Models\Rider\Rider;
 use App\Models\User;
 
 class RiderPolicy

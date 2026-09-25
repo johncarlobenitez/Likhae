@@ -2,7 +2,7 @@
 
 namespace App\Policies;
 
-use App\Models\Seller;
+use App\Models\Seller\Seller;
 use App\Models\User;
 
 class SellerPolicy
