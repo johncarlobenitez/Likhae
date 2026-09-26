@@ -46,13 +46,12 @@ class PhilippineAddressController extends Controller
     public function municipalities(string $province): JsonResponse
     {
         return $this->respond(function () use ($province) {
-            try {
-                return $this->list('/provinces/'.rawurlencode($province).'/cities-municipalities');
-            } catch (Throwable $e) {
-                // The selected "province" may actually be a region-level parent
-                // for areas with no province layer.
-                return $this->list('/regions/'.rawurlencode($province).'/cities-municipalities');
-            }
+            $municipalities = $this->list('/provinces/'.rawurlencode($province).'/cities-municipalities');
+            if ($municipalities !== []) return $municipalities;
+
+            // The selected "province" may actually be a region-level parent
+            // for areas with no province layer (for example NCR).
+            return $this->list('/regions/'.rawurlencode($province).'/cities-municipalities');
         });
     }
 
