@@ -705,8 +705,7 @@
     $heroProduct = $products->firstWhere('slug', 'wireless-headphones')
         ?? $products->first();
 
-    $heroImage = data_get($heroProduct, 'image_url')
-        ?? data_get($heroProduct, 'image');
+    $heroImage = data_get($heroProduct, 'primary_image.url');
 
     $heroName = data_get(
         $heroProduct,
@@ -716,12 +715,10 @@
 
     $heroPrice = max(
         0,
-        (float) data_get($heroProduct, 'price', 0)
+        (float) data_get($heroProduct, 'min_price', 0)
     );
 
-    $heroCategoryValue = data_get($heroProduct, 'category.name')
-        ?? data_get($heroProduct, 'category')
-        ?? 'Featured Product';
+    $heroCategoryValue = data_get($heroProduct, 'category.name') ?? 'Featured Product';
 
     $heroCategory = is_scalar($heroCategoryValue)
         ? (string) $heroCategoryValue
@@ -889,7 +886,7 @@
             </a>
 
             <a
-                href="{{ route('buyer.rewards', ['tab' => 'vouchers']) }}"
+                href="{{ route('buyer.products', ['focus' => 'deals']) }}"
                 class="lk-quick-card"
             >
                 <div class="lk-quick-icon">

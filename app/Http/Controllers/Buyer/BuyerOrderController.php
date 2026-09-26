@@ -7,6 +7,8 @@ use App\Models\Buyer\Order;
 use App\Models\Buyer\OrderItem;
 use App\Models\Buyer\Review;
 use App\Models\Logistics\ShipmentEvent;
+use App\Models\Admin\CommissionTransaction;
+use App\Models\Admin\PlatformSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -95,6 +97,13 @@ class BuyerOrderController extends Controller
     public function received(Request $request, Order $order): RedirectResponse
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
+        $order->loadMissing('sellerOrders.shipment');
+        abort_unless(
+            $order->sellerOrders->isNotEmpty()
+                && $order->sellerOrders->every(fn ($sellerOrder): bool => $sellerOrder->shipment?->current_status === 'DELIVERED'),
+            409,
+            'Receipt can only be confirmed after every parcel has been delivered.'
+        );
 
         $order->update([
             'status' => 'COMPLETED',
@@ -103,6 +112,17 @@ class BuyerOrderController extends Controller
 
         foreach ($order->sellerOrders as $sellerOrder) {
             $sellerOrder->update(['status' => 'COMPLETED']);
+            $rate = PlatformSetting::commissionRate();
+            CommissionTransaction::query()->firstOrCreate(
+                ['seller_order_id' => $sellerOrder->id],
+                [
+                    'commission_rate' => $rate,
+                    'commissionable_amount' => $sellerOrder->grand_total,
+                    'commission_amount' => round((float) $sellerOrder->grand_total * $rate, 2),
+                    'status' => 'PENDING',
+                    'calculated_at' => now(),
+                ],
+            );
             if ($sellerOrder->shipment) {
                 $sellerOrder->shipment->update(['current_status' => 'COMPLETED']);
                 ShipmentEvent::query()->create([

@@ -1,0 +1,144 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Admin\CommissionTransaction;
+use App\Models\Admin\PlatformSetting;
+use App\Models\Buyer\Order;
+use App\Models\Logistics\LogisticsCenter;
+use App\Models\Logistics\ServiceArea;
+use App\Models\Logistics\Shipment;
+use App\Models\Rider\RiderAssignment;
+use App\Models\Rider\RiderProfile;
+use App\Models\Seller\SellerOrder;
+use App\Models\User;
+use App\Services\Fulfillment\ShipmentWorkflowService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+class WorkflowApiController extends Controller
+{
+    public function sellerOrder(Request $request, SellerOrder $sellerOrder, ShipmentWorkflowService $workflow): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user->isAccountType(User::TYPE_SELLER), 403);
+        abort_unless($user->sellerProfile && (int) $sellerOrder->seller_profile_id === (int) $user->sellerProfile->id, 403);
+
+        $data = $request->validate(['action' => ['required', Rule::in(['confirm', 'prepare', 'ready', 'handover_confirm', 'cancel'])]]);
+        $result = $workflow->sellerTransition($sellerOrder, $data['action'], $user);
+
+        return response()->json(['success' => true, 'seller_order' => $result->only(['id', 'seller_order_number', 'status'])]);
+    }
+
+    public function riderAssignment(Request $request, RiderAssignment $assignment, ShipmentWorkflowService $workflow): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user->isAccountType(User::TYPE_RIDER), 403);
+        abort_unless($user->riderProfile && (int) $assignment->rider_profile_id === (int) $user->riderProfile->id, 403);
+
+        $data = $request->validate([
+            'action' => ['required', Rule::in(['accept', 'start', 'pickup_complete', 'delivery_success', 'delivery_failed', 'reject'])],
+            'scan_method' => ['nullable', Rule::in(['QR', 'BARCODE', 'MANUAL'])],
+            'scanned_code' => ['required_if:action,pickup_complete', 'nullable', 'string', 'max:150'],
+            'failure_reason' => ['required_if:action,delivery_failed', 'nullable', 'string', 'max:1000'],
+            'attempt_status' => ['nullable', Rule::in(['FAILED', 'RESCHEDULED', 'RETURNED'])],
+            'next_attempt_at' => ['required_if:attempt_status,RESCHEDULED', 'nullable', 'date', 'after:now'],
+            'reason' => ['nullable', 'string', 'max:1000'],
+            'proof_path' => ['nullable', 'string', 'max:500'],
+        ]);
+        $result = $workflow->riderTransition($assignment, $data['action'], $user, $data);
+
+        return response()->json(['success' => true, 'assignment' => $result->only(['id', 'assignment_type', 'status']), 'shipment_status' => $result->shipment->current_status]);
+    }
+
+    public function receiveParcel(Request $request, Shipment $shipment, ShipmentWorkflowService $workflow): JsonResponse
+    {
+        $center = $this->center($request);
+        abort_unless($center, 403);
+        $this->assertCenterShipment($shipment, $center);
+
+        $data = $request->validate([
+            'scanned_code' => ['required', 'string', 'max:150'],
+            'scan_method' => ['required', Rule::in(['QR', 'BARCODE', 'MANUAL'])],
+        ]);
+        $result = $workflow->receiveAtCenter($shipment, $center, $request->user(), $data['scanned_code'], $data['scan_method']);
+
+        return response()->json(['success' => true, 'tracking_number' => $result->tracking_number, 'current_status' => $result->current_status]);
+    }
+
+    public function sortParcel(Request $request, Shipment $shipment, ShipmentWorkflowService $workflow): JsonResponse
+    {
+        $center = $this->center($request);
+        abort_unless($center, 403);
+        $this->assertCenterShipment($shipment, $center);
+
+        $data = $request->validate(['service_area_id' => ['nullable', 'integer']]);
+        $area = isset($data['service_area_id'])
+            ? ServiceArea::query()->where('logistics_center_id', $center->id)->where('is_active', true)->findOrFail($data['service_area_id'])
+            : null;
+        $result = $workflow->sortShipment($shipment, $center, $request->user(), $area);
+
+        return response()->json(['success' => true, 'tracking_number' => $result->tracking_number, 'current_status' => $result->current_status, 'service_area_id' => $result->service_area_id]);
+    }
+
+    public function assignRider(Request $request, Shipment $shipment, ShipmentWorkflowService $workflow): JsonResponse
+    {
+        $center = $this->center($request);
+        abort_unless($center, 403);
+        $this->assertCenterShipment($shipment, $center);
+        $data = $request->validate([
+            'rider_profile_id' => ['required', 'integer', Rule::exists('rider_profiles', 'id')->where('logistics_center_id', $center->id)],
+            'assignment_type' => ['required', Rule::in(['PICKUP', 'DELIVERY'])],
+        ]);
+        $rider = RiderProfile::query()->where('logistics_center_id', $center->id)->findOrFail($data['rider_profile_id']);
+        $assignment = $workflow->assignRider($shipment, $rider, $data['assignment_type'], $request->user());
+
+        return response()->json(['success' => true, 'assignment' => $assignment->only(['id', 'assignment_type', 'status'])]);
+    }
+
+    public function confirmReceipt(Request $request, Order $order): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user->isAccountType(User::TYPE_BUYER) && (int) $order->buyer_user_id === (int) $user->id, 403);
+        $order->loadMissing('sellerOrders.shipment');
+        abort_unless($order->sellerOrders->isNotEmpty() && $order->sellerOrders->every(fn (SellerOrder $sellerOrder): bool => $sellerOrder->shipment?->current_status === 'DELIVERED'), 409, 'Receipt can only be confirmed after every parcel has been delivered.');
+
+        $order->update(['status' => 'COMPLETED', 'completed_at' => now()]);
+        foreach ($order->sellerOrders as $sellerOrder) {
+            $sellerOrder->update(['status' => 'COMPLETED']);
+            $rate = PlatformSetting::commissionRate();
+            CommissionTransaction::query()->firstOrCreate(
+                ['seller_order_id' => $sellerOrder->id],
+                [
+                    'commission_rate' => $rate,
+                    'commissionable_amount' => $sellerOrder->grand_total,
+                    'commission_amount' => round((float) $sellerOrder->grand_total * $rate, 2),
+                    'status' => 'PENDING',
+                    'calculated_at' => now(),
+                ],
+            );
+            $sellerOrder->shipment->update(['current_status' => 'COMPLETED']);
+            app(ShipmentWorkflowService::class)->recordEvent($sellerOrder->shipment, 'COMPLETED', $user, 'Buyer confirmed receipt.');
+        }
+
+        return response()->json(['success' => true, 'order_number' => $order->order_number, 'status' => 'COMPLETED']);
+    }
+
+    private function center(Request $request): ?LogisticsCenter
+    {
+        $user = $request->user();
+        abort_unless($user->isAccountType(User::TYPE_LOGISTICS), 403);
+
+        return $user->logisticsCenter;
+    }
+
+    private function assertCenterShipment(Shipment $shipment, LogisticsCenter $center): void
+    {
+        $shipment->loadMissing('serviceArea');
+        $isAssigned = (int) $shipment->logistics_center_id === (int) $center->id;
+        $areaAssigned = ! $shipment->logistics_center_id && (int) $shipment->serviceArea?->logistics_center_id === (int) $center->id;
+        abort_unless($isAssigned || $areaAssigned, 403);
+    }
+}

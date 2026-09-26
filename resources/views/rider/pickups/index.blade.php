@@ -52,5 +52,6 @@
             @endforelse
         </div>
     </section>
+    <div>{{ $assignments->links() }}</div>
 </div>
 @endsection

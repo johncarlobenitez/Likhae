@@ -6,13 +6,12 @@
 @php
     $slug = data_get($product, 'slug', data_get($product, 'id', 'product'));
     $name = (string) data_get($product, 'name', 'Product');
-    $category = (string) data_get($product, 'category', 'Local Find');
-    $seller = (string) data_get($product, 'seller', 'LIKHAE Seller');
+    $category = (string) data_get($product, 'category.name', 'Local Find');
+    $seller = (string) data_get($product, 'seller.business_name', 'LIKHAE Seller');
     $sellerAvatar = data_get($product, 'seller_avatar', 'https://ui-avatars.com/api/?name='.urlencode($seller).'&background=7f1d1d&color=fff');
-    $images = collect(data_get($product, 'gallery', []))->filter()->values();
-    if ($images->isEmpty()) $images = collect([data_get($product, 'image')]);
-    $related = collect($buyerProducts ?? [])->where('category', $category)->where('slug', '!=', $slug)->take(4);
-    if ($related->count() < 4) $related = collect($buyerProducts ?? [])->where('slug', '!=', $slug)->take(4);
+    $images = collect(data_get($product, 'images', []))->pluck('url')->filter()->values();
+    if ($images->isEmpty()) $images = collect([data_get($product, 'primary_image.url')])->filter();
+    $related = collect($relatedProducts ?? [])->take(4);
 @endphp
 
 <div class="lk-page">

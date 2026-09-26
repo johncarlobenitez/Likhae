@@ -18,7 +18,7 @@ class RiderShipmentController extends Controller
 
         $assignments = RiderAssignment::query()
             ->where('rider_profile_id', $rider->id)
-            ->with(['shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user'])
+            ->with(['shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user', 'shipment.sellerOrder.sellerProfile.businessAddress'])
             ->latest()
             ->paginate(15);
 
@@ -33,10 +33,10 @@ class RiderShipmentController extends Controller
         $data = $request->validate([
             'action' => ['required', 'string', 'in:accept,start,pickup_complete,delivery_success,delivery_failed,reject'],
             'scan_method' => ['nullable', 'string', 'in:QR,BARCODE,MANUAL'],
-            'scanned_code' => ['nullable', 'string', 'max:150'],
-            'failure_reason' => ['nullable', 'string', 'max:1000'],
+            'scanned_code' => ['required_if:action,pickup_complete', 'nullable', 'string', 'max:150'],
+            'failure_reason' => ['required_if:action,delivery_failed', 'nullable', 'string', 'max:1000'],
             'attempt_status' => ['nullable', 'string', 'in:FAILED,RESCHEDULED,RETURNED'],
-            'next_attempt_at' => ['nullable', 'date'],
+            'next_attempt_at' => ['required_if:attempt_status,RESCHEDULED', 'nullable', 'date', 'after:now'],
             'reason' => ['nullable', 'string', 'max:1000'],
             'proof_path' => ['nullable', 'string', 'max:500'],
         ]);

@@ -9,6 +9,7 @@ use App\Models\Buyer\CartItem;
 use App\Models\Buyer\Order;
 use App\Models\Seller\Product;
 use App\Models\Seller\SellerProfile;
+use App\Services\Communication\ConversationService;
 use App\Services\Marketplace\CartService;
 use App\Services\Marketplace\ProductCatalogService;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +24,7 @@ class BuyerController extends Controller
     public function __construct(
         private readonly ProductCatalogService $catalog,
         private readonly CartService $cartService,
+        private readonly ConversationService $conversations,
     ) {}
 
     public function home(Request $request): View
@@ -130,19 +132,71 @@ class BuyerController extends Controller
         return back()->with('buyer_notice', 'Item removed from cart.');
     }
 
-    public function messages(): View
+    public function messages(Request $request): View
     {
-        return view('Buyer.messages', ['threads' => collect()]);
+        $conversations = $this->conversations->listFor($request->user());
+        $rows = $conversations->map(function ($conversation) use ($request): array {
+            $other = $conversation->participants->first(fn ($participant) => (int) $participant->id !== (int) $request->user()->id);
+            $seller = $other?->sellerProfile;
+            $name = $seller?->business_name ?: $other?->name ?: 'LIKHAE User';
+
+            return [
+                'id' => $other?->id,
+                'conversation_id' => $conversation->id,
+                'name' => $name,
+                'slug' => 'conversation-'.$conversation->id,
+                'store_key' => $seller?->id,
+                'avatar' => 'https://ui-avatars.com/api/?name='.urlencode($name).'&background=561C17&color=fff',
+                'last_message' => $conversation->latestMessage?->body ?: 'Start a conversation.',
+                'time' => $conversation->latestMessage?->sent_at?->diffForHumans() ?? '',
+                'unread' => 0,
+                'messages' => $conversation->messages,
+            ];
+        })->filter(fn (array $row): bool => filled($row['id']))->values();
+
+        $selectedSlug = (string) $request->query('seller', '');
+        $active = $rows->firstWhere('slug', $selectedSlug) ?: $rows->first();
+
+        return view('Buyer.messages', [
+            'buyerProducts' => collect(),
+            'conversationRows' => $rows,
+            'dbActiveSeller' => null,
+            'chatMessages' => collect($active['messages'] ?? []),
+        ]);
     }
 
-    public function messageStream(): JsonResponse
+    public function messageStream(Request $request): JsonResponse
     {
-        return response()->json(['success' => true, 'messages' => []]);
+        $recipientId = (int) $request->query('seller_id');
+        $conversation = $this->conversations->listFor($request->user())
+            ->first(fn ($thread) => $thread->participants->contains(fn ($participant) => (int) $participant->id === $recipientId));
+
+        return response()->json([
+            'success' => true,
+            'messages' => $conversation?->messages?->map(fn ($message): array => [
+                'id' => $message->id,
+                'body' => $message->body,
+                'sender_user_id' => $message->sender_user_id,
+                'sent_at' => $message->sent_at?->toIso8601String(),
+            ])->values() ?? [],
+        ]);
     }
 
-    public function sendMessage(): RedirectResponse
+    public function sendMessage(Request $request): RedirectResponse
     {
-        return back()->with('buyer_notice', 'Messaging will continue in the messaging phase.');
+        $data = $request->validate([
+            'recipient_id' => ['required', 'integer', Rule::exists('users', 'id')],
+            'body' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $recipient = SellerProfile::query()
+            ->where('status', 'ACTIVE')
+            ->whereHas('user', fn ($query) => $query->whereKey((int) $data['recipient_id'])->where('status', 'ACTIVE'))
+            ->firstOrFail();
+
+        $this->conversations->send($request->user(), $recipient->user_id, trim($data['body']));
+
+        return back()->with('buyer_notice', 'Message sent.');
     }
 
     public function wishlist(): RedirectResponse

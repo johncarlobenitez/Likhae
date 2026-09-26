@@ -178,14 +178,17 @@ class CheckoutService
                 $this->createShipmentForSellerOrder($sellerOrder, $address);
             }
 
-            Cart::query()
-                ->whereKey($items->first()?->cart_id)
-                ->update([
-                    'status' => Cart::STATUS_CONVERTED,
-                    'converted_at' => now(),
-                ]);
-
+            $cartId = $items->first()?->cart_id;
             CartItem::query()->whereIn('id', $items->pluck('id'))->delete();
+
+            if ($cartId && ! CartItem::query()->where('cart_id', $cartId)->exists()) {
+                Cart::query()
+                    ->whereKey($cartId)
+                    ->update([
+                        'status' => Cart::STATUS_CONVERTED,
+                        'converted_at' => now(),
+                    ]);
+            }
 
             return $order->load(['sellerOrders.items', 'address', 'payments']);
         });

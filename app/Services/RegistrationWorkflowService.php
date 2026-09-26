@@ -93,6 +93,36 @@ class RegistrationWorkflowService
                     default => null,
                 };
 
+                if ($user->account_type === User::TYPE_SELLER) {
+                    SellerProfile::create([
+                        'user_id' => $user->id,
+                        'primary_category_id' => (int) $data['line_of_business'],
+                        'business_address_id' => $address->id,
+                        'business_name' => trim($data['business_name']),
+                        'business_registration_number' => $data['business_registration_number'] ?? null,
+                        'status' => 'PENDING',
+                    ]);
+                } elseif ($user->account_type === User::TYPE_LOGISTICS) {
+                    LogisticsCenter::create([
+                        'owner_user_id' => $user->id,
+                        'address_id' => $address->id,
+                        'code' => 'LC-'.str_pad((string) $application->id, 6, '0', STR_PAD_LEFT),
+                        'business_name' => trim($data['business_name']),
+                        'business_registration_number' => $data['business_registration_number'] ?? null,
+                        'dti_registration_number' => $data['dti_registration_number'] ?? null,
+                        'status' => 'PENDING',
+                    ]);
+                } elseif ($user->account_type === User::TYPE_RIDER) {
+                    RiderProfile::create([
+                        'user_id' => $user->id,
+                        'logistics_center_id' => (int) $data['target_logistics_center_id'],
+                        'vehicle_type' => $data['vehicle_type'],
+                        'plate_number' => mb_strtoupper(trim($data['plate_number'])),
+                        'drivers_license_number' => mb_strtoupper(trim($data['drivers_license_number'])),
+                        'status' => 'PENDING',
+                    ]);
+                }
+
                 $documentMap = [
                     'valid_id' => 'VALID_ID',
                     'business_permit' => 'BUSINESS_PERMIT',
@@ -151,10 +181,8 @@ class RegistrationWorkflowService
         $application->loadMissing(['user', 'documents', 'sellerData', 'logisticsData', 'riderData']);
         $type = $application->user?->account_type;
 
-        if (! in_array($type, [User::TYPE_BUYER, User::TYPE_SELLER, User::TYPE_LOGISTICS], true)) {
-            throw ValidationException::withMessages([
-                'application' => 'This application must be reviewed by its assigned logistics center.',
-            ]);
+        if (! in_array($type, [User::TYPE_BUYER, User::TYPE_SELLER, User::TYPE_LOGISTICS, User::TYPE_RIDER], true)) {
+            throw ValidationException::withMessages(['application' => 'Unsupported registration account type.']);
         }
 
         return $this->approve(

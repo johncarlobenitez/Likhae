@@ -8,6 +8,7 @@
     $address = $user?->addresses?->firstWhere('is_default', true) ?? $user?->addresses?->first();
     $seller = $application->sellerData;
     $logistics = $application->logisticsData;
+    $rider = $application->riderData;
 @endphp
 
 <div class="ad-page">
@@ -41,6 +42,7 @@
             <div><small>Email</small><strong style="display:block;">{{ $user?->email }}</strong></div>
             <div><small>Contact</small><strong style="display:block;">{{ $user?->contact_number }}</strong></div>
             <div><small>Birthday</small><strong style="display:block;">{{ $user?->birthday?->format('M d, Y') }}</strong></div>
+            <div><small>Age</small><strong style="display:block;">{{ $user?->birthday?->age ?? 'Not recorded' }}</strong></div>
             <div><small>Sex</small><strong style="display:block;">{{ str($user?->sex ?? '')->replace('_', ' ')->headline() }}</strong></div>
             <div><small>Address</small><strong style="display:block;">{{ $address?->formatted() ?? 'Not recorded' }}</strong></div>
         </div>
@@ -53,6 +55,18 @@
                 <div><small>Business Name</small><strong style="display:block;">{{ $seller->business_name }}</strong></div>
                 <div><small>Category</small><strong style="display:block;">{{ $seller->category?->name ?? 'Not configured' }}</strong></div>
                 <div><small>Registration Number</small><strong style="display:block;">{{ $seller->business_registration_number ?: 'Not provided' }}</strong></div>
+            </div>
+        </div>
+    @endif
+
+    @if($rider)
+        <div class="ad-card ad-card-body" style="margin-bottom:16px;">
+            <h2>Rider / Courier Information</h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:16px;">
+                <div><small>Vehicle</small><strong style="display:block;">{{ str($rider->vehicle_type)->headline() }}</strong></div>
+                <div><small>Plate Number</small><strong style="display:block;">{{ $rider->plate_number }}</strong></div>
+                <div><small>Driver's License Number</small><strong style="display:block;">{{ $rider->drivers_license_number }}</strong></div>
+                <div><small>Sorting Center</small><strong style="display:block;">{{ $rider->targetLogisticsCenter?->business_name ?? 'Not configured' }}</strong></div>
             </div>
         </div>
     @endif

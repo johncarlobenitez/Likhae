@@ -7,11 +7,11 @@
     $activeSort = strtolower((string) request('sort', 'latest'));
     $activeView = in_array(request('view'), ['grid', 'list'], true) ? request('view') : 'grid';
     $query = mb_strtolower(trim((string) request('q', '')));
-    $maxCatalogPrice = max(10000, (int) ceil((float) $collection->max(fn($product) => data_get($product, 'price', 0))));
+    $maxCatalogPrice = max(10000, (int) ceil((float) $collection->max(fn($product) => data_get($product, 'min_price', 0))));
     $maxPrice = min($maxCatalogPrice, max(0, (int) request('max_price', $maxCatalogPrice)));
     $minimumRating = min(5, max(0, (float) request('rating', 0)));
-    $productCategorySlug = fn ($product) => (string) (data_get($product, 'category_slug') ?: \Illuminate\Support\Str::slug((string) data_get($product, 'category', 'uncategorized')));
-    $productParentSlug = fn ($product) => (string) (data_get($product, 'parent_category_slug') ?: $productCategorySlug($product));
+    $productCategorySlug = fn ($product) => (string) (data_get($product, 'category.slug') ?: 'uncategorized');
+    $productParentSlug = fn ($product) => $productCategorySlug($product);
     $matchesCategory = fn ($product) => $activeCategory === 'all'
         || $productCategorySlug($product) === $activeCategory
         || $productParentSlug($product) === $activeCategory;
@@ -19,7 +19,7 @@
         ->groupBy(fn ($product) => $productParentSlug($product))
         ->map(function ($products, $parentSlug) use ($productCategorySlug, $activeCategory) {
             $first = $products->first();
-            $parentLabel = data_get($first, 'parent_category') ?: data_get($first, 'category', 'Uncategorized');
+            $parentLabel = data_get($first, 'category.name', 'Uncategorized');
             $children = $products
                 ->groupBy(fn ($product) => $productCategorySlug($product))
                 ->map(function ($childProducts, $childSlug) use ($parentSlug) {
@@ -31,7 +31,7 @@
 
                     return [
                         'slug' => $childSlug,
-                        'label' => data_get($firstChild, 'category', 'Uncategorized'),
+                        'label' => data_get($firstChild, 'category.name', 'Uncategorized'),
                         'count' => $childProducts->count(),
                     ];
                 })
@@ -51,15 +51,15 @@
         ->sortBy('label')
         ->values();
     $visibleProducts = $collection->filter(function ($product) use ($matchesCategory, $query, $maxPrice, $minimumRating) {
-        $haystack = mb_strtolower(implode(' ', [data_get($product,'name'), data_get($product,'category'), data_get($product,'seller'), data_get($product,'location')]));
+        $haystack = mb_strtolower(implode(' ', [data_get($product,'name',''), data_get($product,'category.name',''), data_get($product,'seller.business_name','')]));
         return $matchesCategory($product)
             && ($query === '' || str_contains($haystack, $query))
-            && (float) data_get($product, 'price', 0) <= $maxPrice
+            && (float) data_get($product, 'min_price', 0) <= $maxPrice
             && (float) data_get($product, 'rating', 0) >= $minimumRating;
     });
     $visibleProducts = (match($activeSort) {
-        'price-low' => $visibleProducts->sortBy(fn($product) => data_get($product, 'price', 0)),
-        'price-high' => $visibleProducts->sortByDesc(fn($product) => data_get($product, 'price', 0)),
+        'price-low' => $visibleProducts->sortBy(fn($product) => data_get($product, 'min_price', 0)),
+        'price-high' => $visibleProducts->sortByDesc(fn($product) => data_get($product, 'min_price', 0)),
         'best-rated' => $visibleProducts->sortByDesc(fn($product) => data_get($product, 'rating', 0)),
         'best-selling' => $visibleProducts->sortByDesc(fn($product) => data_get($product, 'sold', 0)),
         default => $visibleProducts->sortByDesc(fn($product) => data_get($product, 'id', 0)),

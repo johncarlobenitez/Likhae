@@ -24,9 +24,13 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
     public const TYPE_BUYER = 'BUYER';
+
     public const TYPE_SELLER = 'SELLER';
+
     public const TYPE_ADMIN = 'ADMIN';
+
     public const TYPE_LOGISTICS = 'LOGISTICS';
+
     public const TYPE_RIDER = 'RIDER';
 
     public const ACCOUNT_TYPES = [
@@ -38,8 +42,11 @@ class User extends Authenticatable
     ];
 
     public const STATUS_PENDING = 'PENDING';
+
     public const STATUS_ACTIVE = 'ACTIVE';
+
     public const STATUS_SUSPENDED = 'SUSPENDED';
+
     public const STATUS_DEACTIVATED = 'DEACTIVATED';
 
     public const STATUSES = [
@@ -64,6 +71,7 @@ class User extends Authenticatable
         'email_verified_at',
         'password',
         'status',
+        'notification_preferences',
     ];
 
     protected $hidden = [
@@ -76,6 +84,8 @@ class User extends Authenticatable
         return [
             'birthday' => 'date',
             'email_verified_at' => 'datetime',
+            'api_token_expires_at' => 'datetime',
+            'notification_preferences' => 'array',
             'password' => 'hashed',
         ];
     }
@@ -89,7 +99,6 @@ class User extends Authenticatable
         ])->filter()->implode(' '));
     }
 
-
     public function isAccountType(string ...$types): bool
     {
         $normalized = collect($types)
@@ -98,9 +107,6 @@ class User extends Authenticatable
 
         return in_array(strtoupper((string) $this->account_type), $normalized, true);
     }
-
-
-
 
     public function isActive(): bool
     {
@@ -114,6 +120,13 @@ class User extends Authenticatable
 
     public function inactiveMessage(): string
     {
+        $latestApplication = $this->registrationApplications()->latest('submitted_at')->first();
+
+        if ($latestApplication?->status === RegistrationApplication::STATUS_REJECTED) {
+            return 'Your registration application was rejected.'
+                .($latestApplication->rejection_reason ? ' Reason: '.$latestApplication->rejection_reason : '');
+        }
+
         return match (strtoupper((string) $this->status)) {
             self::STATUS_PENDING => 'Your account is pending approval.',
             self::STATUS_SUSPENDED => 'Your account has been suspended. Please contact support for assistance.',

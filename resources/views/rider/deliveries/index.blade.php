@@ -14,7 +14,7 @@
             <h1 class="mt-3 text-2xl font-bold tracking-tight text-ink">Delivery Assignments</h1>
             <p class="mt-3 text-sm text-muted">Parcels assigned by the sorting center to your rider account.</p>
         </div>
-        <span class="rounded-full bg-primary-soft px-5 py-3 text-sm font-semibold text-primary">{{ count($deliveries) }} Active Deliveries</span>
+        <span class="rounded-full bg-primary-soft px-5 py-3 text-sm font-semibold text-primary">{{ number_format($deliveryStats['active']) }} Active Deliveries</span>
     </section>
 
     <section class="grid gap-5 md:grid-cols-4">
@@ -52,5 +52,6 @@
             @endforelse
         </div>
     </section>
+    <div>{{ $assignments->links() }}</div>
 </div>
 @endsection

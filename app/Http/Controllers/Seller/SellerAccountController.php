@@ -172,11 +172,27 @@ class SellerAccountController extends Controller
 
     public function updateNotifications(Request $request): RedirectResponse
     {
-        $request->validate([
-            'preferences' => ['nullable', 'array'],
-        ]);
+        $data = $request->validate(['preferences' => ['nullable', 'array']]);
+        $allowedKeys = [
+            'new_order', 'order_cancellation', 'pickup_shipping', 'inventory_alerts',
+            'buyer_messages', 'finance_payouts', 'marketing_updates',
+        ];
+        $channels = ['email', 'push', 'sms'];
+        $input = $data['preferences'] ?? [];
+        $preferences = [];
 
-        return back()->with('status', 'Notification preferences acknowledged. Persistent seller notification preferences are not part of the final 57-table schema.');
+        foreach ($allowedKeys as $key) {
+            foreach ($channels as $channel) {
+                $preferences[$key][$channel] = filter_var(
+                    data_get($input, "$key.$channel", false),
+                    FILTER_VALIDATE_BOOLEAN,
+                );
+            }
+        }
+
+        $this->shop($request)->user->forceFill(['notification_preferences' => $preferences])->save();
+
+        return back()->with('status', 'Notification preferences saved.');
     }
 
     private function shop(Request $request): SellerProfile
@@ -206,7 +222,7 @@ class SellerAccountController extends Controller
             'vacation_mode' => false,
             'auto_accept_orders' => false,
             'store_visibility' => true,
-            'notification_preferences' => [],
+            'notification_preferences' => $shop->user?->notification_preferences ?? [],
             'business_name' => $shop->business_name,
             'business_type' => $shop->primaryCategory?->name ?? '',
             'dti_sec_number' => $shop->business_registration_number,

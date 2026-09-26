@@ -8,17 +8,22 @@ use App\Models\Logistics\ServiceArea;
 use App\Models\Logistics\ServiceAreaLocation;
 use App\Models\Logistics\Shipment;
 use App\Models\Rider\RiderAreaAssignment;
-use App\Models\Rider\RiderApplicationData;
 use App\Models\Rider\RiderProfile;
 use App\Models\User;
+use App\Services\Communication\ConversationService;
+use App\Services\RegistrationWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class LogisticsPortalController extends Controller
 {
+    public function __construct(private readonly RegistrationWorkflowService $registrationWorkflow) {}
+
     public function dashboard(Request $request): View
     {
         $center = $request->user()->logisticsCenter;
@@ -71,30 +76,12 @@ class LogisticsPortalController extends Controller
         $application->load(['user', 'riderData']);
         abort_unless((int) $application->riderData?->target_logistics_center_id === (int) $center->id, 403);
 
-        DB::transaction(function () use ($application, $center, $request): void {
-            $application->update([
-                'status' => 'APPROVED',
-                'reviewed_by_user_id' => $request->user()->id,
-                'reviewed_at' => now(),
-                'decision_notes' => $request->input('decision_notes'),
-                'rejection_reason' => null,
-            ]);
-
-            $application->user->update(['status' => 'ACTIVE']);
-
-            RiderProfile::updateOrCreate(
-                ['user_id' => $application->user_id],
-                [
-                    'logistics_center_id' => $center->id,
-                    'vehicle_type' => $application->riderData->vehicle_type,
-                    'plate_number' => $application->riderData->plate_number,
-                    'drivers_license_number' => $application->riderData->drivers_license_number,
-                    'status' => 'ACTIVE',
-                    'approved_by_user_id' => $request->user()->id,
-                    'approved_at' => now(),
-                ],
-            );
-        });
+        $this->registrationWorkflow->approveRider(
+            $application,
+            $request->user(),
+            $request->input('decision_notes'),
+            $request,
+        );
 
         return redirect()->route('logistics.riders.applications')->with('status', 'Rider approved and activated.');
     }
@@ -108,12 +95,12 @@ class LogisticsPortalController extends Controller
         $application->load('riderData');
         abort_unless((int) $application->riderData?->target_logistics_center_id === (int) $center->id, 403);
 
-        $application->update([
-            'status' => 'REJECTED',
-            'reviewed_by_user_id' => $request->user()->id,
-            'reviewed_at' => now(),
-            'rejection_reason' => $data['rejection_reason'],
-        ]);
+        $this->registrationWorkflow->reject(
+            $application,
+            $request->user(),
+            $data['rejection_reason'],
+            $request,
+        );
 
         $application->user?->update(['status' => 'DEACTIVATED']);
 
@@ -199,6 +186,13 @@ class LogisticsPortalController extends Controller
             'rider_profile_id' => ['nullable', 'integer', 'exists:rider_profiles,id'],
         ]);
 
+        if (! empty($data['rider_profile_id'])) {
+            abort_unless(
+                RiderProfile::query()->whereKey($data['rider_profile_id'])->where('logistics_center_id', $center->id)->where('status', 'ACTIVE')->exists(),
+                403,
+            );
+        }
+
         DB::transaction(function () use ($data, $center, $request): void {
             $area = ServiceArea::firstOrCreate(
                 ['logistics_center_id' => $center->id, 'code' => $data['code'] ?: Str::slug($data['name'])],
@@ -251,21 +245,74 @@ class LogisticsPortalController extends Controller
         ]);
     }
 
+    public function exportReport(Request $request)
+    {
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center, 403);
+        $rows = Shipment::query()->where('logistics_center_id', $center->id)->latest()->get();
+        $csv = "Tracking,Status,Destination,Updated\n".$rows->map(fn ($shipment) => implode(',', [
+            $shipment->tracking_number,
+            $shipment->current_status,
+            '"'.str_replace('"', '""', collect([$shipment->destination_barangay_name, $shipment->destination_municipality_name, $shipment->destination_province_name])->filter()->implode(', ')).'"',
+            $shipment->updated_at?->toDateTimeString(),
+        ]))->implode("\n");
+
+        return response($csv, 200, ['Content-Type' => 'text/csv', 'Content-Disposition' => 'attachment; filename="logistics-report.csv"']);
+    }
+
     public function profile(Request $request): View
     {
         $center = $request->user()->logisticsCenter?->load('address');
         abort_unless($center, 403);
 
-        return view('Logistics.profile.index', compact('center'));
+        return view('Logistics.profile.index', ['center' => $center, 'user' => $request->user()]);
     }
 
-    public function messages(): View
+    public function updateAccount(Request $request): RedirectResponse
     {
-        return view('Logistics.messages.index', ['conversations' => collect()]);
+        abort_unless($request->user()->logisticsCenter, 403);
+        $user = $request->user();
+        $data = $request->validate([
+            'first_name' => ['required', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'max:100'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'contact_number' => ['required', 'string', 'max:30', Rule::unique('users', 'contact_number')->ignore($user->id)],
+        ]);
+
+        $user->update($data);
+
+        return back()->with('status', 'Account profile updated.');
     }
 
-    public function sendMessage(): RedirectResponse
+    public function updatePassword(Request $request): RedirectResponse
     {
-        return back()->with('status', 'Messaging is handled in Phase 5.');
+        abort_unless($request->user()->logisticsCenter, 403);
+        $data = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $request->user()->update(['password' => Hash::make($data['password'])]);
+
+        return back()->with('status', 'Account password updated.');
+    }
+
+    public function messages(Request $request, ConversationService $conversationService): View
+    {
+        return view('Logistics.messages.index', [
+            'conversations' => $conversationService->listFor($request->user()),
+            'contacts' => User::query()->where('status', 'ACTIVE')->whereKeyNot($request->user()->id)->orderBy('first_name')->get(),
+        ]);
+    }
+
+    public function sendMessage(Request $request, ConversationService $conversationService): RedirectResponse
+    {
+        $data = $request->validate([
+            'recipient_user_id' => ['required', 'integer', 'exists:users,id'],
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+        $conversationService->send($request->user(), (int) $data['recipient_user_id'], $data['body']);
+
+        return back()->with('status', 'Message sent.');
     }
 }

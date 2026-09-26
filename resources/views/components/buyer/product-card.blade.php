@@ -13,16 +13,13 @@
 
     $name = (string) data_get($product, 'name', 'Product Name');
 
-    $categoryValue = data_get($product, 'category.name')
-        ?? data_get($product, 'category', 'Local Find');
+    $categoryValue = data_get($product, 'category.name') ?? 'Local Find';
 
     $category = is_scalar($categoryValue)
         ? (string) $categoryValue
         : 'Local Find';
 
-    $sellerValue = data_get($product, 'seller.store_name')
-        ?? data_get($product, 'seller.name')
-        ?? data_get($product, 'seller', 'LIKHAE Seller');
+    $sellerValue = data_get($product, 'seller.business_name') ?? 'LIKHAE Seller';
 
     $seller = is_scalar($sellerValue)
         ? (string) $sellerValue
@@ -36,7 +33,7 @@
 
     $price = max(
         0,
-        (float) data_get($product, 'price', 0)
+        (float) data_get($product, 'min_price', 0)
     );
 
     $oldPrice = max(
@@ -59,8 +56,7 @@
         (int) data_get($product, 'sold', 0)
     );
 
-    $image = data_get($product, 'image_url')
-        ?? data_get($product, 'image')
+    $image = data_get($product, 'primary_image.url')
         ?? 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80';
 
     $discount = $oldPrice > $price && $oldPrice > 0
@@ -70,7 +66,7 @@
     $detailsUrl = $guest
         ? route('products.show', ['slug' => $slug])
         : route('buyer.product-details', ['slug' => $slug]);
-    $hasVariations = collect(data_get($product, 'variations', []))->flatten(1)->isNotEmpty();
+    $hasVariations = collect(data_get($product, 'variants', []))->count() > 1;
 
     $storeUrl = $guest
         ? route('products.show', ['slug' => $slug])

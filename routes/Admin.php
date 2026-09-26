@@ -53,7 +53,7 @@ Route::prefix('admin')
         Route::post('/categories', [AdminOperationsController::class, 'storeCategory'])->name('categories.store');
         Route::patch('/categories/{category}', [AdminOperationsController::class, 'updateCategory'])->name('categories.update');
         Route::get('/products-export', [AdminOperationsController::class, 'exportProducts'])->name('products.export');
-        Route::patch('/refunds/{refund}', [AdminOperationsController::class, 'updateRefund'])->name('refunds.update');
+        Route::patch('/disputes/{dispute}', [AdminOperationsController::class, 'updateDispute'])->name('disputes.update');
         Route::get('/finance-export', [AdminOperationsController::class, 'exportFinance'])->name('finance.export');
         Route::get('/reports-export', [AdminOperationsController::class, 'exportReport'])->name('reports.export');
         Route::post('/messages/send', [AdminOperationsController::class, 'sendMessage'])->name('messages.send');

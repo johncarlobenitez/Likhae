@@ -15,7 +15,7 @@
         <div>
             <span class="sl-eyebrow">{{ now()->format('l, F j') }}</span>
             <h2>Good {{ now()->hour < 12 ? 'morning' : (now()->hour < 18 ? 'afternoon' : 'evening') }}, {{ $firstName }}.</h2>
-            <p>Your live store data shows <strong>{{ $orderStatusCounts['placed'] }} new orders</strong> and <strong>{{ $stats['inventory_alerts'] }} inventory alerts</strong> that may need attention.</p>
+            <p>Your live store data shows <strong>{{ $orderStatusCounts['placed'] }} new orders</strong> and <strong>{{ $inventoryAlerts->count() }} inventory alerts</strong> that may need attention.</p>
         </div>
         <div class="sl-welcome-actions">
             <a href="{{ route('seller.products', ['mode' => 'add']) }}" class="sl-btn sl-btn-white">

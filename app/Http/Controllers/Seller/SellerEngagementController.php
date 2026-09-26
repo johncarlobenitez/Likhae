@@ -18,6 +18,7 @@ class SellerEngagementController extends Controller
     {
         return view('Seller.messages', [
             'conversations' => $conversationService->listFor($request->user()),
+            'contacts' => \App\Models\User::query()->where('status', 'ACTIVE')->whereKeyNot($request->user()->id)->orderBy('first_name')->get(),
         ]);
     }
 
@@ -82,7 +83,7 @@ class SellerEngagementController extends Controller
 
         return view('Seller.marketing', [
             'seller' => $seller,
-            'vouchers' => $seller->vouchers()->latest()->paginate(15),
+            'vouchers' => $seller->vouchers()->withCount('sellerOrders')->latest()->paginate(15),
         ]);
     }
 
@@ -92,7 +93,7 @@ class SellerEngagementController extends Controller
         abort_unless($seller, 403);
 
         $data = $request->validate([
-            'code' => ['required', 'string', 'max:50'],
+            'code' => ['required', 'string', 'max:80'],
             'name' => ['required', 'string', 'max:150'],
             'discount_type' => ['required', 'string', 'in:PERCENT,FIXED'],
             'discount_value' => ['required', 'numeric', 'min:0'],

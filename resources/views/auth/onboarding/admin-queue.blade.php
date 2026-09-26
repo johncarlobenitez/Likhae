@@ -8,7 +8,7 @@
         <div>
             <p class="ad-eyebrow">Account Onboarding</p>
             <h1>Registration Applications</h1>
-            <p>Review Buyer, Seller, and Logistics registrations created through the final fixed-account registration flow.</p>
+            <p>Review Buyer, Seller, Logistics, and Rider registrations submitted through the account registration flow.</p>
         </div>
     </div>
 
@@ -21,7 +21,7 @@
     <form method="GET" class="ad-card ad-card-body ad-filter-bar" style="margin-bottom:16px;">
         <select name="type" onchange="this.form.submit()">
             <option value="">All account types</option>
-            @foreach(['BUYER' => 'Buyer', 'SELLER' => 'Seller', 'LOGISTICS' => 'Logistics'] as $value => $label)
+            @foreach(['BUYER' => 'Buyer', 'SELLER' => 'Seller', 'LOGISTICS' => 'Logistics', 'RIDER' => 'Rider / Courier'] as $value => $label)
                 <option value="{{ $value }}" @selected($type === $value)>{{ $label }}</option>
             @endforeach
         </select>
@@ -39,6 +39,9 @@
                 $user = $application->user;
                 $address = $user?->addresses?->firstWhere('is_default', true) ?? $user?->addresses?->first();
                 $businessName = $application->sellerData?->business_name ?? $application->logisticsData?->business_name;
+                $riderSummary = $application->riderData
+                    ? str($application->riderData->vehicle_type)->headline().' · '.$application->riderData->plate_number
+                    : null;
             @endphp
 
             <article style="padding:18px 0;border-bottom:1px solid #e7e5e4;display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;">
@@ -51,6 +54,9 @@
                     <div style="margin-top:6px;color:#78716c;">{{ $user?->email }} · {{ $user?->contact_number }}</div>
                     @if($businessName)
                         <div style="margin-top:6px;">{{ $businessName }}</div>
+                    @endif
+                    @if($riderSummary)
+                        <div style="margin-top:6px;">{{ $riderSummary }}</div>
                     @endif
                     @if($address)
                         <div style="margin-top:6px;color:#78716c;">{{ $address->formatted() }}</div>

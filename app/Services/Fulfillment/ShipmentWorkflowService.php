@@ -19,6 +19,7 @@ use App\Models\Seller\SellerOrder;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class ShipmentWorkflowService
@@ -33,6 +34,7 @@ class ShipmentWorkflowService
                 'confirm' => $this->confirmSellerOrder($sellerOrder, $shipment, $actor),
                 'prepare' => $this->prepareSellerOrder($sellerOrder, $shipment, $actor),
                 'ready' => $this->readyForPickup($sellerOrder, $shipment, $actor),
+                'handover_confirm' => $this->confirmSellerHandover($sellerOrder, $shipment, $actor),
                 'cancel' => $this->cancelSellerOrder($sellerOrder, $shipment, $actor),
                 default => throw new RuntimeException('Unsupported seller order action.'),
             };
@@ -83,6 +85,10 @@ class ShipmentWorkflowService
     public function approvePickup(PickupRequest $pickupRequest, User $reviewer, ?string $notes = null): PickupRequest
     {
         return DB::transaction(function () use ($pickupRequest, $reviewer, $notes): PickupRequest {
+            if ($pickupRequest->status !== 'PENDING') {
+                throw new RuntimeException('Only pending pickup requests can be approved.');
+            }
+
             $pickupRequest->update([
                 'status' => 'APPROVED',
                 'reviewed_by_user_id' => $reviewer->id,
@@ -100,6 +106,10 @@ class ShipmentWorkflowService
     public function rejectPickup(PickupRequest $pickupRequest, User $reviewer, string $reason): PickupRequest
     {
         return DB::transaction(function () use ($pickupRequest, $reviewer, $reason): PickupRequest {
+            if ($pickupRequest->status !== 'PENDING') {
+                throw new RuntimeException('Only pending pickup requests can be rejected.');
+            }
+
             $pickupRequest->update([
                 'status' => 'REJECTED',
                 'reviewed_by_user_id' => $reviewer->id,
@@ -124,6 +134,22 @@ class ShipmentWorkflowService
 
             if ($rider->status !== 'ACTIVE') {
                 throw new RuntimeException('Only active riders can receive assignments.');
+            }
+
+            $shipment->loadMissing('serviceArea');
+            $shipmentCenterId = $shipment->logistics_center_id ?: $shipment->serviceArea?->logistics_center_id;
+            if ($shipmentCenterId && (int) $rider->logistics_center_id !== (int) $shipmentCenterId) {
+                throw new RuntimeException('The rider does not belong to this shipment logistics center.');
+            }
+
+            if ($assignmentType === 'PICKUP') {
+                $this->requireShipmentStatus($shipment, ['READY_FOR_PICKUP'], 'assign a pickup rider');
+            } else {
+                $this->requireShipmentStatus($shipment, ['SORTED', 'DELIVERY_FAILED'], 'assign a delivery rider');
+
+                if (! $shipment->service_area_id || ! $rider->areaAssignments()->where('service_area_id', $shipment->service_area_id)->where('is_active', true)->exists()) {
+                    throw new RuntimeException('The rider is not assigned to the parcel destination area.');
+                }
             }
 
             $shipment->riderAssignments()
@@ -158,6 +184,21 @@ class ShipmentWorkflowService
     public function receiveAtCenter(Shipment $shipment, LogisticsCenter $center, User $actor, string $code, string $method = 'MANUAL'): Shipment
     {
         return DB::transaction(function () use ($shipment, $center, $actor, $code, $method): Shipment {
+            $this->requireShipmentStatus($shipment, ['PICKED_UP'], 'receive the parcel at the sorting center');
+
+            if ($shipment->logistics_center_id && (int) $shipment->logistics_center_id !== (int) $center->id) {
+                throw new RuntimeException('This parcel belongs to another logistics center.');
+            }
+            $shipment->loadMissing('serviceArea');
+            if (! $shipment->logistics_center_id && (int) $shipment->serviceArea?->logistics_center_id !== (int) $center->id) {
+                throw new RuntimeException('This parcel is not assigned to this logistics center.');
+            }
+
+            $code = trim($code);
+            if ($code === '' || ! hash_equals($shipment->tracking_number, $code)) {
+                throw ValidationException::withMessages(['scanned_code' => 'The scanned parcel code does not match the shipment tracking number.']);
+            }
+
             $this->recordScan($shipment, $actor, 'CENTER_RECEIVE', $method, $code, 'SUCCESS', $center);
             $shipment->update([
                 'logistics_center_id' => $center->id,
@@ -174,12 +215,30 @@ class ShipmentWorkflowService
     public function sortShipment(Shipment $shipment, LogisticsCenter $center, User $actor, ?ServiceArea $serviceArea = null): Shipment
     {
         return DB::transaction(function () use ($shipment, $center, $actor, $serviceArea): Shipment {
+            $this->requireShipmentStatus($shipment, ['AT_SORTING_CENTER'], 'sort the parcel');
+            if ($shipment->logistics_center_id && (int) $shipment->logistics_center_id !== (int) $center->id) {
+                throw new RuntimeException('This parcel belongs to another logistics center.');
+            }
             $area = $serviceArea ?: $this->findServiceAreaForAddress(
                 (string) $shipment->destination_province_code,
                 (string) $shipment->destination_municipality_code,
                 (string) $shipment->destination_barangay_code,
                 $center,
             );
+
+            if (! $area || (int) $area->logistics_center_id !== (int) $center->id) {
+                throw new RuntimeException('No active delivery area at this center matches the parcel destination.');
+            }
+
+            $matchesDestination = $area->locations()
+                ->where('province_code', $shipment->destination_province_code)
+                ->where('municipality_code', $shipment->destination_municipality_code)
+                ->where('barangay_code', $shipment->destination_barangay_code)
+                ->exists();
+
+            if (! $matchesDestination) {
+                throw new RuntimeException('The selected delivery area does not match the parcel destination.');
+            }
 
             $shipment->update([
                 'logistics_center_id' => $center->id,
@@ -277,6 +336,7 @@ class ShipmentWorkflowService
 
     private function confirmSellerOrder(SellerOrder $sellerOrder, Shipment $shipment, User $actor): void
     {
+        $this->requireSellerAndShipmentStatus($sellerOrder, $shipment, 'PLACED', 'confirm the order');
         $sellerOrder->update(['status' => 'CONFIRMED']);
         $shipment->update(['current_status' => 'CONFIRMED']);
         $this->recordEvent($shipment, 'CONFIRMED', $actor, 'Seller confirmed the order.');
@@ -284,6 +344,7 @@ class ShipmentWorkflowService
 
     private function prepareSellerOrder(SellerOrder $sellerOrder, Shipment $shipment, User $actor): void
     {
+        $this->requireSellerAndShipmentStatus($sellerOrder, $shipment, 'CONFIRMED', 'prepare the order');
         $sellerOrder->update(['status' => 'PREPARING']);
         $shipment->update(['current_status' => 'PREPARING']);
         $this->recordEvent($shipment, 'PREPARING', $actor, 'Seller is preparing the parcel.');
@@ -291,6 +352,7 @@ class ShipmentWorkflowService
 
     private function readyForPickup(SellerOrder $sellerOrder, Shipment $shipment, User $actor): void
     {
+        $this->requireSellerAndShipmentStatus($sellerOrder, $shipment, 'PREPARING', 'mark the order ready for pickup');
         $sellerOrder->update(['status' => 'READY_FOR_PICKUP']);
         $shipment->update(['current_status' => 'READY_FOR_PICKUP']);
 
@@ -309,9 +371,29 @@ class ShipmentWorkflowService
 
     private function cancelSellerOrder(SellerOrder $sellerOrder, Shipment $shipment, User $actor): void
     {
+        if (in_array($sellerOrder->status, ['PICKED_UP', 'COMPLETED', 'CANCELLED'], true)) {
+            throw new RuntimeException('This order can no longer be cancelled by the seller.');
+        }
         $sellerOrder->update(['status' => 'CANCELLED']);
         $shipment->update(['current_status' => 'RETURNED']);
         $this->recordEvent($shipment, 'RETURNED', $actor, 'Seller cancelled the seller order.');
+    }
+
+    private function confirmSellerHandover(SellerOrder $sellerOrder, Shipment $shipment, User $actor): void
+    {
+        $this->requireSellerAndShipmentStatus($sellerOrder, $shipment, 'READY_FOR_PICKUP', 'confirm parcel handover');
+
+        $assignment = $shipment->riderAssignments()
+            ->where('assignment_type', 'PICKUP')
+            ->whereIn('status', ['ACCEPTED', 'IN_PROGRESS'])
+            ->latest()
+            ->first();
+
+        if (! $assignment) {
+            throw new RuntimeException('The pickup rider must accept the assignment before handover can be confirmed.');
+        }
+
+        $this->recordEvent($shipment, 'READY_FOR_PICKUP', $actor, 'Seller confirmed parcel handover to the pickup rider.', $assignment);
     }
 
     private function generateWaybill(Shipment $shipment, User $actor): Waybill
@@ -328,6 +410,7 @@ class ShipmentWorkflowService
 
     private function acceptAssignment(RiderAssignment $assignment, Shipment $shipment, User $actor): void
     {
+        $this->requireAssignmentStatus($assignment, ['ASSIGNED'], 'accept this assignment');
         $assignment->update([
             'status' => 'ACCEPTED',
             'accepted_at' => now(),
@@ -338,6 +421,13 @@ class ShipmentWorkflowService
 
     private function startAssignment(RiderAssignment $assignment, Shipment $shipment, User $actor): void
     {
+        $this->requireAssignmentStatus($assignment, ['ACCEPTED'], 'start this assignment');
+
+        if ($assignment->assignment_type === 'PICKUP') {
+            $this->requireShipmentStatus($shipment, ['READY_FOR_PICKUP'], 'start pickup');
+        } else {
+            $this->requireShipmentStatus($shipment, ['ASSIGNED_TO_RIDER', 'DELIVERY_FAILED'], 'start delivery');
+        }
         $assignment->update([
             'status' => 'IN_PROGRESS',
             'started_at' => now(),
@@ -356,8 +446,15 @@ class ShipmentWorkflowService
         if ($assignment->assignment_type !== 'PICKUP') {
             throw new RuntimeException('This assignment is not a pickup assignment.');
         }
+        $this->requireAssignmentStatus($assignment, ['IN_PROGRESS'], 'complete pickup');
+        $this->requireShipmentStatus($shipment, ['READY_FOR_PICKUP'], 'complete pickup');
 
-        $this->recordScan($shipment, $actor, 'PICKUP_COLLECTED', strtoupper((string) ($payload['scan_method'] ?? 'MANUAL')), (string) ($payload['scanned_code'] ?? $shipment->tracking_number), 'SUCCESS', null, $assignment);
+        $scannedCode = trim((string) ($payload['scanned_code'] ?? ''));
+        if ($scannedCode === '' || ! hash_equals($shipment->tracking_number, $scannedCode)) {
+            throw ValidationException::withMessages(['scanned_code' => 'The scanned parcel code does not match the shipment tracking number.']);
+        }
+
+        $this->recordScan($shipment, $actor, 'PICKUP_COLLECTED', strtoupper((string) ($payload['scan_method'] ?? 'MANUAL')), $scannedCode, 'SUCCESS', null, $assignment);
 
         $assignment->update([
             'status' => 'COMPLETED',
@@ -375,6 +472,8 @@ class ShipmentWorkflowService
         if ($assignment->assignment_type !== 'DELIVERY') {
             throw new RuntimeException('This assignment is not a delivery assignment.');
         }
+        $this->requireAssignmentStatus($assignment, ['IN_PROGRESS'], 'complete delivery');
+        $this->requireShipmentStatus($shipment, ['OUT_FOR_DELIVERY'], 'complete delivery');
 
         $attemptNumber = (int) $shipment->deliveryAttempts()->count() + 1;
 
@@ -393,8 +492,6 @@ class ShipmentWorkflowService
         ]);
 
         $shipment->update(['current_status' => 'DELIVERED']);
-        $shipment->sellerOrder?->update(['status' => 'COMPLETED']);
-        $this->syncParentOrder($shipment->sellerOrder?->order);
         $this->recordEvent($shipment, 'DELIVERED', $actor, 'Delivery rider delivered the parcel.', $assignment);
         $this->createEarning($assignment, '75.00');
     }
@@ -404,6 +501,8 @@ class ShipmentWorkflowService
         if ($assignment->assignment_type !== 'DELIVERY') {
             throw new RuntimeException('This assignment is not a delivery assignment.');
         }
+        $this->requireAssignmentStatus($assignment, ['IN_PROGRESS'], 'record a failed delivery');
+        $this->requireShipmentStatus($shipment, ['OUT_FOR_DELIVERY'], 'record a failed delivery');
 
         $reason = (string) ($payload['failure_reason'] ?? 'Delivery failed.');
         $attemptNumber = (int) $shipment->deliveryAttempts()->count() + 1;
@@ -437,6 +536,8 @@ class ShipmentWorkflowService
 
     private function rejectAssignment(RiderAssignment $assignment, Shipment $shipment, User $actor, string $reason): void
     {
+        $this->requireAssignmentStatus($assignment, ['ASSIGNED', 'ACCEPTED'], 'reject this assignment');
+
         $assignment->update([
             'status' => 'REJECTED',
             'cancelled_at' => now(),
@@ -482,5 +583,26 @@ class ShipmentWorkflowService
         } while (Shipment::where('tracking_number', $value)->exists());
 
         return $value;
+    }
+
+    private function requireSellerAndShipmentStatus(SellerOrder $sellerOrder, Shipment $shipment, string $status, string $action): void
+    {
+        if ($sellerOrder->status !== $status || $shipment->current_status !== $status) {
+            throw new RuntimeException("The order must be {$status} to {$action}.");
+        }
+    }
+
+    private function requireShipmentStatus(Shipment $shipment, array $statuses, string $action): void
+    {
+        if (! in_array($shipment->current_status, $statuses, true)) {
+            throw new RuntimeException('The shipment must be '.implode(' or ', $statuses).' to '.$action.'.');
+        }
+    }
+
+    private function requireAssignmentStatus(RiderAssignment $assignment, array $statuses, string $action): void
+    {
+        if (! in_array($assignment->status, $statuses, true)) {
+            throw new RuntimeException('The assignment must be '.implode(' or ', $statuses).' to '.$action.'.');
+        }
     }
 }

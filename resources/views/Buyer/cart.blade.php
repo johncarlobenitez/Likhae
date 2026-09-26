@@ -8,19 +8,15 @@
     $cartItems = collect($cartItems ?? []);
 
     $normalizedCartItems = $cartItems->map(function ($item) {
-        $product = data_get($item, 'product');
+        $variant = data_get($item, 'productVariant');
+        $product = data_get($variant, 'product');
 
         $categoryValue = data_get($product, 'category.name')
             ?? data_get($item, 'category.name')
             ?? data_get($item, 'category')
             ?? 'Local Product';
 
-        $sellerValue = data_get($product, 'seller.store_name')
-            ?? data_get($product, 'seller.shop_name')
-            ?? data_get($product, 'seller.name')
-            ?? data_get($item, 'seller.store_name')
-            ?? data_get($item, 'seller.name')
-            ?? data_get($item, 'seller')
+        $sellerValue = data_get($product, 'sellerProfile.business_name')
             ?? 'LIKHAE Seller';
 
         return [
@@ -38,8 +34,7 @@
                 ? (string) $categoryValue
                 : 'Local Product',
 
-            'variant' => data_get($item, 'variant')
-                ?? data_get($item, 'variation')
+            'variant' => data_get($variant, 'description')
                 ?? 'Standard',
 
             'seller' => is_scalar($sellerValue)
@@ -49,8 +44,7 @@
             'price' => max(
                 0,
                 (float) (
-                    data_get($item, 'price')
-                    ?? data_get($product, 'price')
+                    data_get($variant, 'price')
                     ?? 0
                 )
             ),
@@ -72,15 +66,13 @@
             'stock' => max(
                 0,
                 (int) (
-                    data_get($item, 'stock')
-                    ?? data_get($product, 'stock')
+                    data_get($variant, 'stock')
                     ?? 0
                 )
             ),
 
-            'image' => data_get($item, 'image')
-                ?? data_get($product, 'image')
-                ?? data_get($product, 'image_url'),
+            'image' => data_get(collect(data_get($product, 'images', []))->firstWhere('is_primary', true), 'file_path')
+                ?? data_get(collect(data_get($product, 'images', []))->first(), 'file_path'),
         ];
     });
 
@@ -1070,10 +1062,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const fields = {
             _token: document.querySelector('meta[name="csrf-token"]')?.content || '',
-            items: JSON.stringify(selectedItems.map((item) => ({
-                id: item.dataset.itemId || '',
-                quantity: Number(item.querySelector('[data-cart-quantity]')?.value || 1),
-            }))),
         };
 
         Object.entries(fields).forEach(([name, value]) => {
@@ -1081,6 +1069,14 @@ document.addEventListener('DOMContentLoaded', () => {
             input.type = 'hidden';
             input.name = name;
             input.value = value;
+            form.appendChild(input);
+        });
+
+        selectedItems.forEach((item) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'cart_item_ids[]';
+            input.value = item.dataset.itemId || '';
             form.appendChild(input);
         });
 

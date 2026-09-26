@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Validator;
 
 class StoreRegistrationRequest extends FormRequest
 {
@@ -22,7 +23,8 @@ class StoreRegistrationRequest extends FormRequest
         $this->merge([
             'account_type' => $googleEmail ? 'buyer' : strtolower(trim((string) $this->input('account_type'))),
             'email' => mb_strtolower(trim((string) ($googleEmail ?: $this->input('email')))),
-            'contact_number' => trim((string) $this->input('contact_number')),
+            'contact_number' => $this->normalizeContactNumber((string) $this->input('contact_number')),
+            'sex' => strtolower(trim((string) $this->input('sex'))),
             'plate_number' => filled($this->input('plate_number'))
                 ? mb_strtoupper(trim((string) $this->input('plate_number')))
                 : null,
@@ -67,6 +69,7 @@ class StoreRegistrationRequest extends FormRequest
                 Rule::unique('users', 'contact_number'),
             ],
             'birthday' => ['required', 'date', 'before:today'],
+            'age' => ['required', 'integer', 'between:18,120'],
 
             'region' => ['required', 'string', 'max:150'],
             'region_code' => ['required', 'string', 'max:50'],
@@ -118,6 +121,25 @@ class StoreRegistrationRequest extends FormRequest
         ];
     }
 
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            if (! $this->filled('birthday') || ! $this->filled('age')) {
+                return;
+            }
+
+            try {
+                $calculated = \Carbon\Carbon::parse($this->input('birthday'))->age;
+            } catch (\Throwable) {
+                return;
+            }
+
+            if ((int) $this->input('age') !== $calculated) {
+                $validator->errors()->add('age', 'The age must match the selected birthday.');
+            }
+        }];
+    }
+
     public function accountTypeConstant(): string
     {
         return match (strtolower((string) $this->input('account_type'))) {
@@ -126,5 +148,16 @@ class StoreRegistrationRequest extends FormRequest
             'rider' => User::TYPE_RIDER,
             default => User::TYPE_BUYER,
         };
+    }
+
+    private function normalizeContactNumber(string $value): string
+    {
+        $number = preg_replace('/[^0-9+]/', '', trim($value)) ?? '';
+
+        if (preg_match('/^9\d{9}$/', $number)) {
+            return '+63'.$number;
+        }
+
+        return $number;
     }
 }

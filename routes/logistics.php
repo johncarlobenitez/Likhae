@@ -64,7 +64,10 @@ Route::prefix('logistics')->name('logistics.')->group(function (): void {
         Route::get('/messages', [LogisticsPortalController::class, 'messages'])->name('messages');
         Route::post('/messages', [LogisticsPortalController::class, 'sendMessage'])->name('messages.send');
         Route::get('/reports', [LogisticsPortalController::class, 'reports'])->name('reports');
+        Route::get('/reports/export', [LogisticsPortalController::class, 'exportReport'])->name('reports.export');
         Route::get('/profile', [LogisticsPortalController::class, 'profile'])->name('profile');
         Route::get('/account', [LogisticsPortalController::class, 'profile'])->name('account');
+        Route::patch('/account/profile', [LogisticsPortalController::class, 'updateAccount'])->name('account.profile.update');
+        Route::patch('/account/password', [LogisticsPortalController::class, 'updatePassword'])->name('account.password.update');
     });
 });

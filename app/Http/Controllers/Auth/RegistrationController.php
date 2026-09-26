@@ -88,7 +88,7 @@ class RegistrationController extends Controller
         $request->session()->forget('google_buyer_registration');
 
         $type = strtolower((string) $application->user->account_type);
-        $reviewer = $type === 'rider' ? 'the selected logistics center' : 'the LIKHAE administrator';
+        $reviewer = $type === 'rider' ? 'the selected LIKHAE Logistics Center' : 'the LIKHAE administrator';
         $loginRoute = in_array($type, ['logistics', 'rider'], true) ? 'logistics.login' : 'login';
 
         return redirect()

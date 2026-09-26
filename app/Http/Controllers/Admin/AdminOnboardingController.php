@@ -47,6 +47,7 @@ class AdminOnboardingController extends Controller
                 'documents',
                 'sellerData.category',
                 'logisticsData.businessAddress',
+                'riderData.targetLogisticsCenter',
                 'reviewer',
             ])
             ->where('status', $status)
@@ -65,7 +66,7 @@ class AdminOnboardingController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('auth.onboarding.admin-queue', [
+        return view('Admin.onboarding.admin-queue', [
             'records' => $records,
             'status' => $status,
             'type' => $type,
@@ -79,6 +80,7 @@ class AdminOnboardingController extends Controller
             'documents',
             'sellerData.category',
             'logisticsData.businessAddress',
+            'riderData.targetLogisticsCenter',
             'reviewer',
         ]);
 
@@ -92,11 +94,12 @@ class AdminOnboardingController extends Controller
             $application->update(['status' => RegistrationApplication::STATUS_UNDER_REVIEW]);
         }
 
-        return view('auth.onboarding.admin-application', compact('application'));
+        return view('Admin.onboarding.admin-application', compact('application'));
     }
 
     public function approve(Request $request, RegistrationApplication $application): RedirectResponse
     {
+        $this->ensureAdminReviewable($application);
         $data = $request->validate([
             'decision_notes' => ['nullable', 'string', 'max:1000'],
         ]);
@@ -172,4 +175,3 @@ class AdminOnboardingController extends Controller
         );
     }
 }
-

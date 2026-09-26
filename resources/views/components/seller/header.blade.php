@@ -6,7 +6,7 @@
 @php
     $seller = auth()->user();
     $sellerName = $seller?->name ?? 'Seller';
-    $shopName = $seller?->sellers()->where('status', 'approved')->value('name') ?? 'LIKHAE Studio';
+    $shopName = $seller?->sellerProfile?->business_name ?? 'LIKHAE Studio';
     $initial = mb_strtoupper(mb_substr($sellerName, 0, 1));
 @endphp
 

@@ -12,16 +12,18 @@ use App\Models\Admin\PlatformPolicy;
 use App\Models\Admin\PlatformSetting;
 use App\Models\Admin\SellerComplianceAction;
 use App\Models\Admin\SellerComplianceCase;
-use App\Models\Buyer\Order;
 use App\Models\Buyer\Payment;
 use App\Models\Seller\Category;
 use App\Models\Seller\Product;
+use App\Models\Seller\SellerOrder;
+use App\Models\User;
 use App\Services\Communication\ConversationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AdminOperationsController extends Controller
@@ -29,7 +31,7 @@ class AdminOperationsController extends Controller
     public function products(Request $request): View
     {
         $products = Product::query()
-            ->with(['sellerProfile.user', 'category', 'variants'])
+            ->with(['sellerProfile.user', 'sellerProfile.primaryCategory', 'category', 'variants'])
             ->when($request->filled('status'), fn ($query) => $query->where('status', strtoupper($request->query('status'))))
             ->latest()
             ->paginate(20)
@@ -65,24 +67,46 @@ class AdminOperationsController extends Controller
         ]);
     }
 
-    public function reports(): View
+    public function reports(Request $request): View
     {
+        $data = $request->validate([
+            'status' => ['nullable', 'string', 'in:PLACED,CONFIRMED,PREPARING,READY_FOR_PICKUP,PICKED_UP,COMPLETED,CANCELLED'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ]);
+        $orders = SellerOrder::query()
+            ->with(['order.buyer', 'order.payments', 'sellerProfile.user'])
+            ->when($data['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($data['date_from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
+            ->when($data['date_to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date));
+
         return view('Admin.reports', [
-            'ordersByStatus' => Order::selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status'),
-            'paymentsByStatus' => Payment::selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status'),
-            'commissionTotal' => (float) CommissionTransaction::sum('commission_amount'),
+            'orderRecords' => (clone $orders)->latest()->paginate(20)->withQueryString(),
+            'gross' => (float) (clone $orders)->sum('grand_total'),
+            'commission' => (float) CommissionTransaction::query()->whereIn('seller_order_id', (clone $orders)->select('id'))->sum('commission_amount'),
+            'completed' => (clone $orders)->where('status', 'COMPLETED')->count(),
+            'cancelled' => (clone $orders)->where('status', 'CANCELLED')->count(),
         ]);
     }
 
     public function messages(Request $request, ConversationService $conversationService): View
     {
-        return view('Admin.messages', ['conversations' => $conversationService->listFor($request->user())]);
+        return view('Admin.messages', [
+            'conversations' => $conversationService->listFor($request->user()),
+            'contacts' => User::query()->where('status', 'ACTIVE')->whereKeyNot($request->user()->id)->orderBy('first_name')->get(),
+            'announcements' => Announcement::query()->latest()->paginate(10),
+        ]);
     }
 
     public function settings(): View
     {
         return view('Admin.settings', [
-            'settings' => PlatformSetting::orderBy('key')->get(),
+            'settings' => [
+                'platform_name' => PlatformSetting::valueOf('platform_name', 'LIKHAE'),
+                'support_email' => PlatformSetting::valueOf('support_email', ''),
+                'commission_rate' => PlatformSetting::commissionRate(),
+                'registration_enabled' => (bool) PlatformSetting::valueOf('registration_enabled', true),
+            ],
             'policies' => PlatformPolicy::latest()->get(),
             'announcements' => Announcement::latest()->get(),
         ]);
@@ -90,7 +114,12 @@ class AdminOperationsController extends Controller
 
     public function account(Request $request): View
     {
-        return view('Admin.account', ['user' => $request->user()]);
+        $adminUser = $request->user();
+
+        return view('Admin.account', [
+            'adminUser' => $adminUser,
+            'preferences' => $adminUser,
+        ]);
     }
 
     public function notifications(Request $request): View
@@ -215,9 +244,16 @@ class AdminOperationsController extends Controller
 
     public function updateSettings(Request $request): RedirectResponse
     {
-        foreach ($request->except(['_token', '_method']) as $key => $value) {
-            PlatformSetting::put($key, $value, is_numeric($value) ? 'decimal' : 'string', $request->user()->id);
-        }
+        $data = $request->validate([
+            'platform_name' => ['required', 'string', 'max:100'],
+            'support_email' => ['nullable', 'email', 'max:255'],
+            'commission_rate' => ['required', 'numeric', 'in:0.10'],
+            'registration_enabled' => ['required', 'boolean'],
+        ]);
+        PlatformSetting::put('platform_name', $data['platform_name'], 'string', $request->user()->id);
+        PlatformSetting::put('support_email', $data['support_email'] ?? '', 'string', $request->user()->id);
+        PlatformSetting::put('commission_rate', $data['commission_rate'], 'decimal', $request->user()->id);
+        PlatformSetting::put('registration_enabled', (bool) $data['registration_enabled'], 'boolean', $request->user()->id);
 
         return back()->with('status', 'Settings updated.');
     }
@@ -259,6 +295,7 @@ class AdminOperationsController extends Controller
             'first_name' => ['required', 'string', 'max:100'],
             'middle_initial' => ['nullable', 'string', 'max:10'],
             'last_name' => ['required', 'string', 'max:100'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($request->user()->id)],
             'contact_number' => ['required', 'string', 'max:30'],
         ]));
 
@@ -277,14 +314,35 @@ class AdminOperationsController extends Controller
         return back()->with('status', 'Password updated.');
     }
 
-    public function updateRefund(): RedirectResponse
+    public function updateDispute(Request $request, Dispute $dispute): RedirectResponse
     {
-        return back()->with('status', 'Refund module is not part of the final 57-table schema.');
+        $data = $request->validate([
+            'status' => ['required', 'string', 'in:OPEN,UNDER_REVIEW,RESOLVED,REJECTED'],
+            'resolution' => ['nullable', 'string', 'max:5000'],
+        ]);
+        $dispute->update([
+            'assigned_admin_user_id' => $request->user()->id,
+            'status' => $data['status'],
+            'resolution' => $data['resolution'] ?? null,
+            'resolved_at' => in_array($data['status'], ['RESOLVED', 'REJECTED'], true) ? now() : null,
+        ]);
+
+        return back()->with('status', 'Dispute updated.');
     }
 
-    public function updatePreferences(): RedirectResponse
+    public function updatePreferences(Request $request): RedirectResponse
     {
-        return back()->with('status', 'Admin preferences table is not part of the final 57-table schema.');
+        $keys = ['registrations', 'risk', 'finance', 'messages'];
+        $data = $request->validate(collect($keys)->mapWithKeys(fn (string $key): array => [
+            $key => ['nullable', 'boolean'],
+        ])->all());
+        $preferences = collect($keys)->mapWithKeys(fn (string $key): array => [
+            $key => (bool) ($data[$key] ?? false),
+        ])->all();
+
+        $request->user()->forceFill(['notification_preferences' => $preferences])->save();
+
+        return back()->with('status', 'Notification preferences saved.');
     }
 
     public function exportProducts()
