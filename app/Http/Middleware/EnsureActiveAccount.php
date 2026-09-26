@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,8 +12,11 @@ class EnsureActiveAccount
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (Auth::check() && (Auth::user()->isSuspended() || Auth::user()->status !== 'active')) {
-            $message = Auth::user()->inactiveMessage();
+        $user = Auth::user();
+
+        if ($user instanceof User && ! $user->isActive()) {
+            $message = $user->inactiveMessage();
+
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

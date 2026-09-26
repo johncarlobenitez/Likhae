@@ -599,7 +599,7 @@
                 @if(data_get($order, 'delivered_at'))
                     <a
                         class="lk-btn lk-btn-light"
-                        href="{{ route('buyer.orders.return', ['id' => $id]) }}"
+                        href="{{ route('buyer.orders.show', ['order' => $id]) }}"
                     >
                         Return / Refund
                     </a>
@@ -627,7 +627,7 @@
             @elseif($status === 'completed')
                 <a
                     class="lk-btn lk-btn-red"
-                    href="{{ route('buyer.orders.review', ['id' => $id]) }}"
+                    href="{{ route('buyer.orders.show', ['order' => $id]) }}"
                 >
                     Write Review
                 </a>

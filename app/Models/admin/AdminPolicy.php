@@ -1,15 +1,8 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Admin;
 
-use Illuminate\Database\Eloquent\Model;
-
-class AdminPolicy extends Model
+/** @deprecated Use PlatformPolicy. */
+class AdminPolicy extends PlatformPolicy
 {
-    protected $fillable = ['title', 'slug', 'revision', 'body', 'status', 'published_at', 'created_by', 'updated_by'];
-
-    protected function casts(): array
-    {
-        return ['published_at' => 'datetime'];
-    }
 }

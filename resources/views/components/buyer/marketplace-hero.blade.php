@@ -10,8 +10,7 @@
 @php
     $productsCollection = collect($products);
 
-    $heroImage = data_get($heroProduct, 'image_url')
-        ?? data_get($heroProduct, 'image');
+    $heroImage = data_get($heroProduct, 'primary_image.url');
 
     $heroName = data_get(
         $heroProduct,
@@ -19,9 +18,7 @@
         'A local find'
     );
 
-    $categoryValue = data_get($heroProduct, 'category.name')
-        ?? data_get($heroProduct, 'category')
-        ?? 'Local find';
+    $categoryValue = data_get($heroProduct, 'category.name') ?? 'Local find';
 
     $category = is_scalar($categoryValue)
         ? (string) $categoryValue
@@ -29,20 +26,16 @@
 
     $supportProduct = $productsCollection
         ->first(function ($product) {
-            $categoryValue = data_get($product, 'category.name')
-                ?? data_get($product, 'category');
+            $categoryValue = data_get($product, 'category.name');
 
             return is_scalar($categoryValue)
                 && str_contains(strtolower((string) $categoryValue), 'beauty');
         })
         ?? $productsCollection->skip(1)->first();
 
-    $supportImage = data_get($supportProduct, 'image_url')
-        ?? data_get($supportProduct, 'image');
+    $supportImage = data_get($supportProduct, 'primary_image.url');
 
-    $supportCategoryValue = data_get($supportProduct, 'category.name')
-        ?? data_get($supportProduct, 'category')
-        ?? 'Handpicked';
+    $supportCategoryValue = data_get($supportProduct, 'category.name') ?? 'Handpicked';
 
     $supportCategory = is_scalar($supportCategoryValue)
         ? (string) $supportCategoryValue

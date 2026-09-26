@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -10,7 +11,14 @@ class EnsureActiveRider
 {
     public function handle(Request $request, Closure $next): Response
     {
-        abort_unless($request->user()?->rider()->where('is_active', true)->exists(), 403, 'This rider account is inactive.');
+        $user = $request->user();
+
+        abort_unless(
+            $user?->isAccountType(User::TYPE_RIDER)
+            && $user->riderProfile()->where('status', 'ACTIVE')->exists(),
+            403,
+            'An active rider account is required.',
+        );
 
         return $next($request);
     }

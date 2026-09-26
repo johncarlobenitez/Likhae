@@ -1,192 +1,50 @@
 <?php
 
-use App\Http\Controllers\Api\MobileAuthController;
+use App\Http\Controllers\Api\LookupApiController;
 use App\Http\Controllers\Api\ProductApiController;
+use App\Http\Controllers\Api\MobileAuthController;
+use App\Http\Controllers\Api\TrackingApiController;
+use App\Http\Controllers\Api\WorkflowApiController;
+use App\Http\Middleware\AuthenticateApiToken;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| LIKHAE Mobile API
-|--------------------------------------------------------------------------
-|
-| Flutter currently supports:
-|
-| - Buyer
-| - Rider
-|
-| Seller, Admin, and Logistics continue to use the existing Laravel web
-| application.
-|
-*/
-
 Route::prefix('v1')->group(function (): void {
-
-    /*
-    |--------------------------------------------------------------------------
-    | Health Check
-    |--------------------------------------------------------------------------
-    |
-    | GET /api/v1/health
-    |
-    */
-
     Route::get('/health', function () {
         return response()->json([
             'success' => true,
-            'message' =>
-                'LIKHAE API is running.',
-            'timestamp' =>
-                now()->toIso8601String(),
+            'message' => 'LIKHAE API is running.',
+            'timestamp' => now()->toIso8601String(),
         ]);
+    })->name('api.v1.health');
+
+    Route::post('/auth/login', [MobileAuthController::class, 'login'])->middleware('throttle:10,1')->name('api.v1.auth.login');
+
+    Route::get('/categories', [LookupApiController::class, 'categories'])->name('api.v1.categories.index');
+    Route::get('/logistics-centers', [LookupApiController::class, 'logisticsCenters'])->name('api.v1.logistics-centers.index');
+
+    Route::get('/products', [ProductApiController::class, 'index'])->name('api.v1.products.index');
+    Route::get('/products/{slug}', [ProductApiController::class, 'show'])->name('api.v1.products.show');
+    Route::get('/stores/{seller}', [ProductApiController::class, 'store'])->name('api.v1.stores.show');
+
+    Route::get('/tracking/{trackingNumber}', [TrackingApiController::class, 'show'])->name('api.v1.tracking.show');
+
+    Route::middleware(AuthenticateApiToken::class)->group(function (): void {
+        Route::get('/auth/me', [MobileAuthController::class, 'me'])->name('api.v1.auth.me');
+        Route::post('/auth/logout', [MobileAuthController::class, 'logout'])->name('api.v1.auth.logout');
+        Route::patch('/seller/orders/{sellerOrder}', [WorkflowApiController::class, 'sellerOrder'])->name('api.v1.seller.orders.transition');
+        Route::patch('/rider/assignments/{assignment}', [WorkflowApiController::class, 'riderAssignment'])->name('api.v1.rider.assignments.transition');
+        Route::post('/logistics/shipments/{shipment}/receive', [WorkflowApiController::class, 'receiveParcel'])->name('api.v1.logistics.shipments.receive');
+        Route::post('/logistics/shipments/{shipment}/sort', [WorkflowApiController::class, 'sortParcel'])->name('api.v1.logistics.shipments.sort');
+        Route::post('/logistics/shipments/{shipment}/assign-rider', [WorkflowApiController::class, 'assignRider'])->name('api.v1.logistics.shipments.assign-rider');
+        Route::post('/buyer/orders/{order}/received', [WorkflowApiController::class, 'confirmReceipt'])->name('api.v1.buyer.orders.received');
     });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Public Marketplace
-    |--------------------------------------------------------------------------
-    |
-    | These endpoints reuse the existing LIKHAE Product::visible() rules and
-    | BuyerMarketplace product mapper.
-    |
-    */
-
-    Route::get(
-        '/products',
-        [
-            ProductApiController::class,
-            'index',
-        ]
-    )->name('api.v1.products.index');
-
-    Route::get(
-        '/products/{slug}',
-        [
-            ProductApiController::class,
-            'show',
-        ]
-    )->name('api.v1.products.show');
-
-    Route::get(
-        '/stores/{seller}',
-        [
-            ProductApiController::class,
-            'store',
-        ]
-    )->name('api.v1.stores.show');
-
-    /*
-    |--------------------------------------------------------------------------
-    | Mobile Authentication
-    |--------------------------------------------------------------------------
-    */
-
-    Route::prefix('auth')
-        ->group(function (): void {
-
-            /*
-            |------------------------------------------------------------------
-            | Public Login
-            |------------------------------------------------------------------
-            */
-
-            Route::post(
-                '/login',
-                [
-                    MobileAuthController::class,
-                    'login',
-                ]
-            )->name(
-                'api.v1.auth.login'
-            );
-
-            /*
-            |------------------------------------------------------------------
-            | Protected Authentication Routes
-            |------------------------------------------------------------------
-            */
-
-            Route::middleware(
-                'auth:sanctum'
-            )->group(function (): void {
-
-                Route::get(
-                    '/me',
-                    [
-                        MobileAuthController::class,
-                        'me',
-                    ]
-                )->name(
-                    'api.v1.auth.me'
-                );
-
-                Route::post(
-                    '/logout',
-                    [
-                        MobileAuthController::class,
-                        'logout',
-                    ]
-                )->name(
-                    'api.v1.auth.logout'
-                );
-            });
-        });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Buyer Protected Mobile API
-    |--------------------------------------------------------------------------
-    |
-    | Next:
-    |
-    | /api/v1/buyer/wishlist
-    | /api/v1/buyer/cart
-    | /api/v1/buyer/checkout
-    | /api/v1/buyer/orders
-    | /api/v1/buyer/messages
-    | /api/v1/buyer/notifications
-    | /api/v1/buyer/rewards
-    | /api/v1/buyer/account
-    |
-    */
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Rider Protected Mobile API
-    |--------------------------------------------------------------------------
-    |
-    | Later these endpoints will reuse the existing two-leg shipment workflow:
-    |
-    | Seller
-    |   ↓
-    | Pickup Rider
-    |   ↓
-    | Logistics Hub
-    |   ↓
-    | Delivery Rider
-    |   ↓
-    | Buyer
-    |
-    */
 });
-
-
-/*
-|--------------------------------------------------------------------------
-| API Fallback
-|--------------------------------------------------------------------------
-|
-| Unknown API endpoints must return JSON rather than Laravel HTML.
-|
-*/
 
 Route::fallback(function (Request $request) {
     return response()->json([
         'success' => false,
-        'message' =>
-            'API endpoint not found.',
-        'path' =>
-            $request->path(),
+        'message' => 'API endpoint not found.',
+        'path' => $request->path(),
     ], 404);
 });

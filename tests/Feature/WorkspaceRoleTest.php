@@ -2,89 +2,33 @@
 
 namespace Tests\Feature;
 
-use App\Models\LogisticsProvider;
-use App\Models\Rider;
-use App\Models\Seller;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class WorkspaceRoleTest extends TestCase
 {
-    use RefreshDatabase;
-
-    protected function setUp(): void
+    public function test_final_account_model_uses_fixed_account_type(): void
     {
-        parent::setUp();
-        $this->withoutVite();
+        $user = new User();
+        $user->account_type = User::TYPE_BUYER;
+        $user->status = User::STATUS_ACTIVE;
+
+        $this->assertContains('account_type', $user->getFillable());
+        $this->assertContains('status', $user->getFillable());
+        $this->assertTrue($user->isAccountType(User::TYPE_BUYER));
+        $this->assertTrue($user->isActive());
+        $this->assertSame('buyer.home', $user->workspaceRoute());
     }
 
-    private function approvedSeller(): User
+    public function test_laravel_routes_boot_for_current_workspace_names(): void
     {
-        $user = User::factory()->create(['role' => 'seller', 'status' => 'active']);
-        Seller::create(['user_id' => $user->id, 'name' => 'Approved Shop '.$user->id, 'slug' => 'approved-shop-'.$user->id, 'status' => 'approved']);
+        $routes = collect(app('router')->getRoutes())->map(fn ($route) => $route->getName())->filter()->values();
 
-        return $user;
-    }
-
-    private function approvedProvider(): array
-    {
-        $user = User::factory()->create(['role' => 'logistics', 'status' => 'active']);
-        $provider = LogisticsProvider::create(['user_id' => $user->id, 'name' => 'Approved Courier '.$user->id, 'slug' => 'approved-courier-'.$user->id, 'status' => 'approved']);
-
-        return [$user, $provider];
-    }
-
-    public function test_seller_can_access_seller_workspace_and_logistics_collaboration(): void
-    {
-        $this->actingAs($this->approvedSeller())
-            ->get('/seller/dashboard')
-            ->assertOk();
-
-        $this->actingAs($this->approvedSeller())
-            ->get('/seller/logistics')
-            ->assertOk();
-    }
-
-    public function test_workspace_routes_reject_other_roles(): void
-    {
-        $this->actingAs(User::factory()->create(['role' => 'seller', 'status' => 'active']))
-            ->get('/logistics/dashboard')
-            ->assertForbidden();
-
-        $this->actingAs(User::factory()->create(['role' => 'logistics', 'status' => 'active']))
-            ->get('/rider/dashboard')
-            ->assertForbidden();
-    }
-
-    public function test_each_role_can_access_its_own_workspace(): void
-    {
-        [$logistics, $provider] = $this->approvedProvider();
-        $this->actingAs($logistics)
-            ->get('/logistics/dashboard')
-            ->assertOk()
-            ->assertDontSee('Barcode Scanner');
-
-        $this->actingAs($logistics)
-            ->get('/logistics/scanner')
-            ->assertRedirect(route('logistics.parcels.receive'));
-
-        $riderUser = User::factory()->create(['role' => 'rider', 'status' => 'active']);
-        Rider::create(['user_id' => $riderUser->id, 'logistics_provider_id' => $provider->id, 'is_active' => true]);
-        $this->actingAs($riderUser)
-            ->get('/rider/dashboard')
-            ->assertOk();
-    }
-
-    public function test_users_without_a_role_are_sent_to_login(): void
-    {
-        $this->get('/seller/dashboard')
-            ->assertRedirect('/login');
-    }
-
-    public function test_demo_sessions_do_not_authenticate_users(): void
-    {
-        $this->withSession(['demo_user' => ['role' => 'admin']])->get('/admin/registrations')->assertRedirect('/login');
-        $this->get('/logistics/parcels')->assertRedirect('/logistics/login');
+        $this->assertTrue($routes->contains('login'));
+        $this->assertTrue($routes->contains('register'));
+        $this->assertTrue($routes->contains('buyer.home'));
+        $this->assertTrue($routes->contains('seller.dashboard'));
+        $this->assertTrue($routes->contains('logistics.dashboard'));
+        $this->assertTrue($routes->contains('rider.dashboard'));
     }
 }

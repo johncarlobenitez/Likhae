@@ -1,14 +1,13 @@
 @props(['seller', 'products' => collect(), 'guest' => false])
 
 @php
-    $sellerSlug = data_get($seller, 'slug', 'store');
-    $sellerName = data_get($seller, 'name', 'LIKHAE Store');
+    $sellerSlug = data_get($seller, 'id', 'store');
+    $sellerName = data_get($seller, 'business_name', 'LIKHAE Store');
     $storeProducts = collect($products)->filter(function ($product) use ($sellerSlug) {
-        $slug = data_get($product, 'seller_slug', \Illuminate\Support\Str::slug((string) data_get($product, 'seller', '')));
-        return $slug === $sellerSlug;
+        return (string) data_get($product, 'seller.id') === (string) $sellerSlug;
     })->values();
     $query = mb_strtolower(trim((string) request('q', '')));
-    if ($query) $storeProducts = $storeProducts->filter(fn($product) => str_contains(mb_strtolower(data_get($product, 'name').' '.data_get($product, 'category')), $query))->values();
+    if ($query) $storeProducts = $storeProducts->filter(fn($product) => str_contains(mb_strtolower(data_get($product, 'name').' '.data_get($product, 'category.name')), $query))->values();
     $searchAction = $guest ? route('home') : route('buyer.shop', ['seller' => $sellerSlug]);
 @endphp
 

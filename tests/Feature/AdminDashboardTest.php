@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Auth\RegistrationApplication;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -18,22 +19,25 @@ class AdminDashboardTest extends TestCase
 
     public function test_dashboard_counts_only_public_accounts_in_the_matching_status(): void
     {
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $admin = User::factory()->create(['account_type' => User::TYPE_ADMIN]);
+        $accountTypes = [User::TYPE_BUYER, User::TYPE_SELLER, User::TYPE_LOGISTICS, User::TYPE_RIDER];
 
-        foreach (User::MANAGED_ROLES as $role) {
-            User::factory()->create(['role' => $role, 'status' => 'pending']);
-            User::factory()->create(['role' => $role, 'status' => 'active']);
-            User::factory()->create(['role' => $role, 'status' => 'rejected']);
-            User::factory()->create(['role' => $role, 'status' => 'suspended']);
+        foreach ($accountTypes as $index => $accountType) {
+            $pending = User::factory()->create(['account_type' => $accountType, 'status' => User::STATUS_PENDING]);
+            RegistrationApplication::create([
+                'application_number' => 'APP-PENDING-'.$index,
+                'user_id' => $pending->id,
+                'status' => $index % 2 === 0 ? RegistrationApplication::STATUS_PENDING : RegistrationApplication::STATUS_UNDER_REVIEW,
+                'submitted_at' => now(),
+            ]);
+            User::factory()->create(['account_type' => $accountType, 'status' => User::STATUS_ACTIVE]);
         }
-
-        User::factory()->create(['role' => 'admin', 'status' => 'pending']);
 
         $this->actingAs($admin)->get(route('admin.dashboard'))
             ->assertOk()
             ->assertViewHas('accountStats', [
-                'pending' => count(User::MANAGED_ROLES),
-                'active' => count(User::MANAGED_ROLES),
+                'pending' => count($accountTypes),
+                'active' => count($accountTypes),
                 'pending_older_than_day' => 0,
             ])
             ->assertSee('Awaiting administrator review')
@@ -45,15 +49,20 @@ class AdminDashboardTest extends TestCase
     public function test_pending_queue_counts_only_applications_older_than_twenty_four_hours(): void
     {
         $this->freezeTime();
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-
-        User::factory()->create(['role' => 'buyer', 'status' => 'pending', 'created_at' => now()->subHours(25)]);
-        User::factory()->create(['role' => 'courier', 'status' => 'pending', 'created_at' => now()->subDays(2)]);
-        User::factory()->create(['role' => 'seller', 'status' => 'pending', 'created_at' => now()->subDay()]);
-        User::factory()->create(['role' => 'logistics', 'status' => 'pending', 'created_at' => now()->subHours(23)]);
-        User::factory()->create(['role' => 'buyer', 'status' => 'active', 'created_at' => now()->subDays(2)]);
-        User::factory()->create(['role' => 'buyer', 'status' => 'rejected', 'created_at' => now()->subDays(2)]);
-        User::factory()->create(['role' => 'admin', 'status' => 'pending', 'created_at' => now()->subDays(2)]);
+        $admin = User::factory()->create(['account_type' => User::TYPE_ADMIN]);
+        foreach ([25, 48, 24, 23] as $index => $hours) {
+            $user = User::factory()->create([
+                'account_type' => [User::TYPE_BUYER, User::TYPE_SELLER, User::TYPE_LOGISTICS, User::TYPE_RIDER][$index],
+                'status' => User::STATUS_PENDING,
+            ]);
+            RegistrationApplication::create([
+                'application_number' => 'APP-AGE-'.$index,
+                'user_id' => $user->id,
+                'status' => RegistrationApplication::STATUS_PENDING,
+                'submitted_at' => now()->subHours($hours),
+            ]);
+        }
+        User::factory()->create(['account_type' => User::TYPE_BUYER, 'status' => User::STATUS_ACTIVE]);
 
         $this->actingAs($admin)->get(route('admin.dashboard'))
             ->assertOk()
@@ -63,7 +72,7 @@ class AdminDashboardTest extends TestCase
 
     public function test_dashboard_shows_zero_when_no_public_accounts_exist(): void
     {
-        $this->actingAs(User::factory()->create(['role' => 'admin', 'status' => 'active']))
+        $this->actingAs(User::factory()->create(['account_type' => User::TYPE_ADMIN]))
             ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertViewHas('accountStats', ['pending' => 0, 'active' => 0, 'pending_older_than_day' => 0])

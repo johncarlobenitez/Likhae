@@ -1,4 +1,4 @@
-@extends('rider.app')
+@extends('Rider.app')
 
 @section('title','Pickup Assignments - LIKHAE Rider')
 
@@ -52,5 +52,6 @@
             @endforelse
         </div>
     </section>
+    <div>{{ $assignments->links() }}</div>
 </div>
 @endsection

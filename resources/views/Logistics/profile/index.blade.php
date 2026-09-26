@@ -1,56 +1,14 @@
 @extends('Logistics.app')
-
-@section('title', 'Profile - LIKHAE Logistics')
-
+@section('title','Logistics Account - LIKHAE')
 @section('content')
-@php
-    $user = $accountUser ?? auth()->user();
-    $initials = collect(explode(' ', $user?->name ?? 'Logistics'))->filter()->map(fn ($part) => mb_substr($part, 0, 1))->take(2)->implode('');
-@endphp
-
-<div class="flex flex-col gap-6">
-    <section>
-        <span class="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Account</span>
-        <h1 class="mt-2 font-display text-[32px] font-semibold tracking-[-0.04em] text-ink">Profile</h1>
-        <p class="mt-2 max-w-[680px] text-[11px] leading-6 text-muted">This page shows the authenticated logistics account, not a sample profile.</p>
-    </section>
-
-    <section class="rounded-xl border border-line bg-surface p-5">
-        <div class="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div class="flex items-center gap-4">
-                <span class="grid h-16 w-16 place-items-center rounded-full bg-primary text-[18px] font-bold text-white">{{ $initials ?: 'L' }}</span>
-                <div>
-                    <h2 class="text-[16px] font-semibold text-ink">{{ $user?->name }}</h2>
-                    <p class="mt-1 text-[10px] text-muted">{{ $user?->email }}</p>
-                    <p class="mt-1 text-[9px] text-muted">{{ Str::headline($user?->primary_role ?? 'logistics') }} - {{ Str::headline($user?->status ?? 'pending') }}</p>
-                </div>
-            </div>
-
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button class="rounded-lg border border-line px-4 py-2 text-[10px] font-semibold text-ink">Log Out</button>
-            </form>
-        </div>
-    </section>
-
-    <section class="grid gap-5 lg:grid-cols-2">
-        <article class="rounded-xl border border-line bg-surface p-5">
-            <h2 class="text-[13px] font-semibold text-ink">Registration Details</h2>
-            <dl class="mt-4 grid gap-3 text-[10px]">
-                <div><dt class="text-muted">Contact No.</dt><dd class="mt-1 font-semibold text-ink">{{ $provider?->contact_phone ?: $user?->contact_number ?: 'Not provided' }}</dd></div>
-                <div><dt class="text-muted">Business Name</dt><dd class="mt-1 font-semibold text-ink">{{ $provider?->name ?: 'Not provided' }}</dd></div>
-                <div><dt class="text-muted">Address</dt><dd class="mt-1 font-semibold text-ink">{{ collect([$address?->line1, $address?->barangay, $address?->city, $address?->province, $address?->postal_code])->filter()->implode(', ') ?: 'Not provided' }}</dd></div>
-            </dl>
-        </article>
-
-        <article class="rounded-xl border border-line bg-surface p-5">
-            <h2 class="text-[13px] font-semibold text-ink">System Information</h2>
-            <dl class="mt-4 grid gap-3 text-[10px]">
-                <div><dt class="text-muted">Platform</dt><dd class="mt-1 font-semibold text-ink">LIKHAE Marketplace</dd></div>
-                <div><dt class="text-muted">Module</dt><dd class="mt-1 font-semibold text-ink">Logistics</dd></div>
-                <div><dt class="text-muted">Account Created</dt><dd class="mt-1 font-semibold text-ink">{{ $user?->created_at?->format('M d, Y g:i A') ?: 'Not recorded' }}</dd></div>
-            </dl>
-        </article>
-    </section>
+<div class="space-y-6"><header><p class="text-xs font-bold uppercase text-primary">Account Management</p><h1 class="mt-2 text-2xl font-bold">{{ $center->business_name }}</h1><p class="mt-2 text-sm text-muted">Approved logistics center and owner account information.</p></header>
+	@if(session('status'))<div class="border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{{ session('status') }}</div>@endif
+	@if($errors->any())<div class="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{{ $errors->first() }}</div>@endif
+	<section class="grid gap-4 md:grid-cols-2">
+		<form method="POST" action="{{ route('logistics.account.profile.update') }}" class="border border-line bg-surface p-5">@csrf @method('PATCH')<h2 class="font-semibold">Owner Account</h2><div class="mt-4 grid gap-3"><label class="grid gap-1 text-sm">First name<input class="border border-line px-3 py-2" name="first_name" value="{{ old('first_name', $user->first_name) }}" required></label><label class="grid gap-1 text-sm">Last name<input class="border border-line px-3 py-2" name="last_name" value="{{ old('last_name', $user->last_name) }}" required></label><label class="grid gap-1 text-sm">Email<input class="border border-line px-3 py-2" type="email" name="email" value="{{ old('email', $user->email) }}" required></label><label class="grid gap-1 text-sm">Contact number<input class="border border-line px-3 py-2" name="contact_number" value="{{ old('contact_number', $user->contact_number) }}" required></label><button class="bg-primary px-4 py-2 text-sm font-semibold text-white">Save Profile</button></div></form>
+		<article class="border border-line bg-surface p-5"><h2 class="font-semibold">Center</h2><dl class="mt-4 space-y-3 text-sm"><div><dt class="text-muted">Code</dt><dd>{{ $center->code }}</dd></div><div><dt class="text-muted">Business</dt><dd>{{ $center->business_name }}</dd></div><div><dt class="text-muted">Address</dt><dd>{{ $center->address?->formatted() }}</dd></div><div><dt class="text-muted">Status</dt><dd>{{ str($center->status)->headline() }}</dd></div></dl></article>
+	</section>
+	<form method="POST" action="{{ route('logistics.account.password.update') }}" class="grid gap-3 border border-line bg-surface p-5 md:grid-cols-4">@csrf @method('PATCH')<h2 class="font-semibold md:col-span-4">Change Password</h2><input class="border border-line px-3 py-2" name="current_password" type="password" placeholder="Current password" required><input class="border border-line px-3 py-2" name="password" type="password" placeholder="New password" required><input class="border border-line px-3 py-2" name="password_confirmation" type="password" placeholder="Confirm password" required><button class="bg-primary px-4 py-2 text-sm font-semibold text-white">Update Password</button></form>
+	<form method="POST" action="{{ route('logout') }}">@csrf<button class="border border-red-200 px-4 py-2 font-semibold text-red-700">Logout</button></form>
 </div>
 @endsection

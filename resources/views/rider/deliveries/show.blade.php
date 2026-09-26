@@ -1,4 +1,4 @@
-@extends('rider.app')
+@extends('Rider.app')
 
 @section('title', 'Delivery Details - LIKHAE Rider')
 
@@ -31,21 +31,18 @@
         <article class="rounded-3xl border border-line bg-surface p-8">
             <h2 class="text-lg font-bold text-ink">Delivery Actions</h2>
             <div class="mt-5 grid gap-3">
-                @if($parcel['status'] === 'picked_up')
-                    <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="in_transit"><button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Mark In Transit</button></form>
-                @endif
-                @if($parcel['status'] === 'in_transit')
-                    <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="out_for_delivery"><button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Out For Delivery</button></form>
-                @endif
-                @if($parcel['status'] === 'out_for_delivery')
-                    <form method="POST" enctype="multipart/form-data" action="{{ route('rider.shipments.transition', $delivery) }}" class="grid gap-3">@csrf @method('PATCH')<input type="hidden" name="status" value="delivered"><input name="receiver_name" required class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm" placeholder="Receiver name"><input type="file" name="proof" accept="image/*" capture="environment" required class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm"><button type="submit" class="w-full rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white">Mark Delivered</button></form>
+                @if($parcel['status'] === 'ASSIGNED')
+                    <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}">@csrf @method('PATCH')<input type="hidden" name="action" value="accept"><button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Accept Delivery</button></form>
+                @elseif($parcel['status'] === 'ACCEPTED')
+                    <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}">@csrf @method('PATCH')<input type="hidden" name="action" value="start"><button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Start Delivery</button></form>
+                @elseif($parcel['status'] === 'IN_PROGRESS')
+                    <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}" class="grid gap-3">@csrf @method('PATCH')<input type="hidden" name="action" value="delivery_success"><button type="submit" class="w-full rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white">Mark Delivered</button></form>
                     <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}" class="grid gap-3">
-                        @csrf @method('PATCH')<input type="hidden" name="status" value="failed">
-                        <textarea name="note" rows="3" required class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm" placeholder="Reason for failed delivery"></textarea>
+                        @csrf @method('PATCH')<input type="hidden" name="action" value="delivery_failed">
+                        <textarea name="failure_reason" rows="3" required class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm" placeholder="Reason for failed delivery"></textarea>
                         <button class="w-full rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700">Record Delivery Failed</button>
                     </form>
                 @endif
-                <a href="{{ route('tracking.show', $delivery->tracking_code) }}" class="rounded-xl border border-line px-5 py-3 text-center text-sm font-semibold text-ink">View Tracking</a>
                 <a href="{{ route('rider.deliveries') }}" class="rounded-xl border border-line px-5 py-3 text-center text-sm font-semibold text-ink">Back To Deliveries</a>
             </div>
         </article>

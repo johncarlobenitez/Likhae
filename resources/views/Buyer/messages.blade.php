@@ -7,6 +7,7 @@
     $buyerProducts = collect($buyerProducts ?? []);
     $sellers = collect($conversationRows ?? []);
     $selectedSlug = request('seller');
+    $dbActiveSeller = $dbActiveSeller ?? null;
     if (!$selectedSlug && $dbActiveSeller) {
         $activeName = $dbActiveSeller->store_name ?: $dbActiveSeller->business_name ?: $dbActiveSeller->name;
         $selectedSlug = \Illuminate\Support\Str::slug($activeName).'-'.$dbActiveSeller->id;
@@ -663,7 +664,7 @@
                     </div>
 
                     <a
-                        href="{{ route('buyer.shop', ['seller' => $activeSeller['slug']]) }}"
+                        href="{{ route('buyer.shop', ['seller' => $activeSeller['store_key'] ?? $activeSeller['slug']]) }}"
                         class="lk-btn lk-btn-light lk-chat-store-btn"
                     >
                         View Store
@@ -679,14 +680,14 @@
                 >
                     <div class="lk-chat-day"><span>Conversation</span></div>
                     @forelse($chatMessages as $message)
-                        @php $fromBuyer = $message->sender_id === auth()->id(); @endphp
+                        @php $fromBuyer = $message->sender_user_id === auth()->id(); @endphp
                         <div class="lk-message-row {{ $fromBuyer ? 'is-buyer' : '' }}" data-message-id="{{ $message->id }}">
                             @unless($fromBuyer)
                                 <img class="lk-message-small-avatar" src="{{ $activeSeller['avatar'] }}" alt="{{ $activeSeller['name'] }}">
                             @endunless
                             <div>
                                 <div class="lk-message-bubble">{{ $message->body }}</div>
-                                <span class="lk-message-time">{{ $message->created_at?->diffForHumans() }}</span>
+                                <span class="lk-message-time">{{ ($message->sent_at ?? $message->created_at)?->diffForHumans() }}</span>
                             </div>
                         </div>
                     @empty

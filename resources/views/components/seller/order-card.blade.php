@@ -22,13 +22,15 @@
     </div>
     <footer class="sl-order-card-actions">
         <a href="{{ route('seller.orders',['mode'=>'show','order'=>$id]) }}" class="sl-btn sl-btn-ghost sl-btn-sm">View Details</a>
-        @if ($statusKey === 'to-process')
-            <form method="POST" action="{{ route('seller.orders.status',$dbId) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="to_prepare"><button class="sl-btn sl-btn-primary sl-btn-sm" type="submit">Accept Order</button></form>
-        @elseif ($statusKey === 'to-prepare')
+        @if ($statusKey === 'placed')
+            <form method="POST" action="{{ route('seller.orders.status',$dbId) }}">@csrf @method('PATCH')<input type="hidden" name="action" value="confirm"><button class="sl-btn sl-btn-primary sl-btn-sm" type="submit">Accept Order</button></form>
+        @elseif ($statusKey === 'confirmed')
+            <form method="POST" action="{{ route('seller.orders.status',$dbId) }}">@csrf @method('PATCH')<input type="hidden" name="action" value="prepare"><button class="sl-btn sl-btn-primary sl-btn-sm" type="submit">Begin Preparation</button></form>
+        @elseif ($statusKey === 'preparing')
             <a target="_blank" href="{{ route('seller.orders.waybill',$dbId) }}" class="sl-btn sl-btn-ghost sl-btn-sm">Print Waybill</a>
-            <form method="POST" action="{{ route('seller.orders.status',$dbId) }}">@csrf @method('PATCH')<input type="hidden" name="status" value="ready_pickup"><button class="sl-btn sl-btn-primary sl-btn-sm" type="submit">Prepare Package</button></form>
-        @elseif ($statusKey === 'ready-pickup')
-            <a href="{{ route('seller.logistics',['view'=>'couriers','order'=>$id]) }}" class="sl-btn sl-btn-primary sl-btn-sm">Assign Courier</a>
+            <form method="POST" action="{{ route('seller.orders.status',$dbId) }}">@csrf @method('PATCH')<input type="hidden" name="action" value="ready"><button class="sl-btn sl-btn-primary sl-btn-sm" type="submit">Ready for Pickup</button></form>
+        @elseif ($statusKey === 'ready-for-pickup')
+            <span class="sl-status is-info">Waiting for Logistics</span>
         @elseif ($statusKey === 'shipping')
             <a href="{{ route('seller.logistics',['view'=>'tracking','order'=>$id]) }}" class="sl-btn sl-btn-primary sl-btn-sm">Track Shipment</a>
         @elseif ($statusKey === 'returns')

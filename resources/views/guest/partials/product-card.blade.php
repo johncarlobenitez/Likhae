@@ -2,9 +2,10 @@
     $id       = data_get($product, 'id');
     $slug     = data_get($product, 'slug', $id);
     $name     = (string) data_get($product, 'name', 'Product Name');
-    $category = (string) (data_get($product, 'category.name') ?? data_get($product, 'category', 'Local Find'));
-    $seller   = (string) (data_get($product, 'seller.store_name') ?? data_get($product, 'seller.name') ?? data_get($product, 'seller', 'LIKHAE Seller'));
-    $image    = data_get($product, 'image_url') ?? data_get($product, 'image') ?? null;
+    $category = (string) (data_get($product, 'category.name') ?? 'Local Find');
+    $seller   = (string) (data_get($product, 'seller.business_name') ?? 'LIKHAE Seller');
+    $image    = data_get($product, 'primary_image.url');
+    $price    = data_get($product, 'min_price');
     $detailsUrl = route('products.show', ['slug' => $slug]);
 @endphp
 
@@ -25,6 +26,9 @@
         <span class="lk-product-category">{{ $category }}</span>
         <a href="{{ $detailsUrl }}" class="lk-product-title-link"><h3 class="lk-product-name">{{ $name }}</h3></a>
         <span class="lk-product-seller">{{ $seller }}</span>
+        @if($price !== null)
+            <strong class="lk-product-price">&#8369;{{ number_format((float) $price, 2) }}</strong>
+        @endif
 
         <div class="lk-card-actions" style="grid-template-columns: 1fr;">
             <a href="{{ $detailsUrl }}" class="lk-btn-view">View Details</a>

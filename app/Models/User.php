@@ -2,10 +2,18 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Admin\AuditLog;
+use App\Models\Admin\Notification;
+use App\Models\Auth\RegistrationApplication;
+use App\Models\Buyer\Address;
+use App\Models\Buyer\Cart;
+use App\Models\Buyer\Order;
+use App\Models\Communication\Conversation;
+use App\Models\Communication\Message;
+use App\Models\Logistics\LogisticsCenter;
+use App\Models\Rider\RiderProfile;
+use App\Models\Seller\SellerProfile;
 use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,78 +21,130 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable([
-    'name',
-    'email',
-    'google_id',
-    'google_avatar_url',
-    'email_verified_at',
-    'password',
-    'status',
-    'first_name',
-    'last_name',
-    'middle_initial',
-    'sex',
-    'birthday',
-    'contact_number',
-    'valid_id_path',
-    'profile_photo_path',
-    'is_suspended',
-])]
-#[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable
 {
-    public const MANAGED_ROLES = ['buyer', 'seller', 'logistics', 'rider'];
+    public const TYPE_BUYER = 'BUYER';
+
+    public const TYPE_SELLER = 'SELLER';
+
+    public const TYPE_ADMIN = 'ADMIN';
+
+    public const TYPE_LOGISTICS = 'LOGISTICS';
+
+    public const TYPE_RIDER = 'RIDER';
+
+    public const ACCOUNT_TYPES = [
+        self::TYPE_BUYER,
+        self::TYPE_SELLER,
+        self::TYPE_ADMIN,
+        self::TYPE_LOGISTICS,
+        self::TYPE_RIDER,
+    ];
+
+    public const STATUS_PENDING = 'PENDING';
+
+    public const STATUS_ACTIVE = 'ACTIVE';
+
+    public const STATUS_SUSPENDED = 'SUSPENDED';
+
+    public const STATUS_DEACTIVATED = 'DEACTIVATED';
+
+    public const STATUSES = [
+        self::STATUS_PENDING,
+        self::STATUS_ACTIVE,
+        self::STATUS_SUSPENDED,
+        self::STATUS_DEACTIVATED,
+    ];
 
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    protected $fillable = [
+        'account_type',
+        'first_name',
+        'middle_initial',
+        'last_name',
+        'sex',
+        'email',
+        'contact_number',
+        'birthday',
+        'email_verified_at',
+        'password',
+        'status',
+        'notification_preferences',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
             'birthday' => 'date',
-            'is_suspended' => 'boolean',
+            'email_verified_at' => 'datetime',
+            'api_token_expires_at' => 'datetime',
+            'notification_preferences' => 'array',
+            'password' => 'hashed',
         ];
     }
 
-    public function workspaceRoute(): string
+    public function getNameAttribute(): string
     {
-        if ($this->hasRole('admin')) return 'admin.dashboard';
-        if ($this->hasRole('seller')) return 'seller.dashboard';
-        if ($this->hasRole('logistics')) return 'logistics.dashboard';
-        if ($this->hasRole('rider')) return 'rider.dashboard';
-        return $this->hasRole('buyer') ? 'buyer.home' : 'home';
+        return trim(collect([
+            $this->first_name,
+            $this->middle_initial,
+            $this->last_name,
+        ])->filter()->implode(' '));
     }
 
-    public function inactiveMessage(): string
+    public function isAccountType(string ...$types): bool
     {
-        if ($this->isSuspended()) {
-            return 'Your account has been suspended. Please contact support for assistance.';
-        }
+        $normalized = collect($types)
+            ->map(fn (string $type): string => strtoupper($type === 'courier' ? self::TYPE_RIDER : $type))
+            ->all();
 
-        return match ($this->status) {
-            'pending' => 'Your account is pending administrator approval.',
-            'rejected' => 'Your registration has been rejected. Please contact support for assistance.',
-            'suspended' => 'Your account has been suspended. Please contact support for assistance.',
-            default => 'Your account is not active. Please contact support for assistance.',
-        };
+        return in_array(strtoupper((string) $this->account_type), $normalized, true);
+    }
+
+    public function isActive(): bool
+    {
+        return strtoupper((string) $this->status) === self::STATUS_ACTIVE;
     }
 
     public function isSuspended(): bool
     {
-        return (bool) $this->is_suspended || $this->status === 'suspended';
+        return strtoupper((string) $this->status) === self::STATUS_SUSPENDED;
     }
 
-    public function roles(): BelongsToMany
+    public function inactiveMessage(): string
     {
-        return $this->belongsToMany(Role::class);
+        $latestApplication = $this->registrationApplications()->latest('submitted_at')->first();
+
+        if ($latestApplication?->status === RegistrationApplication::STATUS_REJECTED) {
+            return 'Your registration application was rejected.'
+                .($latestApplication->rejection_reason ? ' Reason: '.$latestApplication->rejection_reason : '');
+        }
+
+        return match (strtoupper((string) $this->status)) {
+            self::STATUS_PENDING => 'Your account is pending approval.',
+            self::STATUS_SUSPENDED => 'Your account has been suspended. Please contact support for assistance.',
+            self::STATUS_DEACTIVATED => 'Your account has been deactivated. Please contact support for assistance.',
+            default => 'Your account is not active. Please contact support for assistance.',
+        };
+    }
+
+    public function workspaceRoute(): string
+    {
+        return match (strtoupper((string) $this->account_type)) {
+            self::TYPE_ADMIN => 'admin.dashboard',
+            self::TYPE_SELLER => 'seller.dashboard',
+            self::TYPE_LOGISTICS => 'logistics.dashboard',
+            self::TYPE_RIDER => 'rider.dashboard',
+            self::TYPE_BUYER => 'buyer.home',
+            default => 'home',
+        };
     }
 
     public function addresses(): HasMany
@@ -92,77 +152,78 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Address::class);
     }
 
+    public function registrationApplications(): HasMany
+    {
+        return $this->hasMany(RegistrationApplication::class);
+    }
+
+    public function sellerProfile(): HasOne
+    {
+        return $this->hasOne(SellerProfile::class);
+    }
+
+    /** Transitional alias for old code. */
     public function sellers(): HasMany
     {
-        return $this->hasMany(Seller::class);
+        return $this->hasMany(SellerProfile::class);
     }
 
+    public function logisticsCenter(): HasOne
+    {
+        return $this->hasOne(LogisticsCenter::class, 'owner_user_id');
+    }
+
+    /** Transitional alias for old code. */
     public function logisticsProvider(): HasOne
     {
-        return $this->hasOne(LogisticsProvider::class);
+        return $this->logisticsCenter();
     }
 
+    public function riderProfile(): HasOne
+    {
+        return $this->hasOne(RiderProfile::class);
+    }
+
+    /** Transitional alias for old code. */
     public function rider(): HasOne
     {
-        return $this->hasOne(Rider::class);
+        return $this->riderProfile();
+    }
+
+    public function carts(): HasMany
+    {
+        return $this->hasMany(Cart::class, 'buyer_user_id');
     }
 
     public function cart(): HasOne
     {
-        return $this->hasOne(Cart::class, 'user_id');
+        return $this->hasOne(Cart::class, 'buyer_user_id')->latestOfMany();
     }
 
     public function orders(): HasMany
     {
-        return $this->hasMany(Order::class, 'buyer_id');
+        return $this->hasMany(Order::class, 'buyer_user_id');
     }
 
-    public function hasRole(string ...$roles): bool
+    public function conversations(): BelongsToMany
     {
-        $roles = collect($roles)
-            ->filter()
-            ->map(fn (string $role) => $role === 'courier' ? 'rider' : $role)
-            ->unique()
-            ->values()
-            ->all();
-
-        if ($roles === []) {
-            return false;
-        }
-
-        return $this->relationLoaded('roles')
-            ? collect($this->roles)->pluck('name')->intersect($roles)->isNotEmpty()
-            : $this->roles()->whereIn('name', $roles)->exists();
+        return $this->belongsToMany(Conversation::class, 'conversation_participants')
+            ->withPivot(['id', 'joined_at', 'left_at', 'last_read_at'])
+            ->withTimestamps();
     }
 
-    public function scopeRole($query, string $role)
+    public function sentMessages(): HasMany
     {
-        $role = $role === 'courier' ? 'rider' : $role;
-        return $query->whereHas('roles', fn ($roles) => $roles->where('name', $role));
+        return $this->hasMany(Message::class, 'sender_user_id');
     }
 
-    public function scopeAnyRole($query, array $roles)
+    public function notifications(): HasMany
     {
-        $roles = collect($roles)->map(fn ($role) => $role === 'courier' ? 'rider' : $role)->unique();
-        return $query->whereHas('roles', fn ($query) => $query->whereIn('name', $roles));
+        return $this->hasMany(Notification::class);
     }
 
-    public function getPrimaryRoleAttribute(): string
+    public function auditLogs(): HasMany
     {
-        foreach (['admin', 'seller', 'logistics', 'rider', 'buyer'] as $role) {
-            if ($this->hasRole($role)) return $role;
-        }
-        return 'user';
-    }
-
-    public function grant(string ...$roles): void
-    {
-        foreach ($roles as $role) {
-            $normalized = $role === 'courier' ? 'rider' : $role;
-            $record = Role::firstOrCreate(['name' => $normalized]);
-            $this->roles()->syncWithoutDetaching($record);
-        }
-
-        unset($this->relations['roles']);
+        return $this->hasMany(AuditLog::class, 'actor_user_id');
     }
 }

@@ -1,16 +1,13 @@
 <?php
 
-use App\Http\Controllers\AuthenticationController;
-use App\Http\Controllers\GuestMarketplaceController;
-use App\Http\Controllers\GoogleAuthenticationController;
-use App\Http\Controllers\PhilippineAddressController;
-use App\Http\Controllers\RegistrationController;
-use App\Http\Controllers\SellerApplicationController;
-use App\Http\Controllers\TrackingController;
-use App\Http\Controllers\AccountRecoveryController;
+use App\Http\Controllers\Auth\AccountRecoveryController;
+use App\Http\Controllers\Auth\AuthenticationController;
+use App\Http\Controllers\Auth\GoogleAuthenticationController;
+use App\Http\Controllers\Auth\PhilippineAddressController;
+use App\Http\Controllers\Auth\RegistrationController;
+use App\Http\Controllers\Buyer\GuestMarketplaceController;
+use App\Http\Controllers\Buyer\TrackingController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
-use App\Http\Controllers\LogisticsProviderApplicationController;
-use App\Models\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -18,25 +15,18 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 | Role Route Files
 |--------------------------------------------------------------------------
-|
-| Guest/Admin/Seller/Buyer keep their existing route files.
-| Logistics and Rider/Courier are connected through their own route files.
-|
 */
-
 require __DIR__.'/Admin.php';
 require __DIR__.'/Seller.php';
 require __DIR__.'/Buyer.php';
 require __DIR__.'/logistics.php';
 require __DIR__.'/rider.php';
-require __DIR__.'/Courier.php';
 
 /*
 |--------------------------------------------------------------------------
 | Guest Marketplace
 |--------------------------------------------------------------------------
 */
-
 Route::get('/', [GuestMarketplaceController::class, 'home'])->name('home');
 Route::get('/guest-account', [GuestMarketplaceController::class, 'products'])->name('guest.home');
 Route::get('/products', [GuestMarketplaceController::class, 'products'])->name('products');
@@ -49,93 +39,81 @@ Route::get('/delivery-events/{event}/proof', [TrackingController::class, 'proof'
 | Marketplace Login
 |--------------------------------------------------------------------------
 |
-| Marketplace login handles Admin, Buyer, and Seller accounts.
-| Logistics and Rider accounts use the separate Logistics Portal.
-| Database credentials and administrator approval determine access.
+| Admin, Buyer, and Seller use this login. Logistics and Rider/Courier accounts use
+| the separate Logistics & Rider portal login. Rider and Courier are one workspace role.
 |
 */
+Route::get('/login', fn () => view('auth.login'))
+    ->middleware('guest')
+    ->name('login');
 
-Route::get('/login', function () {
-    return view('auth.login');
-})->middleware('guest')->name('login');
+Route::post('/login', [AuthenticationController::class, 'store'])
+    ->middleware(['guest', 'throttle:30,1'])
+    ->name('login.post');
 
-Route::post('/login', [AuthenticationController::class, 'store'])->middleware(['guest', 'throttle:30,1'])->name('login.post');
 Route::get('/forgot-password', [AccountRecoveryController::class, 'request'])->middleware('guest')->name('password.request');
-Route::post('/forgot-password', [AccountRecoveryController::class, 'email'])->middleware(['guest','throttle:5,1'])->name('password.email');
+Route::post('/forgot-password', [AccountRecoveryController::class, 'email'])->middleware(['guest', 'throttle:5,1'])->name('password.email');
 Route::get('/reset-password/{token}', [AccountRecoveryController::class, 'reset'])->middleware('guest')->name('password.reset');
 Route::post('/reset-password', [AccountRecoveryController::class, 'update'])->middleware('guest')->name('password.update');
+
 Route::get('/email/verify', fn () => view('auth.verify-email'))->middleware('auth')->name('verification.notice');
-Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) { $request->fulfill(); return redirect()->route($request->user()->workspaceRoute()); })->middleware(['auth','signed','throttle:6,1'])->name('verification.verify');
-Route::post('/email/verification-notification', function (Request $request) { $request->user()->sendEmailVerificationNotification(); return back()->with('status','verification-link-sent'); })->middleware(['auth','throttle:6,1'])->name('verification.send');
+Route::get('/email/verify/{id}/{hash}', function (EmailVerificationRequest $request) {
+    $request->fulfill();
+
+    return redirect()->route($request->user()->workspaceRoute());
+})->middleware(['auth', 'signed', 'throttle:6,1'])->name('verification.verify');
+Route::post('/email/verification-notification', function (Request $request) {
+    $request->user()->sendEmailVerificationNotification();
+
+    return back()->with('status', 'verification-link-sent');
+})->middleware(['auth', 'throttle:6,1'])->name('verification.send');
 
 /*
 |--------------------------------------------------------------------------
-| Registration — All Roles
+| Registration — Fixed Account Type
 |--------------------------------------------------------------------------
 |
-| ONE shared registration page for all four public account types:
-| Buyer, Seller, Logistics, Rider.
-|
-| Optional ?role=xxx preselects the account type in the UI.
+| Public registrations are Buyer, Seller, Logistics, or Rider/Courier. A user does
+| not become Buyer first and later upgrade into another role.
 |
 */
-
-Route::get('/register', [RegistrationController::class, 'create'])->middleware('guest')->name('register');
-
+Route::get('/register', [RegistrationController::class, 'create'])
+    ->middleware('guest')
+    ->name('register');
 Route::post('/register', [RegistrationController::class, 'store'])
-    ->middleware(['guest', 'throttle:10,1'])->name('register.store');
+    ->middleware(['guest', 'throttle:10,1'])
+    ->name('register.store');
 
-Route::middleware('auth')->group(function () {
-    Route::get('/sell', [SellerApplicationController::class, 'create'])->name('sell.create');
-    Route::post('/sell', [SellerApplicationController::class, 'store'])->name('sell.store');
-    Route::get('/partner', [LogisticsProviderApplicationController::class, 'create'])->name('partner.create');
-    Route::post('/partner', [LogisticsProviderApplicationController::class, 'store'])->name('partner.store');
-    Route::get('/partner/status', [LogisticsProviderApplicationController::class, 'status'])->name('partner.status');
-});
+// Compatibility links from the existing navigation now open the correct
+// fixed-role registration form instead of a Buyer-to-Seller/Logistics upgrade.
+Route::get('/sell', fn () => redirect()->route('register', ['role' => 'seller']))->name('sell.create');
+Route::get('/partner', fn () => redirect()->route('register', ['role' => 'logistics']))->name('partner.create');
+Route::get('/partner/status', fn () => redirect()->route('register', ['role' => 'logistics']))->name('partner.status');
 
 /*
 |--------------------------------------------------------------------------
 | Philippine Address API
 |--------------------------------------------------------------------------
 */
-
 Route::prefix('address/philippines')
     ->name('address.philippines.')
     ->group(function () {
-        Route::get('/regions', [PhilippineAddressController::class, 'regions'])
-            ->name('regions');
-
-        Route::get('/regions/{region}/provinces', [PhilippineAddressController::class, 'provinces'])
-            ->name('provinces');
-
-        Route::get('/provinces/{province}/municipalities', [PhilippineAddressController::class, 'municipalities'])
-            ->name('municipalities');
-
-        Route::get('/municipalities/{municipality}/barangays', [PhilippineAddressController::class, 'barangays'])
-            ->name('barangays');
-
-        Route::get('/postal-code', [PhilippineAddressController::class, 'postalCode'])
-            ->name('postal-code');
+        Route::get('/regions', [PhilippineAddressController::class, 'regions'])->name('regions');
+        Route::get('/regions/{region}/provinces', [PhilippineAddressController::class, 'provinces'])->name('provinces');
+        Route::get('/provinces/{province}/municipalities', [PhilippineAddressController::class, 'municipalities'])->name('municipalities');
+        Route::get('/municipalities/{municipality}/barangays', [PhilippineAddressController::class, 'barangays'])->name('barangays');
+        Route::get('/postal-code', [PhilippineAddressController::class, 'postalCode'])->name('postal-code');
     });
-
-/*
-|--------------------------------------------------------------------------
-| Main Marketplace Logout
-|--------------------------------------------------------------------------
-*/
 
 Route::post('/logout', [AuthenticationController::class, 'destroy'])->name('logout');
 
+/* Google is retained for Buyer convenience without adding social-token tables. */
 Route::get('/auth/google', [GoogleAuthenticationController::class, 'redirect'])
-    ->middleware('guest')->name('google.redirect');
+    ->middleware('guest')
+    ->name('google.redirect');
 Route::get('/auth/google/callback', [GoogleAuthenticationController::class, 'callback'])
-    ->middleware('guest')->name('google.callback');
-
-/*
-|--------------------------------------------------------------------------
-| Continue as Guest
-|--------------------------------------------------------------------------
-*/
+    ->middleware('guest')
+    ->name('google.callback');
 
 Route::get('/continue-as-guest', function (Request $request) {
     $request->session()->put('demo_user', [
@@ -146,12 +124,4 @@ Route::get('/continue-as-guest', function (Request $request) {
     return redirect()->route('guest.home');
 })->name('guest.continue');
 
-/*
-|--------------------------------------------------------------------------
-| Admin Compatibility Redirect
-|--------------------------------------------------------------------------
-*/
-
-Route::get('/admin/home', function () {
-    return redirect()->route('admin.dashboard');
-})->name('admin.home');
+Route::get('/admin/home', fn () => redirect()->route('admin.dashboard'))->name('admin.home');

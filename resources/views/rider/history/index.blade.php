@@ -1,4 +1,4 @@
-@extends('rider.app')
+@extends('Rider.app')
 
 @section('title', 'Delivery History - LIKHAE Rider')
 
@@ -11,7 +11,7 @@
     <section class="flex flex-col gap-3">
         <span class="text-xs font-bold uppercase tracking-[0.2em] text-primary">Rider History</span>
         <h1 class="text-2xl font-bold tracking-tight text-ink">Pickup and Delivery History</h1>
-        <p class="text-sm text-muted">Completed, failed, returned, and sorting-center handoff records from the deliveries table.</p>
+        <p class="text-sm text-muted">Completed assignments and delivery attempts from your rider account.</p>
     </section>
 
     <section class="overflow-hidden rounded-3xl border border-line bg-surface">
@@ -41,5 +41,6 @@
             @endforelse
         </div>
     </section>
+    <div>{{ $assignments->links() }}</div>
 </div>
 @endsection

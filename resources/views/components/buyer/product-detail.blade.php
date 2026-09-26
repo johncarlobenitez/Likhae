@@ -11,19 +11,13 @@
 
     $name = (string) data_get($product, 'name', 'Product');
 
-    $categoryValue = data_get($product, 'category.name')
-        ?? data_get($product, 'category')
-        ?? 'Local Find';
+    $categoryValue = data_get($product, 'category.name') ?? 'Local Find';
 
     $category = is_scalar($categoryValue)
         ? (string) $categoryValue
         : 'Local Find';
 
-    $sellerValue = data_get($product, 'seller.store_name')
-        ?? data_get($product, 'seller.shop_name')
-        ?? data_get($product, 'seller.name')
-        ?? data_get($product, 'seller')
-        ?? 'LIKHAE Seller';
+    $sellerValue = data_get($product, 'seller.business_name') ?? 'LIKHAE Seller';
 
     $seller = is_scalar($sellerValue)
         ? (string) $sellerValue
@@ -41,13 +35,12 @@
         'https://ui-avatars.com/api/?name=' . urlencode($seller) . '&background=561C17&color=fff'
     );
 
-    $images = collect(data_get($product, 'gallery', []))
+    $images = collect(data_get($product, 'images', []))->pluck('url')
         ->filter()
         ->values();
 
     if ($images->isEmpty()) {
-        $mainImage = data_get($product, 'image_url')
-            ?? data_get($product, 'image');
+        $mainImage = data_get($product, 'primary_image.url');
 
         $images = collect([$mainImage])
             ->filter()
@@ -56,7 +49,7 @@
 
     $price = max(
         0,
-        (float) data_get($product, 'price', 0)
+        (float) data_get($product, 'min_price', 0)
     );
 
     $oldPrice = max(

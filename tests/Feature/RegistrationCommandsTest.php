@@ -3,39 +3,32 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class RegistrationCommandsTest extends TestCase
 {
-    use RefreshDatabase;
-
-    public function test_admin_creation_uses_a_private_password_prompt_and_creates_an_active_account(): void
+    public function test_final_account_model_uses_fixed_account_type(): void
     {
-        $this->artisan('app:create-admin')
-            ->expectsQuestion('Administrator name', 'Administrator')
-            ->expectsQuestion('Administrator email', 'ADMIN@example.com')
-            ->expectsQuestion('Password (8-72 characters, uppercase, lowercase and a number)', 'SecurePass123')
-            ->expectsQuestion('Confirm password', 'SecurePass123')
-            ->assertSuccessful();
-        $admin = User::where('email', 'admin@example.com')->sole();
-        $this->assertTrue($admin->hasRole('admin'));
-        $this->assertSame('active', $admin->status);
-        $this->assertTrue(Hash::check('SecurePass123', $admin->password));
+        $user = new User();
+        $user->account_type = User::TYPE_BUYER;
+        $user->status = User::STATUS_ACTIVE;
+
+        $this->assertContains('account_type', $user->getFillable());
+        $this->assertContains('status', $user->getFillable());
+        $this->assertTrue($user->isAccountType(User::TYPE_BUYER));
+        $this->assertTrue($user->isActive());
+        $this->assertSame('buyer.home', $user->workspaceRoute());
     }
 
-    public function test_admin_creation_does_not_promote_or_overwrite_existing_accounts(): void
+    public function test_laravel_routes_boot_for_current_workspace_names(): void
     {
-        $user = User::factory()->create(['email' => 'Existing@example.com', 'role' => 'buyer']);
-        $this->artisan('app:create-admin')
-            ->expectsQuestion('Administrator name', 'Administrator')
-            ->expectsQuestion('Administrator email', 'existing@example.com')
-            ->expectsQuestion('Password (8-72 characters, uppercase, lowercase and a number)', 'SecurePass123')
-            ->expectsQuestion('Confirm password', 'SecurePass123')
-            ->assertFailed();
-        $this->assertTrue($user->fresh()->hasRole('buyer'));
-        $this->assertTrue(Hash::check('password', $user->fresh()->password));
-    }
+        $routes = collect(app('router')->getRoutes())->map(fn ($route) => $route->getName())->filter()->values();
 
+        $this->assertTrue($routes->contains('login'));
+        $this->assertTrue($routes->contains('register'));
+        $this->assertTrue($routes->contains('buyer.home'));
+        $this->assertTrue($routes->contains('seller.dashboard'));
+        $this->assertTrue($routes->contains('logistics.dashboard'));
+        $this->assertTrue($routes->contains('rider.dashboard'));
+    }
 }

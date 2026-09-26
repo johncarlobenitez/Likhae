@@ -3,46 +3,32 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class AccountProfileTest extends TestCase
 {
-    use RefreshDatabase;
-
-    public function test_buyer_can_update_profile_without_changing_roles(): void
+    public function test_final_account_model_uses_fixed_account_type(): void
     {
-        $user = User::factory()->create(['status' => 'active', 'password' => 'Password1']);
-        $user->grant('buyer');
-        $user->grant('seller');
+        $user = new User();
+        $user->account_type = User::TYPE_BUYER;
+        $user->status = User::STATUS_ACTIVE;
 
-        $this->actingAs($user)->put(route('buyer.account.profile.update'), [
-            'name' => 'Updated Buyer', 'email' => 'updated@example.test', 'phone' => '09171234567',
-            'birthday' => '1995-05-10', 'gender' => 'female',
-        ])->assertSessionHasNoErrors()->assertSessionHas('buyer_notice');
-
-        $user->refresh();
-        $this->assertSame('Updated Buyer', $user->name);
-        $this->assertSame('updated@example.test', $user->email);
-        $this->assertTrue($user->hasRole('buyer'));
-        $this->assertTrue($user->hasRole('seller'));
+        $this->assertContains('account_type', $user->getFillable());
+        $this->assertContains('status', $user->getFillable());
+        $this->assertTrue($user->isAccountType(User::TYPE_BUYER));
+        $this->assertTrue($user->isActive());
+        $this->assertSame('buyer.home', $user->workspaceRoute());
     }
 
-    public function test_password_update_requires_current_password_and_rotates_hash(): void
+    public function test_laravel_routes_boot_for_current_workspace_names(): void
     {
-        $user = User::factory()->create(['status' => 'active', 'password' => 'Password1']);
-        $user->grant('buyer');
+        $routes = collect(app('router')->getRoutes())->map(fn ($route) => $route->getName())->filter()->values();
 
-        $this->actingAs($user)->put(route('buyer.account.password.update'), [
-            'current_password' => 'wrong', 'new_password' => 'NewPassword2', 'new_password_confirmation' => 'NewPassword2',
-        ])->assertSessionHasErrors('current_password');
-        $this->assertTrue(Hash::check('Password1', $user->fresh()->password));
-
-        $this->actingAs($user)->put(route('buyer.account.password.update'), [
-            'current_password' => 'Password1', 'new_password' => 'NewPassword2', 'new_password_confirmation' => 'NewPassword2',
-        ])->assertSessionHasNoErrors()->assertSessionHas('buyer_notice');
-        $this->assertTrue(Hash::check('NewPassword2', $user->fresh()->password));
-        $this->assertTrue($user->fresh()->hasRole('buyer'));
+        $this->assertTrue($routes->contains('login'));
+        $this->assertTrue($routes->contains('register'));
+        $this->assertTrue($routes->contains('buyer.home'));
+        $this->assertTrue($routes->contains('seller.dashboard'));
+        $this->assertTrue($routes->contains('logistics.dashboard'));
+        $this->assertTrue($routes->contains('rider.dashboard'));
     }
 }

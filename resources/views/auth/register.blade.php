@@ -223,8 +223,6 @@
                     role="radiogroup"
                     aria-label="Account type"
                 >
-                    <style>.account-type-option:not([data-account-type="buyer"]){display:none!important}.account-type-toggle{grid-template-columns:1fr!important}</style>
-
                     {{-- BUYER --}}
                     <button
                         type="button"
@@ -523,6 +521,13 @@
 
                 @csrf
 
+                <input
+                    type="hidden"
+                    id="accountType"
+                    name="account_type"
+                    value="{{ old('account_type', $preselectedRole ?? 'buyer') }}"
+                >
+
 
                 {{-- =================================================
                     STEP 1 — PERSONAL INFORMATION
@@ -639,15 +644,15 @@
                                     </option>
 
                                     <option
-                                        value="Male"
-                                        {{ old('sex') === 'Male' ? 'selected' : '' }}
+                                        value="male"
+                                        {{ old('sex') === 'male' ? 'selected' : '' }}
                                     >
                                         Male
                                     </option>
 
                                     <option
-                                        value="Female"
-                                        {{ old('sex') === 'Female' ? 'selected' : '' }}
+                                        value="female"
+                                        {{ old('sex') === 'female' ? 'selected' : '' }}
                                     >
                                         Female
                                     </option>
@@ -1028,6 +1033,19 @@
                             <div class="register-field">
                                 <label for="plate_number">Plate Number <span>*</span></label>
                                 <input id="plate_number" name="plate_number" value="{{ old('plate_number') }}" maxlength="30" data-rider-required>
+                            </div>
+                            <div class="register-field">
+                                <label for="target_logistics_center_id">Logistics / Sorting Center <span>*</span></label>
+                                <select id="target_logistics_center_id" name="target_logistics_center_id" data-rider-required>
+                                    <option value="">Choose logistics center</option>
+                                    @foreach($logisticsCenters ?? collect() as $center)
+                                        <option value="{{ $center->id }}" @selected((string) old('target_logistics_center_id') === (string) $center->id)>{{ $center->business_name }} ({{ $center->code }})</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="register-field">
+                                <label for="drivers_license_number">Driver's License Number <span>*</span></label>
+                                <input id="drivers_license_number" name="drivers_license_number" value="{{ old('drivers_license_number') }}" maxlength="100" data-rider-required>
                             </div>
                         </div>
                     </div>

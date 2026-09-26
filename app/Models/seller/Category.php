@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Seller;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,10 +12,17 @@ class Category extends Model
     use HasFactory;
 
     protected $fillable = [
-        'parent_id', 'name', 'slug', 'description', 'position', 'is_active',
+        'parent_id',
+        'name',
+        'slug',
+        'description',
+        'is_active',
     ];
 
-    protected function casts(): array { return ['is_active' => 'boolean']; }
+    protected function casts(): array
+    {
+        return ['is_active' => 'boolean'];
+    }
 
     public function parent(): BelongsTo
     {
@@ -32,13 +39,13 @@ class Category extends Model
         return $this->hasMany(Product::class);
     }
 
-    public function creator(): BelongsTo
+    public function sellerProfiles(): HasMany
     {
-        return $this->belongsTo(User::class, 'created_by_user_id');
+        return $this->hasMany(SellerProfile::class, 'primary_category_id');
     }
 
-    public function sellerCreator(): BelongsTo
+    public function sellerApplications(): HasMany
     {
-        return $this->belongsTo(User::class, 'created_by_seller_id');
+        return $this->hasMany(SellerApplicationData::class);
     }
 }
