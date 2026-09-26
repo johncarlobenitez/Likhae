@@ -1,20 +1,21 @@
 <?php
 
-use App\Http\Middleware\EnsureWorkspaceRole;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\SellerApplicationController;
-use App\Http\Controllers\Seller\SellerOrderController;
-use App\Http\Controllers\Seller\SellerProductController;
-use App\Http\Controllers\Seller\SellerOperationsController;
 use App\Http\Controllers\Seller\SellerAccountController;
 use App\Http\Controllers\Seller\SellerEngagementController;
+use App\Http\Controllers\Seller\SellerOperationsController;
+use App\Http\Controllers\Seller\SellerOrderController;
+use App\Http\Controllers\Seller\SellerProductController;
+use App\Http\Middleware\EnsureWorkspaceRole;
+use Illuminate\Support\Facades\Route;
 
-Route::get('/seller', [SellerApplicationController::class, 'entry'])->middleware('auth')->name('seller.entry');
+Route::get('/seller', fn () => redirect()->route('seller.dashboard'))
+    ->middleware(['auth', 'verified', EnsureWorkspaceRole::class.':seller'])
+    ->name('seller.entry');
 
 Route::prefix('seller')
     ->name('seller.')
     ->middleware(['auth', 'verified', EnsureWorkspaceRole::class.':seller', 'seller.approved'])
-    ->group(function () {
+    ->group(function (): void {
         Route::get('/dashboard', [SellerOperationsController::class, 'dashboard'])->name('dashboard');
 
         Route::get('/products', [SellerProductController::class, 'index'])->name('products');
@@ -22,6 +23,7 @@ Route::prefix('seller')
         Route::put('/products/{product}', [SellerProductController::class, 'update'])->name('products.update');
         Route::patch('/products/{product}/stock', [SellerProductController::class, 'stock'])->name('products.stock');
         Route::patch('/products/{product}/toggle', [SellerProductController::class, 'toggle'])->name('products.toggle');
+        Route::delete('/products/{product}/images/{image}', [SellerProductController::class, 'deleteImage'])->name('products.images.destroy');
         Route::get('/products-export', [SellerProductController::class, 'export'])->name('products.export');
 
         Route::get('/orders', [SellerOrderController::class, 'index'])->name('orders');
@@ -30,7 +32,9 @@ Route::prefix('seller')
         Route::get('/orders-export', [SellerOperationsController::class, 'exportOrders'])->name('orders.export');
 
         Route::get('/logistics', [SellerOperationsController::class, 'logistics'])->name('logistics');
-        Route::post('/logistics/{sellerOrder}/pickup', fn () => redirect()->route('seller.logistics')->with('status', 'Shipment creation is controlled by Ready to Ship.'))->name('logistics.pickup');
+        Route::post('/logistics/{sellerOrder}/pickup', function () {
+            return redirect()->route('seller.orders')->with('status', 'Use the order action: Mark Ready for Pickup.');
+        })->name('logistics.pickup');
 
         Route::get('/messages', [SellerEngagementController::class, 'messages'])->name('messages');
         Route::get('/messages/stream', [SellerEngagementController::class, 'stream'])->name('messages.stream');
@@ -42,10 +46,9 @@ Route::prefix('seller')
 
         Route::get('/marketing', [SellerEngagementController::class, 'marketing'])->name('marketing');
         Route::post('/marketing/campaigns', [SellerEngagementController::class, 'storeCampaign'])->name('marketing.campaigns.store');
-        Route::patch('/marketing/campaigns/{campaign}/toggle', [SellerEngagementController::class, 'toggleCampaign'])->name('marketing.campaigns.toggle');
+        Route::patch('/marketing/campaigns/{voucher}/toggle', [SellerEngagementController::class, 'toggleCampaign'])->name('marketing.campaigns.toggle');
 
         Route::get('/finance', [SellerOperationsController::class, 'finance'])->name('finance');
-        Route::post('/finance/payouts', [SellerOperationsController::class, 'requestPayout'])->name('finance.payouts.store');
         Route::get('/finance/statement', [SellerOperationsController::class, 'exportStatement'])->name('finance.statement');
 
         Route::get('/reports', [SellerOperationsController::class, 'reports'])->name('reports');

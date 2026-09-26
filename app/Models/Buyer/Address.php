@@ -2,16 +2,44 @@
 
 namespace App\Models\Buyer;
 
+use App\Models\Logistics\LogisticsApplicationData;
+use App\Models\Logistics\LogisticsCenter;
+use App\Models\Seller\SellerProfile;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Address extends Model
 {
-    protected $fillable = ['user_id', 'label', 'recipient', 'phone', 'line1', 'region', 'barangay', 'city', 'province', 'postal_code', 'landmark', 'is_default'];
+    protected $fillable = [
+        'user_id',
+        'label',
+        'recipient_name',
+        'contact_number',
+        'province_code',
+        'province_name',
+        'municipality_code',
+        'municipality_name',
+        'barangay_code',
+        'barangay_name',
+        'postal_code',
+        'house_number',
+        'street_address',
+        'landmark',
+        'latitude',
+        'longitude',
+        'is_default',
+    ];
 
     protected function casts(): array
     {
-        return ['is_default' => 'boolean'];
+        return [
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
+            'is_default' => 'boolean',
+        ];
     }
 
     public function user(): BelongsTo
@@ -19,39 +47,30 @@ class Address extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function getRecipientNameAttribute(): string
+    public function sellerProfile(): HasOne
     {
-        return $this->recipient;
+        return $this->hasOne(SellerProfile::class, 'business_address_id');
     }
 
-    public function getContactNumberAttribute(): string
+    public function logisticsCenter(): HasOne
     {
-        return $this->phone;
+        return $this->hasOne(LogisticsCenter::class, 'address_id');
     }
 
-    public function getMunicipalityAttribute(): string
+    public function logisticsApplications(): HasMany
     {
-        return $this->city;
-    }
-
-    public function getHouseNumberAttribute(): string
-    {
-        return $this->line1;
-    }
-
-    public function getStreetAttribute(): string
-    {
-        return '';
+        return $this->hasMany(LogisticsApplicationData::class, 'business_address_id');
     }
 
     public function formatted(): string
     {
         return collect([
-            $this->line1,
-            $this->barangay,
-            $this->city,
-            $this->province,
+            $this->house_number,
+            $this->street_address,
+            $this->barangay_name,
+            $this->municipality_name,
+            $this->province_name,
             $this->postal_code,
-        ])->filter(fn ($part) => filled($part))->implode(', ');
+        ])->filter(fn ($value) => filled($value))->implode(', ');
     }
 }

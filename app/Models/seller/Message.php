@@ -2,33 +2,10 @@
 
 namespace App\Models\Seller;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\Communication\Message as ConversationMessage;
 
-class Message extends Model
+/** @deprecated Use App\Models\Communication\Message. */
+class Message extends ConversationMessage
 {
-    use HasFactory;
-
-    protected $fillable = ['sender_id', 'recipient_id', 'order_id', 'body', 'read_at'];
-
-    protected function casts(): array
-    {
-        return ['read_at' => 'datetime'];
-    }
-
-    public function sender(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'sender_id');
-    }
-
-    public function recipient(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'recipient_id');
-    }
-
-    public function order(): BelongsTo
-    {
-        return $this->belongsTo(Order::class);
-    }
+    protected $table = 'messages';
 }

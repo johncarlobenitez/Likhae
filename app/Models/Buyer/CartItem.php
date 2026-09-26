@@ -2,6 +2,8 @@
 
 namespace App\Models\Buyer;
 
+use App\Models\Seller\Product;
+use App\Models\Seller\ProductVariant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,16 +13,26 @@ class CartItem extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['cart_id', 'product_variant_id', 'quantity', 'selected'];
-
-    protected function casts(): array
-    {
-        return ['selected' => 'boolean'];
-    }
+    protected $fillable = [
+        'cart_id',
+        'product_variant_id',
+        'quantity',
+    ];
 
     public function cart(): BelongsTo
     {
         return $this->belongsTo(Cart::class);
+    }
+
+    public function productVariant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class);
+    }
+
+    /** Transitional alias used by older views/controllers. */
+    public function variation(): BelongsTo
+    {
+        return $this->productVariant();
     }
 
     public function product(): HasOneThrough
@@ -33,15 +45,5 @@ class CartItem extends Model
             'product_variant_id',
             'product_id',
         );
-    }
-
-    public function variation(): BelongsTo
-    {
-        return $this->belongsTo(ProductVariant::class, 'product_variant_id');
-    }
-
-    public function productVariant(): BelongsTo
-    {
-        return $this->belongsTo(ProductVariant::class);
     }
 }

@@ -3,221 +3,140 @@
 namespace App\Http\Controllers\Rider;
 
 use App\Http\Controllers\Controller;
-
-use App\Models\Logistics\Shipment;
-use App\Models\Seller\Message;
-use App\Models\User;
+use App\Models\Rider\RiderAssignment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class RiderController extends Controller
 {
     public function dashboard(Request $request): View
     {
-        $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
-        $shipments = Shipment::with(['sellerOrder.order.buyer','sellerOrder.items.product.images'])->where('rider_id',$rider->id)->latest()->get();
+        $rider = $this->rider($request);
+
+        $assignments = RiderAssignment::query()->where('rider_profile_id', $rider->id);
+
         return view('Rider.dashboard', [
-            'riderStats' => [
-                ['label'=>'Assigned Parcels','value'=>$shipments->where('status','assigned')->count()],
-                ['label'=>'In Transit','value'=>$shipments->whereIn('status',['picked_up','in_transit'])->count()],
-                ['label'=>'Out for Delivery','value'=>$shipments->where('status','out_for_delivery')->count()],
-                ['label'=>'Completed Today','value'=>$shipments->where('status','delivered')->filter(fn($shipment)=>$shipment->updated_at?->isToday())->count()],
+            'rider' => $rider,
+            'stats' => [
+                'pickup_pending' => (clone $assignments)->pickup()->whereIn('status', ['ASSIGNED', 'ACCEPTED'])->count(),
+                'delivery_pending' => (clone $assignments)->delivery()->whereIn('status', ['ASSIGNED', 'ACCEPTED'])->count(),
+                'in_progress' => (clone $assignments)->where('status', 'IN_PROGRESS')->count(),
+                'completed' => (clone $assignments)->where('status', 'COMPLETED')->count(),
+                'earnings' => (float) $rider->earnings()->sum('amount'),
             ],
-            'recentDeliveries' => $shipments->take(8)->map(function($shipment){$snapshot=$shipment->sellerOrder->order->shipping_address_snapshot??[];$path=$shipment->sellerOrder->items->first()?->product?->images?->first()?->path;return ['id'=>$shipment->id,'tracking'=>$shipment->tracking_code,'buyer'=>$shipment->sellerOrder->order->buyer?->name??'Buyer','address'=>collect([$snapshot['line1']??null,$snapshot['barangay']??null,$snapshot['city']??null])->filter()->implode(', '),'status'=>$shipment->status,'status_label'=>Str::headline($shipment->status),'image'=>$path?Storage::url($path):asset('images/product-placeholder.svg')];})->values(),
+            'todayAssignments' => (clone $assignments)->with(['shipment.sellerOrder.order.address'])->latest()->limit(8)->get(),
         ]);
+    }
+
+    public function shipments(Request $request): View
+    {
+        $rider = $this->rider($request);
+
+        $assignments = RiderAssignment::query()
+            ->where('rider_profile_id', $rider->id)
+            ->with(['shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user'])
+            ->latest()
+            ->paginate(15);
+
+        return view('Rider.shipments', compact('assignments', 'rider'));
     }
 
     public function pickups(Request $request): View
     {
-        $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
-        $shipments = Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.seller.user', 'sellerOrder.items.product.images'])
-            ->where('rider_id', $rider->id)
-            ->latest()->get();
+        $rider = $this->rider($request);
 
-        $pickupStats = [
-            'ready' => $shipments->where('status', 'assigned')->count(),
-            'accepted' => $shipments->where('status', 'picked_up')->count(),
-            'picked_up' => $shipments->where('status', 'picked_up')->count(),
-        ];
+        $assignments = RiderAssignment::query()
+            ->where('rider_profile_id', $rider->id)
+            ->pickup()
+            ->whereIn('status', ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS'])
+            ->with(['shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user'])
+            ->latest()
+            ->paginate(15);
 
-        $pickups = $shipments->filter(fn ($shipment) => in_array($shipment->status, ['assigned', 'picked_up'], true))->map(function ($shipment) {
-            $snapshot = $shipment->sellerOrder->order->shipping_address_snapshot ?? [];
-            $buyer = $shipment->sellerOrder->order->buyer?->name ?? 'Buyer';
-            $seller = $shipment->sellerOrder->seller?->name ?? $shipment->sellerOrder->seller?->user?->name ?? 'Seller';
-            $path = $shipment->sellerOrder->items->first()?->product?->images?->first()?->path;
-
-            return [
-                'id' => $shipment->id,
-                'tracking' => $shipment->tracking_code,
-                'seller' => $seller,
-                'buyer' => $buyer,
-                'address' => collect([$snapshot['line1'] ?? null, $snapshot['city'] ?? null, $snapshot['province'] ?? null])->filter()->implode(', '),
-                'items' => $shipment->sellerOrder->items->count(),
-                'amount' => '₱'.number_format(($shipment->sellerOrder->subtotal_minor ?? 0) / 100, 2),
-                'status' => match ($shipment->status) {
-                    'assigned' => 'PICKUP_ASSIGNED',
-                    'picked_up' => 'PICKED_UP',
-                    default => strtoupper($shipment->status),
-                },
-                'status_label' => str($shipment->status)->replace('_', ' ')->title(),
-                'image' => $path ? Storage::url($path) : asset('images/product-placeholder.svg'),
-            ];
-        })->values();
-
-        return view('Rider.pickups.index', compact('pickups', 'pickupStats'));
+        return view('Rider.pickups.index', compact('assignments', 'rider'));
     }
 
-    public function pickupShow(Request $request, Shipment $shipment): View
+    public function pickupShow(Request $request, RiderAssignment $assignment): View
     {
-        $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
-        abort_unless($shipment->rider_id === $rider->id, 403);
+        $rider = $this->rider($request);
+        abort_unless((int) $assignment->rider_profile_id === (int) $rider->id && $assignment->assignment_type === 'PICKUP', 403);
 
-        $snapshot = $shipment->sellerOrder->order->shipping_address_snapshot ?? [];
-        $delivery = $shipment;
-        $pickup = [
-            'id' => $shipment->id,
-            'tracking' => $shipment->tracking_code,
-            'seller' => $shipment->sellerOrder->seller?->name ?? 'Seller',
-            'buyer' => $shipment->sellerOrder->order->buyer?->name ?? 'Buyer',
-            'address' => collect([$snapshot['line1'] ?? null, $snapshot['city'] ?? null, $snapshot['province'] ?? null])->filter()->implode(', '),
-            'items' => $shipment->sellerOrder->items->count(),
-            'amount' => '₱'.number_format(($shipment->sellerOrder->subtotal_minor ?? 0) / 100, 2),
-            'status' => match ($shipment->status) {
-                'assigned' => 'PICKUP_ASSIGNED',
-                'picked_up' => 'PICKED_UP',
-                default => strtoupper($shipment->status),
-            },
-            'status_label' => str($shipment->status)->replace('_', ' ')->title(),
-        ];
+        $assignment->load(['shipment.sellerOrder.items', 'shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user', 'shipment.events', 'shipment.scans']);
 
-        $verified = $request->filled('tracking') && hash_equals($shipment->tracking_code, trim((string) $request->query('tracking')));
-        return view('Rider.pickups.show', compact('pickup', 'delivery', 'shipment', 'verified'));
+        return view('Rider.pickups.show', compact('assignment', 'rider'));
     }
 
     public function deliveries(Request $request): View
     {
-        $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
-        $shipments = Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.items.product.images'])
-            ->where('rider_id', $rider->id)
-            ->latest()->get();
+        $rider = $this->rider($request);
 
-        $deliveryStats = [
-            'assigned' => $shipments->where('status', 'assigned')->count(),
-            'out_for_delivery' => $shipments->where('status', 'out_for_delivery')->count(),
-            'delivered_today' => $shipments->where('status', 'delivered')->filter(fn ($shipment) => $shipment->updated_at?->isToday())->count(),
-            'failed_today' => $shipments->where('status', 'failed')->filter(fn ($shipment) => $shipment->updated_at?->isToday())->count(),
-        ];
+        $assignments = RiderAssignment::query()
+            ->where('rider_profile_id', $rider->id)
+            ->delivery()
+            ->whereIn('status', ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS'])
+            ->with(['shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user'])
+            ->latest()
+            ->paginate(15);
 
-        $deliveries = $shipments->filter(fn ($shipment) => in_array($shipment->status, ['assigned', 'picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'failed'], true))->map(function ($shipment) {
-            $snapshot = $shipment->sellerOrder->order->shipping_address_snapshot ?? [];
-            $path = $shipment->sellerOrder->items->first()?->product?->images?->first()?->path;
-
-            return [
-                'id' => $shipment->id,
-                'tracking' => $shipment->tracking_code,
-                'buyer' => $shipment->sellerOrder->order->buyer?->name ?? 'Buyer',
-                'address' => collect([$snapshot['line1'] ?? null, $snapshot['barangay'] ?? null, $snapshot['city'] ?? null, $snapshot['province'] ?? null])->filter()->implode(', '),
-                'amount' => '₱'.number_format(($shipment->sellerOrder->subtotal_minor ?? 0) / 100, 2),
-                'status' => $shipment->status,
-                'status_label' => str($shipment->status)->replace('_', ' ')->title(),
-                'image' => $path ? Storage::url($path) : asset('images/product-placeholder.svg'),
-            ];
-        })->values();
-
-        return view('Rider.deliveries.index', compact('deliveries', 'deliveryStats'));
+        return view('Rider.deliveries.index', compact('assignments', 'rider'));
     }
 
-    public function deliveryShow(Request $request, Shipment $shipment): View
+    public function deliveryShow(Request $request, RiderAssignment $assignment): View
     {
-        $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
-        abort_unless($shipment->rider_id === $rider->id, 403);
+        $rider = $this->rider($request);
+        abort_unless((int) $assignment->rider_profile_id === (int) $rider->id && $assignment->assignment_type === 'DELIVERY', 403);
 
-        $snapshot = $shipment->sellerOrder->order->shipping_address_snapshot ?? [];
-        $parcel = [
-            'id' => $shipment->id,
-            'tracking' => $shipment->tracking_code,
-            'buyer' => $shipment->sellerOrder->order->buyer?->name ?? 'Buyer',
-            'contact' => $shipment->sellerOrder->order->buyer?->contact_number ?? 'Not available',
-            'address' => collect([$snapshot['line1'] ?? null, $snapshot['barangay'] ?? null, $snapshot['city'] ?? null, $snapshot['province'] ?? null])->filter()->implode(', '),
-            'amount' => '₱'.number_format(($shipment->sellerOrder->subtotal_minor ?? 0) / 100, 2),
-            'status' => $shipment->status,
-            'status_label' => str($shipment->status)->replace('_', ' ')->title(),
-        ];
+        $assignment->load(['shipment.sellerOrder.items', 'shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user', 'shipment.events', 'shipment.deliveryAttempts']);
 
-        return view('Rider.deliveries.show', [
-            'parcel' => $parcel,
-            'delivery' => $shipment,
-            'released' => true,
-            'verified' => false,
-        ]);
-    }
-
-    public function history(Request $request): View
-    {
-        $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
-        $shipments = Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.items.product.images'])
-            ->where('rider_id', $rider->id)
-            ->latest()->get();
-
-        $history = $shipments->map(function ($shipment) {
-            $snapshot = $shipment->sellerOrder->order->shipping_address_snapshot ?? [];
-            $path = $shipment->sellerOrder->items->first()?->product?->images?->first()?->path;
-
-            return [
-                'id' => $shipment->id,
-                'tracking' => $shipment->tracking_code,
-                'buyer' => $shipment->sellerOrder->order->buyer?->name ?? 'Buyer',
-                'status' => $shipment->status,
-                'status_label' => str($shipment->status)->replace('_', ' ')->title(),
-                'updated' => $shipment->updated_at?->format('M d, Y') ?? 'Recently',
-                'failure_reason' => $shipment->events->where('status', 'failed')->last()?->note,
-                'image' => $path ? Storage::url($path) : asset('images/product-placeholder.svg'),
-            ];
-        })->values();
-
-        return view('Rider.history.index', compact('history'));
+        return view('Rider.deliveries.show', compact('assignment', 'rider'));
     }
 
     public function earnings(Request $request): View
     {
-        $request->user()->rider()->where('is_active',true)->firstOrFail();
-        return view('Rider.earnings.index',['earningsRows'=>collect(),'earningsNotice'=>'Rider compensation is managed by your logistics provider and no rider earning ledger is configured.']);
+        $rider = $this->rider($request);
+
+        $earnings = $rider->earnings()->with('riderAssignment.shipment')->latest()->paginate(15);
+
+        return view('Rider.earnings.index', compact('rider', 'earnings'));
+    }
+
+    public function history(Request $request): View
+    {
+        $rider = $this->rider($request);
+
+        $assignments = RiderAssignment::query()
+            ->where('rider_profile_id', $rider->id)
+            ->whereIn('status', ['COMPLETED', 'REJECTED', 'CANCELLED'])
+            ->with(['shipment.sellerOrder.order.address'])
+            ->latest()
+            ->paginate(15);
+
+        return view('Rider.history.index', compact('rider', 'assignments'));
     }
 
     public function profile(Request $request): View
     {
-        return view('Rider.profile.index',['rider'=>$request->user()->rider()->where('is_active',true)->with(['user','provider'])->firstOrFail()]);
+        $rider = $this->rider($request)->load(['user', 'logisticsCenter', 'areaAssignments.serviceArea.locations']);
+
+        return view('Rider.profile.index', compact('rider'));
     }
 
-    public function messages(Request $request): View
+    public function messages(): View
     {
-        $contacts = $this->messageContacts($request)->orderBy('name')->get();
-        $selected = $contacts->firstWhere('id', $request->integer('contact')) ?? $contacts->first();
-        $messages = $selected ? Message::where(function ($query) use ($request, $selected): void {
-            $query->where(fn ($q) => $q->where('sender_id', $request->user()->id)->where('recipient_id', $selected->id))
-                ->orWhere(fn ($q) => $q->where('sender_id', $selected->id)->where('recipient_id', $request->user()->id));
-        })->oldest()->get() : collect();
-        if ($selected) Message::where('sender_id', $selected->id)->where('recipient_id', $request->user()->id)->whereNull('read_at')->update(['read_at' => now()]);
-        return view('Logistics.messages.index', compact('contacts', 'selected', 'messages') + [
-            'messageLayout' => 'rider.app', 'messageRoute' => 'rider.messages', 'sendRoute' => 'rider.messages.send',
-        ]);
+        return view('Rider.messages', ['conversations' => collect()]);
     }
 
-    public function sendMessage(Request $request): RedirectResponse
+    public function sendMessage(): RedirectResponse
     {
-        $data = $request->validate(['recipient_id' => ['required', 'integer'], 'body' => ['required', 'string', 'max:2000']]);
-        $recipient = $this->messageContacts($request)->findOrFail($data['recipient_id']);
-        Message::create(['sender_id' => $request->user()->id, 'recipient_id' => $recipient->id, 'body' => $data['body']]);
-        return redirect()->route('rider.messages', ['contact' => $recipient->id])->with('status', 'Message sent.');
+        return back()->with('status', 'Messaging is handled in Phase 5.');
     }
 
-    private function messageContacts(Request $request)
+    private function rider(Request $request)
     {
-        $providerOwner = $request->user()->rider()->firstOrFail()->provider->user_id;
-        return User::where('status', 'active')->where('is_suspended', false)->whereKeyNot($request->user()->id)
-            ->where(fn ($query) => $query->whereKey($providerOwner)->orWhereHas('roles', fn ($roles) => $roles->where('name', 'admin')));
+        $rider = $request->user()->riderProfile;
+        abort_unless($rider, 403);
+
+        return $rider;
     }
 }

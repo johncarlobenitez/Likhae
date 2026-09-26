@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +19,7 @@ class AuthenticationController extends Controller
             'password' => ['required', 'string'],
             'remember' => ['sometimes', 'boolean'],
         ]);
+
         $email = mb_strtolower(trim($credentials['email']));
         $request->merge(['email' => $email]);
         $key = 'login:'.hash('sha256', $email.'|'.$request->ip());
@@ -31,28 +31,34 @@ class AuthenticationController extends Controller
         }
 
         RateLimiter::hit($key, 60);
+        $isLogisticsPortal = $request->routeIs('logistics.login.store');
 
-        $authenticated = Auth::attemptWhen([
-            'email' => $email,
-            'password' => $credentials['password'],
-        ], function (User $user) use ($request): bool {
-            if ($user->isSuspended() || $user->status !== 'active') {
-                throw ValidationException::withMessages(['email' => $user->inactiveMessage()]);
-            }
+        $authenticated = Auth::attemptWhen(
+            [
+                'email' => $email,
+                'password' => $credentials['password'],
+            ],
+            function (User $user) use ($isLogisticsPortal): bool {
+                if (! $user->isActive()) {
+                    throw ValidationException::withMessages(['email' => $user->inactiveMessage()]);
+                }
 
-            $portal = $request->routeIs('logistics.login.store');
-            $roles = $portal ? ['logistics', 'rider', 'courier'] : ['admin', 'buyer', 'seller'];
+                $allowed = $isLogisticsPortal
+                    ? [User::TYPE_LOGISTICS, User::TYPE_RIDER]
+                    : [User::TYPE_ADMIN, User::TYPE_BUYER, User::TYPE_SELLER];
 
-            if (! collect($roles)->contains(fn (string $role) => $user->hasRole($role))) {
-                throw ValidationException::withMessages([
-                    'email' => $portal
-                        ? 'Use the Marketplace Login page for this account.'
-                        : 'Use the Logistics Portal sign-in page for this account.',
-                ]);
-            }
+                if (! $user->isAccountType(...$allowed)) {
+                    throw ValidationException::withMessages([
+                        'email' => $isLogisticsPortal
+                            ? 'Use the Marketplace Login page for this account.'
+                            : 'Use the Logistics & Rider Portal sign-in page for this account.',
+                    ]);
+                }
 
-            return true;
-        }, $request->boolean('remember'));
+                return true;
+            },
+            $request->boolean('remember'),
+        );
 
         if (! $authenticated) {
             throw ValidationException::withMessages(['email' => 'Invalid email or password.']);
@@ -62,22 +68,24 @@ class AuthenticationController extends Controller
         $request->session()->regenerate();
         $request->session()->forget('demo_user');
 
-        if ($request->routeIs('logistics.login.store')) {
-            return redirect()->route($request->user()->hasRole('logistics') ? 'logistics.dashboard' : 'rider.dashboard');
-        }
+        /** @var User $user */
+        $user = $request->user();
 
-        return redirect()->route($request->user()->workspaceRoute());
+        return redirect()->route($user->workspaceRoute());
     }
 
     public function destroy(Request $request): RedirectResponse
     {
-        $portal = (bool) $request->user()
-            && ($request->user()->hasRole('logistics') || $request->user()->hasRole('rider'));
+        $user = $request->user();
+        $portal = $user instanceof User
+            && $user->isAccountType(User::TYPE_LOGISTICS, User::TYPE_RIDER);
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route($portal ? 'logistics.login' : 'login')
+        return redirect()
+            ->route($portal ? 'logistics.login' : 'login')
             ->with('status', 'You have been signed out.');
     }
 }

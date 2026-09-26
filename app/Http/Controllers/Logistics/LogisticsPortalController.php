@@ -3,205 +3,269 @@
 namespace App\Http\Controllers\Logistics;
 
 use App\Http\Controllers\Controller;
-
-use App\Models\Seller\Message;
-use App\Models\Rider\Rider;
+use App\Models\Auth\RegistrationApplication;
 use App\Models\Logistics\ServiceArea;
+use App\Models\Logistics\ServiceAreaLocation;
 use App\Models\Logistics\Shipment;
+use App\Models\Rider\RiderAreaAssignment;
+use App\Models\Rider\RiderApplicationData;
+use App\Models\Rider\RiderProfile;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class LogisticsPortalController extends Controller
 {
     public function dashboard(Request $request): View
     {
-        $provider = $request->user()->logisticsProvider()->where('status', 'approved')->firstOrFail();
-        $shipmentQuery = Shipment::query()->where('logistics_provider_id', $provider->id);
-        $shipments = (clone $shipmentQuery)->with(['rider.user', 'sellerOrder.order', 'sellerOrder.seller.pickupAddress'])
-            ->latest()
-            ->limit(8)
-            ->get();
-
-        $stats = [
-            ['label' => 'Parcels', 'value' => (string) (clone $shipmentQuery)->count(), 'description' => 'All tracked shipments', 'change' => 'Live'],
-            ['label' => 'Assigned', 'value' => (string) (clone $shipmentQuery)->whereIn('status', ['assigned', 'picked_up', 'in_transit', 'out_for_delivery'])->count(), 'description' => 'Active rider assignments', 'change' => 'Current'],
-            ['label' => 'Delivered', 'value' => (string) (clone $shipmentQuery)->where('status', 'delivered')->count(), 'description' => 'Completed deliveries', 'change' => 'Database'],
-            ['label' => 'Riders', 'value' => (string) $provider->riders()->where('is_active', true)->count(), 'description' => 'Active riders', 'change' => 'Ready'],
-        ];
-
-        $recentParcels = $shipments->map(fn (Shipment $shipment) => [
-            'id' => $shipment->id,
-            'tracking' => $shipment->tracking_code,
-            'buyer' => $shipment->sellerOrder?->order?->buyer?->name ?? 'Buyer',
-            'destination' => $shipment->sellerOrder?->order?->shipping_address_snapshot['city'] ?? 'Unknown city',
-            'area' => $shipment->sellerOrder?->order?->shipping_address_snapshot['province'] ?? 'Unknown province',
-            'status' => str($shipment->status)->headline()->toString(),
-            'time' => $shipment->updated_at?->diffForHumans() ?? 'Recently',
-        ])->all();
-
-        $areas = $provider->serviceAreas()->orderBy('province')->orderBy('city')->get()->map(fn ($area) => [
-            'area' => $area->province,
-            'municipality' => $area->city,
-            'available' => $provider->riders()->where('is_active', true)->count(),
-            'total' => max(1, $provider->riders()->count()),
-        ])->all();
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center, 403);
 
         return view('Logistics.dashboard.index', [
-            'logisticsStats' => $stats,
-            'logisticsRecentParcels' => $recentParcels,
-            'logisticsAreas' => $areas,
-            'logisticsActivity' => [],
-        ]);
-    }
-
-    public function deliveryAreas(Request $request): View
-    {
-        $provider = $request->user()->logisticsProvider()->where('status', 'approved')->firstOrFail();
-        $areas = $provider->serviceAreas()->orderBy('province')->orderBy('city')->get();
-        return view('Logistics.delivery-areas.index', compact('areas'));
-    }
-
-    public function saveDeliveryArea(Request $request): RedirectResponse
-    {
-        $provider = $request->user()->logisticsProvider()->where('status', 'approved')->firstOrFail();
-        $data = $request->validate([
-            'province' => ['required', 'string', 'max:255'], 'city' => ['required', 'string', 'max:255'],
-            'city_code' => ['nullable', 'string', 'max:20'],
-            'base_fee' => ['required', 'numeric', 'min:0', 'max:10000'],
-            'per_kg_fee' => ['required', 'numeric', 'min:0', 'max:10000'],
-        ]);
-        $provider->serviceAreas()->updateOrCreate(
-            ['province' => $data['province'], 'city' => $data['city']],
-            ['city_code' => $data['city_code'] ?? null, 'base_fee_minor' => (int) round($data['base_fee'] * 100),
-                'per_kg_fee_minor' => (int) round($data['per_kg_fee'] * 100), 'is_active' => true],
-        );
-        return back()->with('status', 'Delivery area and rates saved.');
-    }
-
-    public function toggleDeliveryArea(Request $request, ServiceArea $area): RedirectResponse
-    {
-        $provider = $request->user()->logisticsProvider()->where('status', 'approved')->firstOrFail();
-        abort_unless($area->logistics_provider_id === $provider->id, 403);
-        $data = $request->validate(['is_active' => ['required', 'boolean']]);
-        $area->update($data);
-        return back()->with('status', 'Delivery coverage updated.');
-    }
-
-    public function messages(Request $request): View
-    {
-        $user=$request->user(); $contacts=User::anyRole(['seller','buyer','rider'])->where('status','active')->whereKeyNot($user->id)->orderBy('name')->get();
-        $selected=$request->integer('contact')?$contacts->firstWhere('id',$request->integer('contact')):$contacts->first();
-        $messages=$selected?Message::with('sender')->where(fn($q)=>$q->where(fn($x)=>$x->where('sender_id',$user->id)->where('recipient_id',$selected->id))->orWhere(fn($x)=>$x->where('sender_id',$selected->id)->where('recipient_id',$user->id)))->oldest()->get():collect();
-        return view('Logistics.messages.index',compact('contacts','selected','messages'));
-    }
-
-    public function sendMessage(Request $request): RedirectResponse
-    {
-        $data=$request->validate(['recipient_id'=>['required','exists:users,id'],'body'=>['required','string','max:2000']]);
-        Message::create(['sender_id'=>$request->user()->id,'recipient_id'=>$data['recipient_id'],'body'=>$data['body']]);
-        return back()->with('status','Message sent.');
-    }
-
-    public function reports(Request $request): View
-    {
-        $provider=$request->user()->logisticsProvider()->where('status','approved')->firstOrFail();
-        $shipments=Shipment::with(['rider.user','sellerOrder.order'])->where('logistics_provider_id',$provider->id)->latest()->get();
-        $delivered=$shipments->where('status','delivered')->count();$failed=$shipments->where('status','failed')->count();$total=max(1,$shipments->count());
-        return view('Logistics.reports.index',[
-            'summaryCards'=>[['label'=>'Parcels Received','value'=>$shipments->count(),'change'=>'Canonical shipments','tone'=>'primary','icon'=>'package'],['label'=>'Delivered','value'=>$delivered,'change'=>round($delivered/$total*100,1).'% success','tone'=>'success','icon'=>'check'],['label'=>'Out for Delivery','value'=>$shipments->where('status','out_for_delivery')->count(),'change'=>'Active now','tone'=>'primary','icon'=>'truck'],['label'=>'Failed Delivery','value'=>$failed,'change'=>'Recorded attempts','tone'=>'warning','icon'=>'alert']],
-            'parcelSummary'=>$shipments->groupBy(fn($shipment)=>$shipment->updated_at?->format('M d, Y')??'No date')->map(fn($group,$date)=>[$date,$group->count(),$group->whereIn('status',['assigned','picked_up','in_transit','out_for_delivery','delivered'])->count(),$group->where('status','out_for_delivery')->count(),$group->where('status','delivered')->count(),$group->where('status','failed')->count()])->values()->take(10),
-            'deliveryOverview'=>$shipments->groupBy(fn($shipment)=>$shipment->updated_at?->format('M d')??'No date')->map(fn($group,$date)=>['label'=>$date,'value'=>$group->count()])->values()->take(7),
-            'successRate'=>round($delivered/$total*100,1),'pendingCount'=>$shipments->whereNotIn('status',['delivered','returned'])->count(),
-            'riders'=>$provider->riders()->with('user')->get()->map(fn($rider)=>[$rider->user->name,$rider->vehicle_type?:'No vehicle',Shipment::where('rider_id',$rider->id)->count(),Shipment::where('rider_id',$rider->id)->where('status','delivered')->count(),'No rating data','']),
-            'areas'=>$provider->serviceAreas()->get()->map(fn($area)=>['area'=>$area->province,'municipality'=>$area->city,'available'=>$provider->riders()->where('is_active',true)->count()]),
-            'codTotal'=>$shipments->where('cod_collected',true)->sum('cod_amount_minor')/100,
+            'center' => $center,
+            'stats' => [
+                'shipments' => Shipment::where('logistics_center_id', $center->id)->count(),
+                'for_receive' => Shipment::where('logistics_center_id', $center->id)->whereIn('current_status', ['PICKED_UP', 'READY_FOR_PICKUP'])->count(),
+                'for_sorting' => Shipment::where('logistics_center_id', $center->id)->where('current_status', 'AT_SORTING_CENTER')->count(),
+                'for_dispatch' => Shipment::where('logistics_center_id', $center->id)->where('current_status', 'SORTED')->count(),
+                'active_riders' => $center->riders()->where('status', 'ACTIVE')->count(),
+            ],
+            'recentShipments' => Shipment::where('logistics_center_id', $center->id)->with(['sellerOrder.order.address'])->latest()->limit(10)->get(),
         ]);
     }
 
     public function riderApplications(Request $request): View
     {
-        $provider = $request->user()->logisticsProvider()->where('status', 'approved')->firstOrFail();
-        $riders = $provider->riders()->with('user')->get();
-        $applicants = $riders->map(fn ($rider) => [
-            'id' => $rider->id,
-            'name' => $rider->user->name,
-            'email' => $rider->user->email,
-            'status' => $rider->is_active ? 'Approved' : ($rider->user->status === 'rejected' ? 'Rejected' : 'Pending Approval'),
-            'vehicle' => $rider->vehicle_type ?? 'Not provided',
-            'plate' => $rider->plate_no ?? 'Not provided',
-            'area' => 'Service area',
-            'submitted' => $rider->created_at?->diffForHumans() ?? 'Recently',
-        ]);
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center, 403);
 
-        return view('Logistics.riders.application.index', [
-            'logisticsRiderApplications' => $applicants,
-            'logisticsRiderSummary' => [
-                ['label' => 'Total Applications', 'value' => $riders->count(), 'description' => 'All rider registrations', 'tone' => 'primary', 'icon' => 'applications'],
-                ['label' => 'Pending', 'value' => $riders->filter(fn ($rider) => ! $rider->is_active && $rider->user->status !== 'rejected')->count(), 'description' => 'Awaiting verification', 'tone' => 'warning', 'icon' => 'clock'],
-                ['label' => 'Approved', 'value' => $riders->where('is_active', true)->count(), 'description' => 'Verified rider accounts', 'tone' => 'success', 'icon' => 'check'],
-                ['label' => 'Rejected', 'value' => $riders->filter(fn ($rider) => ! $rider->is_active && $rider->user->status === 'rejected')->count(), 'description' => 'Applications declined', 'tone' => 'danger', 'icon' => 'x'],
-            ],
-        ]);
+        $applications = RegistrationApplication::query()
+            ->whereHas('user', fn ($query) => $query->where('account_type', 'RIDER'))
+            ->whereHas('riderData', fn ($query) => $query->where('target_logistics_center_id', $center->id))
+            ->with(['user', 'documents', 'riderData'])
+            ->latest()
+            ->paginate(15);
+
+        return view('Logistics.riders.application.index', compact('applications', 'center'));
     }
 
-    public function riderApplicationShow(Request $request, Rider $rider): View
+    public function riderApplicationShow(Request $request, RegistrationApplication $application): View
     {
-        $provider = $request->user()->logisticsProvider()->where('status', 'approved')->firstOrFail();
-        abort_unless($rider->logistics_provider_id === $provider->id, 403);
-        $rider->load('user');
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center, 403);
 
-        return view('Logistics.riders.application.show', [
-            'rider' => [
-                'id' => $rider->id,
-                'name' => $rider->user->name,
-                'email' => $rider->user->email,
-                'contact' => $rider->user->contact_number,
-                'address' => 'Not recorded',
-                'vehicle' => $rider->vehicle_type ?? 'Not provided',
-                'plate' => $rider->plate_no ?? 'Not provided',
-                'area' => 'Service area',
-                'submitted' => $rider->created_at?->diffForHumans() ?? 'Recently',
-                'status' => $rider->is_active ? 'Approved' : ($rider->user->status === 'rejected' ? 'Rejected' : 'Pending Approval'),
-            ],
-        ]);
+        $application->load(['user', 'documents', 'riderData']);
+        abort_unless((int) $application->riderData?->target_logistics_center_id === (int) $center->id, 403);
+
+        return view('Logistics.riders.application.show', compact('application', 'center'));
     }
 
-    public function approveRider(Request $request, Rider $rider): RedirectResponse
+    public function approveRider(Request $request, RegistrationApplication $application): RedirectResponse
     {
-        $provider = $request->user()->logisticsProvider()->where('status', 'approved')->firstOrFail();
-        abort_unless($rider->logistics_provider_id === $provider->id, 403);
-        $rider->getConnection()->transaction(function () use ($rider): void {
-            $rider->update(['is_active' => true]);
-            $rider->user()->update(['status' => 'active']);
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center, 403);
+
+        $application->load(['user', 'riderData']);
+        abort_unless((int) $application->riderData?->target_logistics_center_id === (int) $center->id, 403);
+
+        DB::transaction(function () use ($application, $center, $request): void {
+            $application->update([
+                'status' => 'APPROVED',
+                'reviewed_by_user_id' => $request->user()->id,
+                'reviewed_at' => now(),
+                'decision_notes' => $request->input('decision_notes'),
+                'rejection_reason' => null,
+            ]);
+
+            $application->user->update(['status' => 'ACTIVE']);
+
+            RiderProfile::updateOrCreate(
+                ['user_id' => $application->user_id],
+                [
+                    'logistics_center_id' => $center->id,
+                    'vehicle_type' => $application->riderData->vehicle_type,
+                    'plate_number' => $application->riderData->plate_number,
+                    'drivers_license_number' => $application->riderData->drivers_license_number,
+                    'status' => 'ACTIVE',
+                    'approved_by_user_id' => $request->user()->id,
+                    'approved_at' => now(),
+                ],
+            );
         });
 
-        return back()->with('success', 'Rider approved.');
+        return redirect()->route('logistics.riders.applications')->with('status', 'Rider approved and activated.');
     }
 
-    public function rejectRider(Request $request, Rider $rider): RedirectResponse
+    public function rejectRider(Request $request, RegistrationApplication $application): RedirectResponse
     {
-        $provider = $request->user()->logisticsProvider()->where('status', 'approved')->firstOrFail();
-        abort_unless($rider->logistics_provider_id === $provider->id, 403);
-        $rider->getConnection()->transaction(function () use ($rider): void {
-            $rider->update(['is_active' => false]);
-            $rider->user()->update(['status' => 'rejected']);
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center, 403);
+
+        $data = $request->validate(['rejection_reason' => ['required', 'string', 'max:1000']]);
+        $application->load('riderData');
+        abort_unless((int) $application->riderData?->target_logistics_center_id === (int) $center->id, 403);
+
+        $application->update([
+            'status' => 'REJECTED',
+            'reviewed_by_user_id' => $request->user()->id,
+            'reviewed_at' => now(),
+            'rejection_reason' => $data['rejection_reason'],
+        ]);
+
+        $application->user?->update(['status' => 'DEACTIVATED']);
+
+        return back()->with('status', 'Rider application rejected.');
+    }
+
+    public function riders(Request $request): View
+    {
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center, 403);
+
+        $riders = RiderProfile::query()
+            ->where('logistics_center_id', $center->id)
+            ->with(['user', 'areaAssignments.serviceArea'])
+            ->latest()
+            ->paginate(15);
+
+        return view('Logistics.riders.index', compact('riders', 'center'));
+    }
+
+    public function riderShow(Request $request, RiderProfile $rider): View
+    {
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center && (int) $rider->logistics_center_id === (int) $center->id, 403);
+
+        $rider->load(['user', 'areaAssignments.serviceArea', 'assignments.shipment.sellerOrder.order.address', 'earnings']);
+
+        return view('Logistics.riders.show', compact('rider', 'center'));
+    }
+
+    public function activateRider(Request $request, RiderProfile $rider): RedirectResponse
+    {
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center && (int) $rider->logistics_center_id === (int) $center->id, 403);
+
+        $rider->update(['status' => 'ACTIVE']);
+        $rider->user?->update(['status' => 'ACTIVE']);
+
+        return back()->with('status', 'Rider activated.');
+    }
+
+    public function deactivateRider(Request $request, RiderProfile $rider): RedirectResponse
+    {
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center && (int) $rider->logistics_center_id === (int) $center->id, 403);
+
+        $rider->update(['status' => 'SUSPENDED']);
+        $rider->user?->update(['status' => 'SUSPENDED']);
+
+        return back()->with('status', 'Rider suspended.');
+    }
+
+    public function deliveryAreas(Request $request): View
+    {
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center, 403);
+
+        $areas = ServiceArea::query()
+            ->where('logistics_center_id', $center->id)
+            ->with(['locations', 'riderAssignments.riderProfile.user'])
+            ->orderBy('name')
+            ->get();
+
+        $riders = RiderProfile::where('logistics_center_id', $center->id)->where('status', 'ACTIVE')->with('user')->get();
+
+        return view('Logistics.delivery-areas.index', compact('areas', 'riders', 'center'));
+    }
+
+    public function saveDeliveryArea(Request $request): RedirectResponse
+    {
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center, 403);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'code' => ['nullable', 'string', 'max:50'],
+            'province_code' => ['required', 'string', 'max:50'],
+            'province_name' => ['required', 'string', 'max:150'],
+            'municipality_code' => ['required', 'string', 'max:50'],
+            'municipality_name' => ['required', 'string', 'max:150'],
+            'barangay_code' => ['required', 'string', 'max:50'],
+            'barangay_name' => ['required', 'string', 'max:150'],
+            'rider_profile_id' => ['nullable', 'integer', 'exists:rider_profiles,id'],
+        ]);
+
+        DB::transaction(function () use ($data, $center, $request): void {
+            $area = ServiceArea::firstOrCreate(
+                ['logistics_center_id' => $center->id, 'code' => $data['code'] ?: Str::slug($data['name'])],
+                ['name' => $data['name'], 'is_active' => true],
+            );
+
+            $area->update(['name' => $data['name'], 'is_active' => true]);
+
+            ServiceAreaLocation::updateOrCreate(
+                ['service_area_id' => $area->id, 'barangay_code' => $data['barangay_code']],
+                [
+                    'province_code' => $data['province_code'],
+                    'province_name' => $data['province_name'],
+                    'municipality_code' => $data['municipality_code'],
+                    'municipality_name' => $data['municipality_name'],
+                    'barangay_name' => $data['barangay_name'],
+                ],
+            );
+
+            if (! empty($data['rider_profile_id'])) {
+                RiderAreaAssignment::updateOrCreate(
+                    ['rider_profile_id' => $data['rider_profile_id'], 'service_area_id' => $area->id, 'is_active' => true],
+                    ['assigned_by_user_id' => $request->user()->id, 'assigned_at' => now(), 'ended_at' => null],
+                );
+            }
         });
 
-        return back()->with('success', 'Rider application rejected.');
+        return back()->with('status', 'Service area saved.');
+    }
+
+    public function toggleDeliveryArea(Request $request, ServiceArea $area): RedirectResponse
+    {
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center && (int) $area->logistics_center_id === (int) $center->id, 403);
+
+        $area->update(['is_active' => ! $area->is_active]);
+
+        return back()->with('status', 'Service area updated.');
+    }
+
+    public function reports(Request $request): View
+    {
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center, 403);
+
+        return view('Logistics.reports.index', [
+            'center' => $center,
+            'shipmentsByStatus' => Shipment::where('logistics_center_id', $center->id)->selectRaw('current_status, COUNT(*) as total')->groupBy('current_status')->pluck('total', 'current_status'),
+            'riderCount' => RiderProfile::where('logistics_center_id', $center->id)->count(),
+        ]);
     }
 
     public function profile(Request $request): View
     {
-        $user = $request->user()->load(['logisticsProvider', 'addresses']);
+        $center = $request->user()->logisticsCenter?->load('address');
+        abort_unless($center, 403);
 
-        return view('Logistics.profile.index', [
-            'accountUser' => $user,
-            'provider' => $user->logisticsProvider,
-            'address' => $user->addresses->firstWhere('is_default', true) ?? $user->addresses->first(),
-        ]);
+        return view('Logistics.profile.index', compact('center'));
     }
-    public function riderShow(Request $request, Rider $rider): View { $provider=$request->user()->logisticsProvider()->where('status','approved')->firstOrFail(); abort_unless($rider->logistics_provider_id===$provider->id,403); $rider->load('user'); return view('Logistics.riders.show',['rider'=>['id'=>$rider->id,'name'=>$rider->user->name,'email'=>$rider->user->email,'contact'=>$rider->user->contact_number,'area'=>$rider->vehicle_type?:'Unassigned','status'=>$rider->is_active?'Active':'Inactive','parcels'=>Shipment::where('rider_id',$rider->id)->whereNotIn('status',['delivered','returned'])->count()]]); }
+
+    public function messages(): View
+    {
+        return view('Logistics.messages.index', ['conversations' => collect()]);
+    }
+
+    public function sendMessage(): RedirectResponse
+    {
+        return back()->with('status', 'Messaging is handled in Phase 5.');
+    }
 }

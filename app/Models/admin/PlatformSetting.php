@@ -2,57 +2,72 @@
 
 namespace App\Models\Admin;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PlatformSetting extends Model
 {
     protected $table = 'platform_settings';
 
-    protected $fillable = ['key', 'value', 'value_type', 'updated_by_user_id'];
+    protected $fillable = [
+        'key',
+        'value',
+        'value_type',
+        'updated_by_user_id',
+    ];
+
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by_user_id');
+    }
 
     public static function valueOf(string $key, mixed $default = null): mixed
     {
         $setting = static::query()->where('key', $key)->first();
+
         if (! $setting) {
             return $default;
         }
 
-        return match ($setting->value_type) {
-            'BOOLEAN' => filter_var($setting->value, FILTER_VALIDATE_BOOLEAN),
-            'INTEGER' => (int) $setting->value,
-            'DECIMAL' => (float) $setting->value,
+        return match (strtolower((string) $setting->value_type)) {
+            'boolean' => filter_var($setting->value, FILTER_VALIDATE_BOOLEAN),
+            'integer' => (int) $setting->value,
+            'decimal', 'float' => (float) $setting->value,
             default => $setting->value,
         };
     }
 
     public static function put(string $key, mixed $value, string $type = 'string', ?int $updatedBy = null): self
     {
-        $stored = match (strtolower($type)) {
-            'boolean' => $value ? '1' : '0',
-            default => (string) $value,
+        $normalizedType = match (strtolower($type)) {
+            'bool' => 'boolean',
+            'int' => 'integer',
+            'float' => 'decimal',
+            default => strtolower($type),
         };
 
-        $valueType = match (strtolower($type)) {
-            'boolean' => 'BOOLEAN',
-            'integer' => 'INTEGER',
-            'float', 'decimal' => 'DECIMAL',
-            default => 'STRING',
-        };
+        $storedValue = $normalizedType === 'boolean'
+            ? ($value ? '1' : '0')
+            : (string) $value;
 
         return static::query()->updateOrCreate(
             ['key' => $key],
-            ['value' => $stored, 'value_type' => $valueType, 'updated_by_user_id' => $updatedBy]
+            [
+                'value' => $storedValue,
+                'value_type' => $normalizedType,
+                'updated_by_user_id' => $updatedBy,
+            ],
         );
     }
 
     public static function commissionRate(): float
     {
-        $default = (float) config('likhae.seller_commission_rate', 0.10);
-        return min(1, max(0, (float) static::valueOf('seller_commission_rate', $default)));
+        return min(1.0, max(0.0, (float) static::valueOf('commission_rate', 0.10)));
     }
 
-    public static function commissionBps(): int
+    public static function defaultCurrency(): string
     {
-        return min(10000, max(0, (int) static::valueOf('default_commission_bps', 800)));
+        return strtoupper((string) static::valueOf('default_currency', 'PHP'));
     }
 }

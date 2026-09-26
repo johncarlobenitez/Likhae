@@ -7,13 +7,43 @@ use App\Models\User;
 
 class ShipmentPolicy
 {
+    public function before(User $user): ?bool
+    {
+        return $user->isAccountType(User::TYPE_ADMIN) ? true : null;
+    }
+
+    public function view(User $user, Shipment $shipment): bool
+    {
+        $shipment->loadMissing([
+            'sellerOrder.order',
+            'sellerOrder.sellerProfile',
+            'logisticsCenter',
+            'riderAssignments.riderProfile',
+        ]);
+
+        if ($user->isAccountType(User::TYPE_BUYER)) {
+            return $shipment->sellerOrder?->order?->buyer_user_id === $user->id;
+        }
+
+        if ($user->isAccountType(User::TYPE_SELLER)) {
+            return $shipment->sellerOrder?->sellerProfile?->user_id === $user->id;
+        }
+
+        if ($user->isAccountType(User::TYPE_LOGISTICS)) {
+            return $shipment->logisticsCenter?->owner_user_id === $user->id;
+        }
+
+        if ($user->isAccountType(User::TYPE_RIDER)) {
+            return $shipment->riderAssignments->contains(
+                fn ($assignment) => $assignment->riderProfile?->user_id === $user->id
+            );
+        }
+
+        return false;
+    }
+
     public function viewProof(User $user, Shipment $shipment): bool
     {
-        $shipment->loadMissing('sellerOrder.order', 'sellerOrder.seller', 'provider');
-        return $user->hasRole('admin')
-            || $shipment->sellerOrder->order->buyer_id === $user->id
-            || $shipment->sellerOrder->seller->user_id === $user->id
-            || $shipment->provider?->user_id === $user->id
-            || $shipment->rider?->user_id === $user->id;
+        return $this->view($user, $shipment);
     }
 }

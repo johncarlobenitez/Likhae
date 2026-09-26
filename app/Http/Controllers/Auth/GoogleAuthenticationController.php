@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -58,39 +57,29 @@ class GoogleAuthenticationController extends Controller
 
         if (! $user) {
             $raw = $googleUser->getRaw();
+
             $request->session()->put('google_buyer_registration', [
-                'id' => (string) $googleUser->getId(),
                 'email' => $email,
                 'first_name' => trim((string) ($raw['given_name'] ?? str($googleUser->getName())->beforeLast(' '))),
                 'last_name' => trim((string) ($raw['family_name'] ?? str($googleUser->getName())->afterLast(' '))),
-                'avatar' => $googleUser->getAvatar(),
             ]);
 
             return redirect()->route('register', ['role' => 'buyer']);
         }
 
-        if (! $user->hasRole('buyer')) {
+        if (! $user->isAccountType(User::TYPE_BUYER)) {
             return redirect()->route('login')->withErrors([
-                'email' => 'Continue with Google is available for buyer accounts only.',
+                'email' => 'Continue with Google is available for Buyer accounts only.',
             ]);
         }
 
-        if ($user->status !== 'active') {
+        if (! $user->isActive()) {
             return redirect()->route('login')->withErrors(['email' => $user->inactiveMessage()]);
         }
 
-        $googleId = (string) $googleUser->getId();
-        if (filled($user->google_id) && ! hash_equals((string) $user->google_id, $googleId)) {
-            return redirect()->route('login')->withErrors([
-                'email' => 'This LIKHAE account is linked to a different Google account.',
-            ]);
+        if (! $user->email_verified_at) {
+            $user->forceFill(['email_verified_at' => now()])->save();
         }
-
-        $user->forceFill([
-            'google_id' => $googleId,
-            'google_avatar_url' => $googleUser->getAvatar(),
-            'email_verified_at' => $user->email_verified_at ?: now(),
-        ])->save();
 
         Auth::login($user, true);
         $request->session()->regenerate();

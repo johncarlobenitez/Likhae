@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,25 +16,28 @@ class EnsureWorkspaceRole
             return redirect()->route('login')->withErrors(['email' => 'Please sign in first.']);
         }
 
+        /** @var User $user */
         $user = Auth::user();
 
-        if ($user->isSuspended() || $user->status !== 'active') {
+        if (! $user->isActive()) {
             $message = $user->inactiveMessage();
+
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            return redirect()->route(in_array($role, ['logistics', 'rider', 'courier'], true) ? 'logistics.login' : 'login')
-                ->withErrors(['email' => $message]);
+            return redirect()->route(
+                in_array(strtolower($role), ['logistics', 'rider', 'courier'], true)
+                    ? 'logistics.login'
+                    : 'login'
+            )->withErrors(['email' => $message]);
         }
 
-        $expectedRole = $role === 'courier' ? 'rider' : $role;
+        $expectedType = strtolower($role) === 'courier'
+            ? User::TYPE_RIDER
+            : strtoupper($role);
 
-        if ($expectedRole === 'buyer' && $user->hasRole('seller') && ! $user->hasRole('buyer')) {
-            $user->grant('buyer');
-        }
-
-        abort_unless($user->hasRole($expectedRole), 403);
+        abort_unless($user->isAccountType($expectedType), 403);
 
         return $next($request);
     }

@@ -2,6 +2,9 @@
 
 namespace App\Models\Buyer;
 
+use App\Models\Seller\Product;
+use App\Models\Seller\ProductVariant;
+use App\Models\Seller\SellerOrder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,16 +14,36 @@ class OrderItem extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['seller_order_id', 'product_id', 'product_variant_id', 'product_name', 'variant_name', 'sku', 'quantity', 'unit_price_minor', 'subtotal_minor'];
+    protected $fillable = [
+        'seller_order_id',
+        'product_id',
+        'product_variant_id',
+        'product_name',
+        'sku',
+        'variant_description',
+        'unit_price',
+        'quantity',
+        'discount_amount',
+        'line_total',
+    ];
 
-    public function product(): BelongsTo
+    protected function casts(): array
     {
-        return $this->belongsTo(Product::class);
+        return [
+            'unit_price' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
+            'line_total' => 'decimal:2',
+        ];
     }
 
     public function sellerOrder(): BelongsTo
     {
         return $this->belongsTo(SellerOrder::class);
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
     }
 
     public function productVariant(): BelongsTo
@@ -30,6 +53,6 @@ class OrderItem extends Model
 
     public function review(): HasOne
     {
-        return $this->hasOne(ProductReview::class);
+        return $this->hasOne(Review::class);
     }
 }

@@ -3,53 +3,54 @@
 namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
-
 use App\Models\Seller\SellerOrder;
+use App\Services\Fulfillment\ShipmentWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class SellerOrderController extends Controller
 {
     public function index(Request $request): View
     {
-        $seller = $request->user()->sellers()->where('status','approved')->firstOrFail();
-        $orders = SellerOrder::with(['order.buyer','items.product.images','shipment.provider'])
-            ->where('seller_id',$seller->id)->latest()->get();
-        $rows = $orders->map(function (SellerOrder $sellerOrder) {
-            $first = $sellerOrder->items->first();
-            $statusKey = match ($sellerOrder->status) {
-                'pending' => 'placed', 'accepted' => 'confirmed', 'packed' => 'preparing',
-                'ready_to_ship' => 'ready-for-pickup', 'shipped','delivered' => 'shipping',
-                'refunded' => 'returns', default => $sellerOrder->status,
-            };
-            return [
-                'id' => $sellerOrder->order->reference, 'db_id' => $sellerOrder->id,
-                'buyer_id' => $sellerOrder->order->buyer_id, 'buyer' => $sellerOrder->order->buyer->name,
-                'product' => $first?->product_name ?? 'Order items', 'variant' => $first?->variant_name ?? 'Standard',
-                'quantity' => $sellerOrder->items->sum('quantity'), 'total' => ($sellerOrder->subtotal_minor + $sellerOrder->shipping_fee_minor) / 100,
-                'payment' => str($sellerOrder->order->payment_method)->headline(), 'status_key' => $statusKey,
-                'status' => str($sellerOrder->status)->headline(), 'date' => $sellerOrder->created_at?->format('M d, Y'),
-                'shipping' => $sellerOrder->shipment?->provider?->name ?? 'Selected courier',
-                'shipping_address' => collect($sellerOrder->order->shipping_address_snapshot)->only(['line1','barangay','city','province'])->filter()->implode(', '),
-                'delivery' => $sellerOrder->shipment,
-            ];
-        });
-        $selected = $request->input('order') ?: data_get($rows->first(),'id');
+        $seller = $request->user()->sellerProfile;
+        abort_unless($seller, 403);
+
+        $status = strtoupper((string) $request->query('status', ''));
+
+        $orders = SellerOrder::query()
+            ->where('seller_profile_id', $seller->id)
+            ->when($status !== '', fn ($query) => $query->where('status', $status))
+            ->with(['order.buyer', 'order.address', 'items', 'shipment.events', 'shipment.pickupRequests', 'shipment.riderAssignments.riderProfile.user'])
+            ->latest()
+            ->paginate(15)
+            ->withQueryString();
+
+        $counts = SellerOrder::query()
+            ->where('seller_profile_id', $seller->id)
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
         return view('Seller.orders', [
-            'pageMode'=>'orders', 'mode'=>$request->input('mode','index'), 'status'=>$request->input('status','all'),
-            'selectedOrder'=>$selected, 'sellerOrders'=>$rows,
-            'statusCounts'=>$rows->groupBy('status_key')->map->count(),
+            'seller' => $seller,
+            'orders' => $orders,
+            'counts' => $counts,
+            'activeStatus' => $status,
         ]);
     }
 
-    public function transition(Request $request, SellerOrder $sellerOrder): RedirectResponse
+    public function transition(Request $request, SellerOrder $sellerOrder, ShipmentWorkflowService $workflow): RedirectResponse
     {
-        $seller = $request->user()->sellers()->where('status','approved')->firstOrFail();
-        abort_unless($sellerOrder->seller_id === $seller->id, 403);
-        $status = $request->validate(['status'=>['required',Rule::in(['accepted','packed','ready_to_ship','cancelled'])]])['status'];
-        $sellerOrder->transitionTo($status, $request->user());
-        return back()->with('status','Order moved to '.str($status)->headline().'.');
+        $seller = $request->user()->sellerProfile;
+        abort_unless($seller && (int) $sellerOrder->seller_profile_id === (int) $seller->id, 403);
+
+        $data = $request->validate([
+            'action' => ['required', 'string', 'in:confirm,prepare,ready,cancel'],
+        ]);
+
+        $workflow->sellerTransition($sellerOrder, $data['action'], $request->user());
+
+        return back()->with('status', 'Seller order updated successfully.');
     }
 }

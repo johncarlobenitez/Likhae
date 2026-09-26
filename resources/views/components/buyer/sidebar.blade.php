@@ -1032,6 +1032,37 @@
             </div>
         </div>
 
+        {{-- Partner With LIKHAE --}}
+        <div class="lk-nav-section">
+            <span class="lk-nav-section-title">
+                Partner With LIKHAE
+            </span>
+
+            <a href="{{ route('sell.create') }}" class="lk-nav-link">
+                <span class="lk-nav-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        {!! $icons['shop'] !!}
+                    </svg>
+                </span>
+
+                <span class="lk-nav-text">
+                    Open a Shop
+                </span>
+            </a>
+
+            <a href="{{ route('partner.create') }}" class="lk-nav-link">
+                <span class="lk-nav-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        {!! $icons['partner'] !!}
+                    </svg>
+                </span>
+
+                <span class="lk-nav-text">
+                    Become a Logistics Partner
+                </span>
+            </a>
+        </div>
+
     </nav>
 
     <div class="lk-sidebar-foot">

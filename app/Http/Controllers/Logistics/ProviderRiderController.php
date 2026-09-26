@@ -3,14 +3,9 @@
 namespace App\Http\Controllers\Logistics;
 
 use App\Http\Controllers\Controller;
-
-use App\Models\Rider\Rider;
-use App\Models\User;
+use App\Models\Rider\RiderProfile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -18,77 +13,119 @@ class ProviderRiderController extends Controller
 {
     public function index(Request $request): View
     {
-        $provider = $request->user()->logisticsProvider()->firstOrFail();
+        $center = $request->user()->logisticsCenter()->where('status', 'ACTIVE')->firstOrFail();
 
-        return view('auth.onboarding.riders', ['provider' => $provider, 'riders' => $provider->riders()->with('user')->latest()->get()]);
-    }
+        $riders = $center->riders()
+            ->with(['user', 'areaAssignments.serviceArea'])
+            ->withCount([
+                'assignments as active_assignments_count' => fn ($query) => $query->whereIn('status', ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS']),
+            ])
+            ->orderByDesc('approved_at')
+            ->get();
 
-    public function store(Request $request): RedirectResponse
-    {
-        $provider = $request->user()->logisticsProvider()->firstOrFail();
-        $data = $request->validate(['name' => ['required', 'string', 'max:120'], 'email' => ['required', 'email', 'max:255', 'unique:users,email'], 'phone' => ['required', 'string', 'max:40'], 'vehicle_type' => ['required', Rule::in(['motorcycle', 'car', 'van', 'truck'])], 'plate_no' => ['required', 'string', 'max:30']]);
-        $password = Str::password(12);
-        DB::transaction(function () use ($data, $provider, $password) {
-            $user = User::create(['name' => $data['name'], 'email' => strtolower($data['email']), 'contact_number' => $data['phone'], 'password' => $password, 'email_verified_at' => now(), 'status' => 'active']);
-            $user->grant('rider');
-            Rider::create(['user_id' => $user->id, 'logistics_provider_id' => $provider->id, 'vehicle_type' => $data['vehicle_type'], 'plate_no' => $data['plate_no'], 'is_active' => true]);
+        $rows = $riders->map(function (RiderProfile $rider): array {
+            $activeArea = $rider->areaAssignments->firstWhere('is_active', true)?->serviceArea?->name;
+
+            return [
+                'id' => $rider->id,
+                'name' => $rider->user?->name ?? 'Rider',
+                'code' => 'RID-'.str_pad((string) $rider->id, 4, '0', STR_PAD_LEFT),
+                'area' => $activeArea ?: 'Unassigned',
+                'parcels' => (int) $rider->active_assignments_count,
+                'status' => str($rider->status)->headline()->toString(),
+            ];
         });
 
-        return back()->with('rider_password', $password)->with('success', 'Rider account created. Copy the temporary password now.');
+        return view('Logistics.riders.index', [
+            'logisticsRiders' => $rows,
+            'logisticsRiderStats' => [
+                ['label' => 'Active Riders', 'value' => $riders->where('status', 'ACTIVE')->count(), 'tone' => 'success'],
+                ['label' => 'Delivering', 'value' => $riders->filter(fn ($rider) => (int) $rider->active_assignments_count > 0)->count(), 'tone' => 'info'],
+                ['label' => 'Inactive', 'value' => $riders->whereIn('status', ['SUSPENDED', 'DEACTIVATED'])->count(), 'tone' => 'warning'],
+            ],
+        ]);
     }
 
-    public function update(Request $request, Rider $rider): RedirectResponse
+    public function show(Request $request, RiderProfile $rider): View
     {
-        Gate::authorize('update', $rider);
+        $center = $request->user()->logisticsCenter()->where('status', 'ACTIVE')->firstOrFail();
+        abort_unless((int) $rider->logistics_center_id === (int) $center->id, 403);
+
+        $rider->load(['user', 'areaAssignments.serviceArea']);
+        $activeArea = $rider->areaAssignments->firstWhere('is_active', true)?->serviceArea?->name;
+        $activeAssignments = $rider->assignments()->whereIn('status', ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS'])->count();
+
+        return view('Logistics.riders.show', [
+            'rider' => [
+                'id' => $rider->id,
+                'name' => $rider->user?->name ?? 'Rider',
+                'email' => $rider->user?->email ?? 'Not recorded',
+                'contact' => $rider->user?->contact_number ?? 'Not recorded',
+                'area' => $activeArea ?: 'Unassigned',
+                'status' => str($rider->status)->headline()->toString(),
+                'parcels' => $activeAssignments,
+                'vehicle' => str($rider->vehicle_type)->headline()->toString(),
+                'plate' => $rider->plate_number,
+                'license' => $rider->drivers_license_number,
+            ],
+        ]);
+    }
+
+    public function edit(Request $request, RiderProfile $rider): View
+    {
+        $center = $request->user()->logisticsCenter()->where('status', 'ACTIVE')->firstOrFail();
+        abort_unless((int) $rider->logistics_center_id === (int) $center->id, 403);
+
+        return $this->show($request, $rider);
+    }
+
+    public function update(Request $request, RiderProfile $rider): RedirectResponse
+    {
+        $center = $request->user()->logisticsCenter()->where('status', 'ACTIVE')->firstOrFail();
+        abort_unless((int) $rider->logistics_center_id === (int) $center->id, 403);
+
         $data = $request->validate([
-            'name' => ['sometimes', 'required', 'string', 'max:120'],
-            'email' => ['sometimes', 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($rider->user_id)],
-            'phone' => ['sometimes', 'required', 'string', 'max:40'],
+            'contact_number' => ['sometimes', 'required', 'string', 'max:30', Rule::unique('users', 'contact_number')->ignore($rider->user_id)],
             'vehicle_type' => ['sometimes', 'required', Rule::in(['motorcycle', 'car', 'van', 'truck'])],
-            'plate_no' => ['sometimes', 'required', 'string', 'max:30'],
-            'is_active' => ['sometimes', 'required', 'boolean'],
+            'plate_number' => ['sometimes', 'required', 'string', 'max:50', Rule::unique('rider_profiles', 'plate_number')->ignore($rider->id)],
+            'drivers_license_number' => ['sometimes', 'required', 'string', 'max:100', Rule::unique('rider_profiles', 'drivers_license_number')->ignore($rider->id)],
         ]);
 
-        DB::transaction(function () use ($rider, $data): void {
-            $rider->user?->update(array_filter([
-                'name' => $data['name'] ?? null,
-                'email' => isset($data['email']) ? strtolower($data['email']) : null,
-                'contact_number' => $data['phone'] ?? null,
-            ], static fn ($value) => $value !== null));
+        $rider->getConnection()->transaction(function () use ($rider, $data): void {
+            if (array_key_exists('contact_number', $data)) {
+                $rider->user?->update(['contact_number' => $data['contact_number']]);
+            }
+
             $rider->update(array_filter([
                 'vehicle_type' => $data['vehicle_type'] ?? null,
-                'plate_no' => $data['plate_no'] ?? null,
-                'is_active' => $data['is_active'] ?? null,
+                'plate_number' => isset($data['plate_number']) ? mb_strtoupper(trim($data['plate_number'])) : null,
+                'drivers_license_number' => isset($data['drivers_license_number']) ? mb_strtoupper(trim($data['drivers_license_number'])) : null,
             ], static fn ($value) => $value !== null));
         });
 
-        return back()->with('success', $rider->is_active ? 'Rider reactivated.' : 'Rider deactivated.');
+        return back()->with('success', 'Rider profile updated.');
     }
 
-    public function edit(Request $request, Rider $rider): View
+    public function activate(Request $request, RiderProfile $rider): RedirectResponse
     {
-        Gate::authorize('view', $rider);
-
-        return view('auth.onboarding.riders', [
-            'provider' => $request->user()->logisticsProvider()->firstOrFail(),
-            'riders' => $request->user()->logisticsProvider()->firstOrFail()->riders()->with('user')->latest()->get(),
-            'editingRider' => $rider,
-        ]);
+        return $this->setStatus($request, $rider, 'ACTIVE', 'Rider reactivated.');
     }
 
-    public function activate(Request $request, Rider $rider): RedirectResponse
+    public function deactivate(Request $request, RiderProfile $rider): RedirectResponse
     {
-        Gate::authorize('update', $rider);
-        $rider->update(['is_active' => true]);
-
-        return back()->with('success', 'Rider reactivated.');
+        return $this->setStatus($request, $rider, 'DEACTIVATED', 'Rider deactivated.');
     }
 
-    public function deactivate(Request $request, Rider $rider): RedirectResponse
+    private function setStatus(Request $request, RiderProfile $rider, string $status, string $message): RedirectResponse
     {
-        Gate::authorize('update', $rider);
-        $rider->update(['is_active' => false]);
+        $center = $request->user()->logisticsCenter()->where('status', 'ACTIVE')->firstOrFail();
+        abort_unless((int) $rider->logistics_center_id === (int) $center->id, 403);
 
-        return back()->with('success', 'Rider deactivated.');
+        $rider->getConnection()->transaction(function () use ($rider, $status): void {
+            $rider->update(['status' => $status]);
+            $rider->user?->update(['status' => $status === 'ACTIVE' ? 'ACTIVE' : 'DEACTIVATED']);
+        });
+
+        return back()->with('success', $message);
     }
 }

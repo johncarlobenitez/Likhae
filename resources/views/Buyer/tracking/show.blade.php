@@ -1,13 +1,5 @@
-@extends('layouts.guest')
-
-@section('title', 'Track '.$tracking)
-
+@extends('layouts.buyer')
+@section('title', 'Track Parcel')
 @section('content')
-<main class="lk-page-narrow py-10">
-    <header class="lk-page-title"><div><span class="lk-kicker">Parcel tracking</span><h1>{{ $tracking }}</h1><p>{{ $courier }} · {{ $city }}</p></div><span class="lk-btn lk-btn-light">{{ str($status)->headline() }}</span></header>
-    <section class="mt-6 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-        <h2 class="text-base font-bold text-stone-900">Tracking timeline</h2>
-        <ol class="mt-5 space-y-4">@forelse($events as $event)<li class="border-l-2 border-red-800 pl-4"><strong class="block text-sm text-stone-900">{{ str($event->status)->headline() }}</strong><time class="text-xs text-stone-500">{{ $event->occurred_at?->format('M d, Y g:i A') }}</time></li>@empty<li class="text-sm text-stone-500">Shipment preparation is in progress.</li>@endforelse</ol>
-    </section>
-</main>
+<div class="space-y-6"><h1 class="text-2xl font-bold">Tracking {{ $shipment->tracking_number }}</h1><div class="rounded-2xl border bg-white p-5"><p>Status: {{ $shipment->current_status }}</p><p>Destination: {{ $shipment->destination_barangay_name }}, {{ $shipment->destination_municipality_name }}</p></div><div class="rounded-2xl border bg-white p-5"><h2 class="font-bold">Timeline</h2><ul class="mt-3 space-y-2">@foreach($shipment->events as $event)<li>{{ $event->status }} — {{ $event->notes }} — {{ $event->occurred_at }}</li>@endforeach</ul></div></div>
 @endsection

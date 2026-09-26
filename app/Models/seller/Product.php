@@ -2,11 +2,13 @@
 
 namespace App\Models\Seller;
 
+use App\Models\Admin\SellerComplianceCase;
+use App\Models\Buyer\OrderItem;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
@@ -14,29 +16,33 @@ class Product extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'seller_id', 'category_id', 'name', 'slug', 'description', 'min_price_minor', 'is_active',
+        'seller_profile_id',
+        'category_id',
+        'name',
+        'slug',
+        'description',
+        'status',
+        'published_at',
+        'archived_at',
     ];
 
     protected function casts(): array
     {
-        return ['is_active' => 'boolean'];
+        return [
+            'published_at' => 'datetime',
+            'archived_at' => 'datetime',
+        ];
     }
 
+    public function sellerProfile(): BelongsTo
+    {
+        return $this->belongsTo(SellerProfile::class);
+    }
+
+    /** Transitional alias. */
     public function seller(): BelongsTo
     {
-        return $this->belongsTo(Seller::class, 'seller_id');
-    }
-
-    public function scopeVisible(Builder $query): Builder
-    {
-        return $query->where('is_active', true)
-            ->whereHas('seller', fn (Builder $seller) => $seller->where('status', 'approved')
-                ->where(fn ($settings) => $settings->whereNull('settings->vacation_mode')->orWhere('settings->vacation_mode', false))
-                ->where(fn ($settings) => $settings->whereNull('settings->store_visibility')->orWhere('settings->store_visibility', true)))
-            ->whereHas('seller.owner', fn (Builder $owner) => $owner->where('status', 'active')->where('is_suspended', false))
-            ->whereHas('category', fn (Builder $category) => $category->where('is_active', true)
-                ->whereHas('parent', fn (Builder $parent) => $parent->where('is_active', true)))
-            ->whereHas('variants', fn (Builder $variant) => $variant->where('is_active', true)->where('stock', '>', 0));
+        return $this->sellerProfile();
     }
 
     public function category(): BelongsTo
@@ -44,14 +50,14 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
 
-    public function orderItems(): HasMany
+    public function images(): HasMany
     {
-        return $this->hasMany(OrderItem::class);
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order');
     }
 
-    public function reviews(): HasMany
+    public function options(): HasMany
     {
-        return $this->hasMany(ProductReview::class);
+        return $this->hasMany(ProductOption::class)->orderBy('sort_order');
     }
 
     public function variants(): HasMany
@@ -59,13 +65,38 @@ class Product extends Model
         return $this->hasMany(ProductVariant::class);
     }
 
-    public function images(): HasMany
+    public function orderItems(): HasMany
     {
-        return $this->hasMany(ProductImage::class)->orderBy('sort_order')->orderBy('id');
+        return $this->hasMany(OrderItem::class);
     }
 
-    public function specifications(): HasMany
+    public function complianceCases(): HasMany
     {
-        return $this->hasMany(ProductSpecification::class)->orderBy('name');
+        return $this->hasMany(SellerComplianceCase::class);
+    }
+
+    public function scopeVisible(Builder $query): Builder
+    {
+        return $query
+            ->where('status', 'ACTIVE')
+            ->whereHas('sellerProfile', function (Builder $seller): void {
+                $seller->where('status', 'ACTIVE')
+                    ->whereHas('user', fn (Builder $user) => $user->where('status', 'ACTIVE'));
+            })
+            ->whereHas('variants', fn (Builder $variant) => $variant->where('is_active', true));
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('status', 'ACTIVE');
+    }
+
+    public function getMinPriceAttribute(): ?string
+    {
+        $value = $this->relationLoaded('variants')
+            ? $this->variants->where('is_active', true)->min('price')
+            : $this->variants()->where('is_active', true)->min('price');
+
+        return $value === null ? null : number_format((float) $value, 2, '.', '');
     }
 }

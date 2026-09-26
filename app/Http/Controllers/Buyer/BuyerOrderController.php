@@ -3,121 +3,142 @@
 namespace App\Http\Controllers\Buyer;
 
 use App\Http\Controllers\Controller;
-
-use App\Models\Seller\ProductReview;
-use App\Models\Buyer\ReturnRequest;
-use App\Models\Seller\SellerOrder;
-use App\Models\Seller\WorkspaceNotification;
-use App\Services\LedgerService;
-use App\Support\BuyerMarketplace;
+use App\Models\Buyer\Order;
+use App\Models\Buyer\OrderItem;
+use App\Models\Buyer\Review;
+use App\Models\Logistics\ShipmentEvent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class BuyerOrderController extends Controller
 {
-    public function index(Request $request, string $mode = 'index', ?string $reference = null): View
+    public function success(Request $request): View
     {
-        $orders = SellerOrder::query()
-            ->with(['order.payments', 'seller', 'items.product.images', 'items.productVariant', 'shipment.provider', 'shipment.events', 'events'])
-            ->whereHas('order', fn ($query) => $query->where('buyer_id', $request->user()->id))
-            ->latest()->get();
-
-        if ($reference !== null && in_array($mode, ['show', 'return', 'review'], true)) {
-            $selected = SellerOrder::query()->with('order')->where(function ($query) use ($reference) {
-                if (ctype_digit($reference)) $query->orWhere('seller_orders.id', (int) $reference);
-                $query->orWhereHas('order', fn ($order) => $order->where('reference', $reference));
-            })->firstOrFail();
-            abort_unless($selected->order->buyer_id === $request->user()->id, 403);
+        $order = null;
+        if ($request->filled('order')) {
+            $order = $request->user()
+                ->orders()
+                ->with(['sellerOrders.items.product', 'sellerOrders.shipment', 'address', 'payments'])
+                ->where('order_number', $request->query('order'))
+                ->first();
         }
 
         return view('Buyer.orders', [
-            'mode' => $mode,
-            'selectedOrderId' => isset($selected) ? (string) $selected->id : $reference,
-            'buyerOrders' => $orders->map(fn (SellerOrder $order) => BuyerMarketplace::sellerOrder($order)),
+            'mode' => 'success',
+            'selectedOrder' => $order,
+            'orders' => $request->user()->orders()->with(['sellerOrders.shipment', 'payments'])->latest()->paginate(10),
         ]);
     }
 
-    public function cancel(Request $request): RedirectResponse
+    public function index(Request $request): View
     {
-        $data = $request->validate(['order_id' => ['required', 'string'], 'reason' => ['required', 'string', 'max:255'], 'note' => ['nullable', 'string', 'max:1000']]);
-        $order = $this->owned($request, $data['order_id']);
-        DB::transaction(function () use ($order, $request, $data): void {
-            $order = SellerOrder::whereKey($order->id)->lockForUpdate()->firstOrFail();
-            abort_unless(in_array($order->status, ['pending', 'accepted', 'packed'], true), 422, 'This shop order can no longer be cancelled.');
-            $order->transitionTo('cancelled', $request->user(), $data['reason'].(! empty($data['note']) ? ': '.$data['note'] : ''));
-            WorkspaceNotification::create([
-                'user_id' => $order->seller->user_id, 'type' => 'orders', 'title' => 'Order cancelled',
-                'body' => "Buyer cancelled {$order->order->reference}.",
-                'action_url' => route('seller.orders', ['order' => $order->id], false),
-            ]);
-        });
+        $orders = $request->user()
+            ->orders()
+            ->with(['sellerOrders.items', 'sellerOrders.shipment', 'payments'])
+            ->latest()
+            ->paginate(10)
+            ->withQueryString();
 
-        return redirect()->route('buyer.orders')->with('buyer_notice', 'Shop order cancelled and variant stock restored.');
+        return view('Buyer.orders', [
+            'mode' => 'index',
+            'orders' => $orders,
+            'selectedOrder' => null,
+        ]);
     }
 
-    public function received(Request $request, string $reference): RedirectResponse
+    public function show(Request $request, Order $order): View
     {
-        $order = $this->owned($request, $reference);
-        if ($order->status === 'completed') {
-            return back()->with('buyer_notice', 'This shop order was already completed.');
+        abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
+
+        return view('Buyer.orders', [
+            'mode' => 'show',
+            'selectedOrder' => $order->load(['sellerOrders.items.review', 'sellerOrders.shipment.events', 'address', 'payments']),
+            'orders' => $request->user()->orders()->with(['sellerOrders.shipment'])->latest()->paginate(10),
+        ]);
+    }
+
+    public function cancel(Request $request, Order $order): RedirectResponse
+    {
+        abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
+        abort_unless(in_array($order->status, ['PLACED', 'PROCESSING'], true), 409, 'This order can no longer be cancelled.');
+
+        $data = $request->validate([
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $order->update([
+            'status' => 'CANCELLED',
+            'payment_status' => 'CANCELLED',
+            'cancelled_at' => now(),
+            'cancellation_reason' => $data['reason'] ?? 'Cancelled by buyer.',
+        ]);
+
+        foreach ($order->sellerOrders as $sellerOrder) {
+            $sellerOrder->update(['status' => 'CANCELLED']);
+            if ($sellerOrder->shipment) {
+                $sellerOrder->shipment->update(['current_status' => 'RETURNED']);
+                ShipmentEvent::query()->create([
+                    'shipment_id' => $sellerOrder->shipment->id,
+                    'status' => 'RETURNED',
+                    'actor_user_id' => $request->user()->id,
+                    'notes' => 'Order cancelled by buyer before fulfillment.',
+                    'occurred_at' => now(),
+                ]);
+            }
         }
-        abort_unless($order->status === 'delivered' && $order->shipment?->status === 'delivered', 422, 'This parcel is not ready for receipt confirmation.');
-        abort_if($order->returnRequest()->whereIn('status', ['requested', 'approved', 'disputed'])->exists(), 409, 'Resolve the open return before completing this order.');
 
-        app(LedgerService::class)->complete($order, $request->user());
-
-        return redirect()->route('buyer.orders.review', ['id' => $order->id])
-            ->with('buyer_notice', 'Order received and completed. You can now review each item.');
+        return back()->with('buyer_notice', 'Order cancelled.');
     }
 
-    public function review(Request $request, string $reference): RedirectResponse
+    public function received(Request $request, Order $order): RedirectResponse
     {
-        $order = $this->owned($request, $reference);
-        abort_unless(in_array($order->status, ['delivered', 'completed'], true), 422, 'Only delivered purchases can be reviewed.');
-        abort_if($order->status === 'refunded', 422, 'Refunded purchases cannot be reviewed.');
-        $data = $request->validate(['order_item_id' => ['nullable', 'integer'], 'rating' => ['required', 'integer', 'between:1,5'], 'review' => ['required', 'string', 'max:3000']]);
-        $item = ! empty($data['order_item_id'])
-            ? $order->items->firstWhere('id', (int) $data['order_item_id'])
-            : ($order->items->count() === 1 ? $order->items->first() : null);
-        abort_unless($item, 422, 'Select the purchased item to review.');
+        abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
 
-        ProductReview::firstOrCreate(['order_item_id' => $item->id], [
-            'order_item_id' => $item->id, 'product_id' => $item->product_id,
-            'buyer_id' => $request->user()->id, 'seller_id' => $order->seller_id,
-            'rating' => $data['rating'], 'body' => $data['review'], 'has_photo' => false,
+        $order->update([
+            'status' => 'COMPLETED',
+            'completed_at' => now(),
         ]);
 
-        return redirect()->route('buyer.orders.show', ['id' => $order->id])->with('buyer_notice', 'Review submitted.');
+        foreach ($order->sellerOrders as $sellerOrder) {
+            $sellerOrder->update(['status' => 'COMPLETED']);
+            if ($sellerOrder->shipment) {
+                $sellerOrder->shipment->update(['current_status' => 'COMPLETED']);
+                ShipmentEvent::query()->create([
+                    'shipment_id' => $sellerOrder->shipment->id,
+                    'status' => 'COMPLETED',
+                    'actor_user_id' => $request->user()->id,
+                    'notes' => 'Buyer confirmed receipt.',
+                    'occurred_at' => now(),
+                ]);
+            }
+        }
+
+        return back()->with('buyer_notice', 'Order marked as completed.');
     }
 
-    public function requestReturn(Request $request, string $reference): RedirectResponse
+    public function review(Request $request, OrderItem $item): RedirectResponse
     {
-        $order = $this->owned($request, $reference);
-        abort_unless($order->delivered_at && in_array($order->status, ['delivered', 'completed'], true), 422, 'Only delivered purchases are eligible for return.');
-        $days = (int) \App\Models\Admin\PlatformSetting::valueOf('return_window_days', 7);
-        abort_if($order->delivered_at->lt(now()->subDays($days)), 422, 'The return window has ended.');
-        abort_if($order->returnRequest()->exists(), 409, 'A return request already exists for this shop order.');
-        $data = $request->validate(['request_type' => ['required', 'string', 'max:80'], 'reason' => ['required', 'string', 'max:255'], 'details' => ['required', 'string', 'min:20', 'max:3000']]);
-        ReturnRequest::create(['seller_order_id' => $order->id, 'buyer_id' => $request->user()->id, 'reason' => $data['reason'], 'details' => $data['request_type'].': '.$data['details'], 'status' => 'requested']);
+        $item->loadMissing('sellerOrder.order');
+        abort_unless((int) $item->sellerOrder->order->buyer_user_id === (int) $request->user()->id, 403);
+        abort_unless($item->sellerOrder->order->status === 'COMPLETED', 409, 'You can review after completing the order.');
 
-        return redirect()->route('buyer.orders.show', ['id' => $order->id])->with('buyer_notice', 'Return or refund request submitted.');
-    }
+        $data = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'comment' => ['nullable', 'string', 'max:2000'],
+        ]);
 
-    private function owned(Request $request, string $reference): SellerOrder
-    {
-        $order = SellerOrder::query()->with(['order.payments', 'seller', 'items.productVariant', 'shipment', 'returnRequest'])
-            ->where(function ($query) use ($reference) {
-                if (ctype_digit($reference)) $query->orWhere('seller_orders.id', (int) $reference);
-                $query->orWhereHas('order', fn ($order) => $order->where('reference', $reference));
-            })->firstOrFail();
-        abort_unless($order->order->buyer_id === $request->user()->id, 403);
-        return $order;
-    }
+        Review::query()->updateOrCreate(
+            ['order_item_id' => $item->id],
+            [
+                'buyer_user_id' => $request->user()->id,
+                'rating' => (int) $data['rating'],
+                'comment' => $data['comment'] ?? null,
+                'status' => 'PUBLISHED',
+            ]
+        );
 
-    private function matches(SellerOrder $order, string $reference): bool
-    {
-        return (string) $order->id === $reference || $order->order->reference === $reference;
+        return back()->with('buyer_notice', 'Review saved.');
     }
 }

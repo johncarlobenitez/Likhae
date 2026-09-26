@@ -2,10 +2,17 @@
 
 namespace App\Providers;
 
-use App\Models\Seller\Message;
+use App\Models\Admin\Notification;
+use App\Models\Communication\Message;
+use App\Models\Logistics\LogisticsCenter;
+use App\Models\Rider\RiderProfile;
 use App\Models\Seller\SellerOrder;
-use App\Models\Seller\WorkspaceNotification;
-use App\Support\BuyerMarketplace;
+use App\Models\Seller\SellerProfile;
+use App\Models\User;
+use App\Policies\LogisticsCenterPolicy;
+use App\Policies\RiderProfilePolicy;
+use App\Policies\SellerProfilePolicy;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -18,25 +25,58 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Gate::policy(SellerProfile::class, SellerProfilePolicy::class);
+        Gate::policy(LogisticsCenter::class, LogisticsCenterPolicy::class);
+        Gate::policy(RiderProfile::class, RiderProfilePolicy::class);
 
-        View::composer(['components.admin.sidebar', 'components.admin.header'], function ($view) {
-            $admin = auth()->user();
-            $counts = ['messages' => 0, 'notifications' => 0];
-
-            if ($admin?->hasRole('admin')) {
-                if (Schema::hasTable('messages')) {
-                    $counts['messages'] = Message::where('recipient_id', $admin->id)->whereNull('read_at')->count();
-                }
-                if (Schema::hasTable('workspace_notifications')) {
-                    $counts['notifications'] = WorkspaceNotification::where('user_id', $admin->id)->whereNull('read_at')->count();
-                }
+        $unreadMessageCount = static function (?User $user): int {
+            if (! $user || ! Schema::hasTable('messages') || ! Schema::hasTable('conversation_participants')) {
+                return 0;
             }
 
-            $view->with('adminUiCounts', $counts);
+            return Message::query()
+                ->join('conversation_participants as cp', function ($join) use ($user): void {
+                    $join->on('cp.conversation_id', '=', 'messages.conversation_id')
+                        ->where('cp.user_id', '=', $user->id)
+                        ->whereNull('cp.left_at');
+                })
+                ->whereNull('messages.deleted_at')
+                ->where(function ($query) use ($user): void {
+                    $query->whereNull('messages.sender_user_id')
+                        ->orWhere('messages.sender_user_id', '<>', $user->id);
+                })
+                ->where(function ($query): void {
+                    $query->whereNull('cp.last_read_at')
+                        ->orWhereColumn('messages.sent_at', '>', 'cp.last_read_at');
+                })
+                ->count('messages.id');
+        };
+
+        $unreadNotificationCount = static function (?User $user): int {
+            if (! $user || ! Schema::hasTable('notifications')) {
+                return 0;
+            }
+
+            return Notification::query()
+                ->where('user_id', $user->id)
+                ->whereNull('read_at')
+                ->count();
+        };
+
+        View::composer(['components.admin.sidebar', 'components.admin.header'], function ($view) use ($unreadMessageCount, $unreadNotificationCount): void {
+            /** @var User|null $admin */
+            $admin = auth()->user();
+
+            $view->with('adminUiCounts', [
+                'messages' => $admin?->isAccountType(User::TYPE_ADMIN) ? $unreadMessageCount($admin) : 0,
+                'notifications' => $admin?->isAccountType(User::TYPE_ADMIN) ? $unreadNotificationCount($admin) : 0,
+            ]);
         });
 
-        View::composer(['components.seller.sidebar', 'components.seller.header'], function ($view) {
-            $seller = auth()->user();
+        View::composer(['components.seller.sidebar', 'components.seller.header'], function ($view) use ($unreadMessageCount, $unreadNotificationCount): void {
+            /** @var User|null $sellerUser */
+            $sellerUser = auth()->user();
+
             $counts = [
                 'to_process' => 0,
                 'to_prepare' => 0,
@@ -48,54 +88,56 @@ class AppServiceProvider extends ServiceProvider
                 'notifications' => 0,
             ];
 
-            if ($seller?->hasRole('seller') && Schema::hasTable('seller_orders')) {
-                $shopIds = $seller->sellers()->where('status', 'approved')->pluck('id');
-                SellerOrder::whereIn('seller_id', $shopIds)
-                    ->pluck('status')
-                    ->each(function (?string $status) use (&$counts): void {
-                        $key = match ($status) {
-                            'pending' => 'to_process',
-                            'accepted', 'packed' => 'to_prepare',
-                            'ready_to_ship' => 'ready_pickup',
-                            'shipped', 'delivered' => 'shipping',
-                            'refunded' => 'returns',
-                            default => $status ?: 'to_process',
-                        };
+            if ($sellerUser?->isAccountType(User::TYPE_SELLER) && Schema::hasTable('seller_orders')) {
+                $sellerProfileId = $sellerUser->sellerProfile()->where('status', 'ACTIVE')->value('id');
 
-                        if (array_key_exists($key, $counts)) {
-                            $counts[$key]++;
-                        }
-                    });
-            }
+                if ($sellerProfileId) {
+                    SellerOrder::query()
+                        ->where('seller_profile_id', $sellerProfileId)
+                        ->selectRaw('status, COUNT(*) as total')
+                        ->groupBy('status')
+                        ->pluck('total', 'status')
+                        ->each(function ($total, string $status) use (&$counts): void {
+                            $key = match ($status) {
+                                'PLACED' => 'to_process',
+                                'CONFIRMED', 'PREPARING' => 'to_prepare',
+                                'READY_FOR_PICKUP' => 'ready_pickup',
+                                'PICKED_UP' => 'shipping',
+                                'COMPLETED' => 'completed',
+                                default => null,
+                            };
 
-            if ($seller?->hasRole('seller') && Schema::hasTable('messages')) {
-                $counts['messages'] = Message::where('recipient_id', $seller->id)
-                    ->whereNull('read_at')
-                    ->count();
-            }
+                            if ($key !== null) {
+                                $counts[$key] += (int) $total;
+                            }
+                        });
+                }
 
-            if ($seller?->hasRole('seller') && Schema::hasTable('workspace_notifications')) {
-                $counts['notifications'] = WorkspaceNotification::where('user_id', $seller->id)
-                    ->whereNull('read_at')
-                    ->count();
+                $counts['messages'] = $unreadMessageCount($sellerUser);
+                $counts['notifications'] = $unreadNotificationCount($sellerUser);
             }
 
             $view->with('sellerSidebarCounts', $counts);
             $view->with('sellerUiCounts', $counts);
         });
 
-        View::composer(['components.buyer.sidebar', 'components.buyer.header'], function ($view) {
+        View::composer(['components.buyer.sidebar', 'components.buyer.header'], function ($view) use ($unreadMessageCount, $unreadNotificationCount): void {
+            /** @var User|null $buyer */
             $buyer = auth()->user();
+
             $counts = ['cart' => 0, 'messages' => 0, 'notifications' => 0];
 
-            if (
-                $buyer?->hasRole('buyer')
-                && Schema::hasTable('carts')
-                && Schema::hasTable('cart_items')
-                && Schema::hasTable('messages')
-                && Schema::hasTable('workspace_notifications')
-            ) {
-                $counts = BuyerMarketplace::buyerCounts($buyer);
+            if ($buyer?->isAccountType(User::TYPE_BUYER)) {
+                if (Schema::hasTable('carts') && Schema::hasTable('cart_items')) {
+                    $counts['cart'] = (int) ($buyer->carts()
+                        ->where('status', 'ACTIVE')
+                        ->withCount('items')
+                        ->latest('id')
+                        ->value('items_count') ?? 0);
+                }
+
+                $counts['messages'] = $unreadMessageCount($buyer);
+                $counts['notifications'] = $unreadNotificationCount($buyer);
             }
 
             $view->with('buyerUiCounts', $counts);

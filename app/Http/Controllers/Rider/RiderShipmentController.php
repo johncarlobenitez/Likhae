@@ -3,46 +3,46 @@
 namespace App\Http\Controllers\Rider;
 
 use App\Http\Controllers\Controller;
-
-use App\Models\Logistics\Shipment;
+use App\Models\Rider\RiderAssignment;
+use App\Services\Fulfillment\ShipmentWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class RiderShipmentController extends Controller
 {
     public function index(Request $request): View
     {
-        $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
-        $shipments = Shipment::with(['sellerOrder.order', 'sellerOrder.seller.pickupAddress', 'events'])
-            ->where('rider_id', $rider->id)
-            ->when($request->filled('tracking'), fn ($query) => $query->where('tracking_code', trim((string) $request->query('tracking'))))
+        $rider = $request->user()->riderProfile;
+        abort_unless($rider, 403);
+
+        $assignments = RiderAssignment::query()
+            ->where('rider_profile_id', $rider->id)
+            ->with(['shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user'])
             ->latest()
-            ->get();
+            ->paginate(15);
 
-        $shipmentStats = [
-            'assigned' => $shipments->where('status', 'assigned')->count(),
-            'picked_up' => $shipments->where('status', 'picked_up')->count(),
-            'in_transit' => $shipments->where('status', 'in_transit')->count(),
-            'out_for_delivery' => $shipments->where('status', 'out_for_delivery')->count(),
-            'delivered' => $shipments->where('status', 'delivered')->count(),
-        ];
-
-        return view('Rider.shipments', compact('shipments', 'shipmentStats'));
+        return view('Rider.shipments', compact('assignments', 'rider'));
     }
 
-    public function transition(Request $request, Shipment $shipment): RedirectResponse
+    public function transition(Request $request, RiderAssignment $assignment, ShipmentWorkflowService $workflow): RedirectResponse
     {
-        $rider = $request->user()->rider()->where('is_active',true)->firstOrFail();
-        abort_unless($shipment->rider_id === $rider->id,403);
+        $rider = $request->user()->riderProfile;
+        abort_unless($rider && (int) $assignment->rider_profile_id === (int) $rider->id, 403);
+
         $data = $request->validate([
-            'status'=>['required',Rule::in(['picked_up','in_transit','out_for_delivery','delivered','failed'])],
-            'note'=>['required_if:status,failed','nullable','string','max:1000'], 'receiver_name'=>['required_if:status,delivered','nullable','string','max:255'],
-            'proof'=>['required_if:status,delivered','nullable','image','mimes:jpg,jpeg,png,webp','max:10240'],
+            'action' => ['required', 'string', 'in:accept,start,pickup_complete,delivery_success,delivery_failed,reject'],
+            'scan_method' => ['nullable', 'string', 'in:QR,BARCODE,MANUAL'],
+            'scanned_code' => ['nullable', 'string', 'max:150'],
+            'failure_reason' => ['nullable', 'string', 'max:1000'],
+            'attempt_status' => ['nullable', 'string', 'in:FAILED,RESCHEDULED,RETURNED'],
+            'next_attempt_at' => ['nullable', 'date'],
+            'reason' => ['nullable', 'string', 'max:1000'],
+            'proof_path' => ['nullable', 'string', 'max:500'],
         ]);
-        $photo = $request->file('proof')?->store('delivery-proofs','local');
-        $shipment->transitionTo($data['status'],$request->user(),$data['note']??null,$photo,$data['receiver_name']??null);
-        return back()->with('status','Parcel moved to '.str($data['status'])->headline().'.');
+
+        $workflow->riderTransition($assignment, $data['action'], $request->user(), $data);
+
+        return back()->with('status', 'Rider assignment updated.');
     }
 }

@@ -3,159 +3,173 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-
-use App\Models\Logistics\LogisticsProvider;
-use App\Models\Seller\Seller;
-use App\Models\Admin\AdminAuditLog;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Auth\ApplicationDocument;
+use App\Models\Auth\RegistrationApplication;
+use App\Models\User;
+use App\Services\RegistrationWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AdminOnboardingController extends Controller
 {
-    public function sellers(Request $request): View
-    {
-        return $this->queue($request, Seller::query()->with(['owner', 'pickupAddress']), 'sellers');
+    public function __construct(
+        private readonly RegistrationWorkflowService $workflow,
+    ) {
     }
 
-    public function couriers(Request $request): View
+    public function index(Request $request): View
     {
-        return $this->queue($request, LogisticsProvider::query()->with('owner'), 'couriers');
-    }
+        $filters = $request->validate([
+            'status' => ['nullable', Rule::in([
+                RegistrationApplication::STATUS_PENDING,
+                RegistrationApplication::STATUS_UNDER_REVIEW,
+                RegistrationApplication::STATUS_APPROVED,
+                RegistrationApplication::STATUS_REJECTED,
+                RegistrationApplication::STATUS_CANCELLED,
+            ])],
+            'type' => ['nullable', Rule::in([
+                User::TYPE_BUYER,
+                User::TYPE_SELLER,
+                User::TYPE_LOGISTICS,
+            ])],
+        ]);
 
-    private function queue(Request $request, $query, string $type): View
-    {
-        $status = $request->validate(['status' => ['nullable', Rule::in(['pending', 'approved', 'rejected', 'suspended'])]])['status'] ?? 'pending';
+        $status = $filters['status'] ?? RegistrationApplication::STATUS_PENDING;
+        $type = $filters['type'] ?? null;
 
-        return view('auth.onboarding.admin-queue', ['records' => $query->where('status', $status)->latest()->paginate(20)->withQueryString(), 'type' => $type, 'status' => $status]);
-    }
+        $records = RegistrationApplication::query()
+            ->with([
+                'user.addresses',
+                'documents',
+                'sellerData.category',
+                'logisticsData.businessAddress',
+                'reviewer',
+            ])
+            ->where('status', $status)
+            ->whereHas('user', function ($query) use ($type): void {
+                $query->whereIn('account_type', [
+                    User::TYPE_BUYER,
+                    User::TYPE_SELLER,
+                    User::TYPE_LOGISTICS,
+                ]);
 
-    public function approveSeller(Request $request, Seller $seller): RedirectResponse
-    {
-        Gate::authorize('update', $seller);
-        return $this->approve($request, $seller, 'seller');
-    }
+                if ($type) {
+                    $query->where('account_type', $type);
+                }
+            })
+            ->latest('submitted_at')
+            ->paginate(20)
+            ->withQueryString();
 
-    public function approveCourier(Request $request, LogisticsProvider $provider): RedirectResponse
-    {
-        Gate::authorize('update', $provider);
-        return $this->approve($request, $provider, 'logistics');
-    }
-
-    private function approve(Request $request, Model $record, string $role): RedirectResponse
-    {
-        abort_unless($record->status === 'pending', 422);
-        DB::transaction(function () use ($request, $record, $role) {
-            $previousStatus = $record->status;
-            $record->update(['status' => 'approved', 'rejection_reason' => null, 'approved_by' => $request->user()->id, 'approved_at' => now()]);
-            $record->owner->grant($role);
-            $this->audit($request, $record, $this->auditPrefix($record).'.approved', $previousStatus, 'approved');
-        });
-
-        return back()->with('success', ucfirst($role).' application approved.');
-    }
-
-    public function rejectSeller(Request $request, Seller $seller): RedirectResponse
-    {
-        Gate::authorize('update', $seller);
-        return $this->reject($request, $seller);
-    }
-
-    public function rejectCourier(Request $request, LogisticsProvider $provider): RedirectResponse
-    {
-        Gate::authorize('update', $provider);
-        return $this->reject($request, $provider);
-    }
-
-    private function reject(Request $request, Model $record): RedirectResponse
-    {
-        $data = $request->validate(['reason' => ['required', 'string', 'max:500']]);
-        abort_unless($record->status === 'pending', 422);
-        DB::transaction(function () use ($request, $record, $data): void {
-            $previousStatus = $record->status;
-            $record->update(['status' => 'rejected', 'rejection_reason' => $data['reason'], 'approved_by' => null, 'approved_at' => null]);
-            $this->audit($request, $record, $this->auditPrefix($record).'.rejected', $previousStatus, 'rejected', $data['reason']);
-        });
-
-        return back()->with('success', 'Application rejected.');
-    }
-
-    public function suspendSeller(Seller $seller): RedirectResponse
-    {
-        Gate::authorize('update', $seller);
-        return $this->transition(request(), $seller, 'approved', 'suspended', 'Shop suspended.');
-    }
-
-    public function reinstateSeller(Seller $seller): RedirectResponse
-    {
-        Gate::authorize('update', $seller);
-        return $this->transition(request(), $seller, 'suspended', 'approved', 'Shop reinstated.');
-    }
-
-    public function suspendCourier(LogisticsProvider $provider): RedirectResponse
-    {
-        Gate::authorize('update', $provider);
-        return $this->transition(request(), $provider, 'approved', 'suspended', 'Courier suspended.');
-    }
-
-    public function reinstateCourier(LogisticsProvider $provider): RedirectResponse
-    {
-        Gate::authorize('update', $provider);
-        return $this->transition(request(), $provider, 'suspended', 'approved', 'Courier reinstated.');
-    }
-
-    private function transition(Request $request, Model $record, string $from, string $to, string $message): RedirectResponse
-    {
-        abort_unless($record->status === $from, 422);
-        DB::transaction(function () use ($request, $record, $to): void {
-            $previousStatus = $record->status;
-            $record->update(['status' => $to]);
-            $action = $to === 'approved' ? 'reinstated' : 'suspended';
-            $this->audit($request, $record, $this->auditPrefix($record).'.'.$action, $previousStatus, $to);
-        });
-
-        return back()->with('success', $message);
-    }
-
-    private function auditPrefix(Model $record): string
-    {
-        return $record instanceof Seller ? 'seller' : 'courier';
-    }
-
-    private function audit(Request $request, Model $record, string $action, string $previousStatus, string $newStatus, ?string $reason = null): void
-    {
-        AdminAuditLog::create([
-            'actor_id' => $request->user()->id,
-            'action' => $action,
-            'target_type' => $record::class,
-            'target_id' => $record->id,
-            'description' => $reason,
-            'ip_address' => $request->ip(),
-            'metadata' => ['before' => ['status' => $previousStatus], 'after' => ['status' => $newStatus], 'reason' => $reason],
+        return view('auth.onboarding.admin-queue', [
+            'records' => $records,
+            'status' => $status,
+            'type' => $type,
         ]);
     }
 
-    public function sellerDocument(Seller $seller)
+    public function show(RegistrationApplication $application): View
     {
-        Gate::authorize('view', $seller);
-        return $this->download($seller->permit_path, 'seller-permit');
+        $application->load([
+            'user.addresses',
+            'documents',
+            'sellerData.category',
+            'logisticsData.businessAddress',
+            'reviewer',
+        ]);
+
+        abort_unless(
+            $application->user
+                && in_array($application->user->account_type, [User::TYPE_BUYER, User::TYPE_SELLER, User::TYPE_LOGISTICS], true),
+            404,
+        );
+
+        if ($application->status === RegistrationApplication::STATUS_PENDING) {
+            $application->update(['status' => RegistrationApplication::STATUS_UNDER_REVIEW]);
+        }
+
+        return view('auth.onboarding.admin-application', compact('application'));
     }
 
-    public function courierDocument(LogisticsProvider $provider)
+    public function approve(Request $request, RegistrationApplication $application): RedirectResponse
     {
-        Gate::authorize('view', $provider);
-        return $this->download($provider->document_path, 'courier-document');
+        $data = $request->validate([
+            'decision_notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $this->workflow->approveByAdmin(
+            application: $application,
+            reviewer: $request->user(),
+            notes: $data['decision_notes'] ?? null,
+            request: $request,
+        );
+
+        return redirect()
+            ->route('admin.registrations.show', $application)
+            ->with('success', 'Registration approved. The account is now active.');
     }
 
-    private function download(?string $path, string $name)
+    public function reject(Request $request, RegistrationApplication $application): RedirectResponse
     {
-        abort_unless($path && ! str_contains($path, '..') && Storage::disk('local')->exists($path), 404);
+        $this->ensureAdminReviewable($application);
 
-        return Storage::disk('local')->download($path, $name.'.'.pathinfo($path, PATHINFO_EXTENSION), ['Cache-Control' => 'private, no-store']);
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $this->workflow->reject(
+            application: $application,
+            reviewer: $request->user(),
+            reason: $data['reason'],
+            request: $request,
+        );
+
+        return redirect()
+            ->route('admin.registrations.show', $application)
+            ->with('success', 'Registration rejected.');
+    }
+
+    public function document(
+        RegistrationApplication $application,
+        ApplicationDocument $document,
+    ): StreamedResponse {
+        $this->ensureAdminReviewable($application);
+        abort_unless($document->registration_application_id === $application->id, 404);
+        abort_unless(Storage::disk('registrations')->exists($document->file_path), 404);
+
+        $extension = pathinfo($document->original_name ?: $document->file_path, PATHINFO_EXTENSION);
+        $filename = strtolower($document->document_type).($extension ? '.'.$extension : '');
+
+        return Storage::disk('registrations')->download(
+            $document->file_path,
+            $filename,
+            ['Cache-Control' => 'private, no-store'],
+        );
+    }
+
+    public function sellers(): RedirectResponse
+    {
+        return redirect()->route('admin.registrations', ['type' => User::TYPE_SELLER]);
+    }
+
+    public function couriers(): RedirectResponse
+    {
+        return redirect()->route('admin.registrations', ['type' => User::TYPE_LOGISTICS]);
+    }
+
+    private function ensureAdminReviewable(RegistrationApplication $application): void
+    {
+        $application->loadMissing('user');
+
+        abort_unless(
+            $application->user
+                && in_array($application->user->account_type, [User::TYPE_BUYER, User::TYPE_SELLER, User::TYPE_LOGISTICS], true),
+            404,
+        );
     }
 }
+

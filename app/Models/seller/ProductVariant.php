@@ -2,40 +2,82 @@
 
 namespace App\Models\Seller;
 
+use App\Models\Buyer\CartItem;
+use App\Models\Buyer\OrderItem;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProductVariant extends Model
 {
-    use SoftDeletes;
+    use HasFactory;
 
-    protected $fillable = ['product_id', 'sku', 'name', 'options', 'price_minor', 'stock', 'weight_grams', 'is_active'];
+    protected $fillable = [
+        'product_id',
+        'sku',
+        'price',
+        'stock',
+        'is_default',
+        'is_active',
+    ];
 
     protected function casts(): array
     {
-        return ['options' => 'array', 'is_active' => 'boolean', 'weight_grams' => 'integer'];
-    }
-
-    public function getOptionNameAttribute(): string
-    {
-        return (string) (Arr::first(array_keys($this->options ?? [])) ?: Str::before($this->name, ' / '));
-    }
-
-    public function getValueAttribute(): string
-    {
-        return (string) (Arr::first(array_values($this->options ?? [])) ?: Str::after($this->name, ' / '));
-    }
-
-    public function getPriceAttribute(): string
-    {
-        return number_format($this->price_minor / 100, 2, '.', '');
+        return [
+            'price' => 'decimal:2',
+            'stock' => 'integer',
+            'is_default' => 'boolean',
+            'is_active' => 'boolean',
+        ];
     }
 
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function optionValues(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            ProductOptionValue::class,
+            'product_variant_option_values',
+            'product_variant_id',
+            'product_option_value_id',
+        )->withTimestamps();
+    }
+
+    public function optionValueLinks(): HasMany
+    {
+        return $this->hasMany(ProductVariantOptionValue::class);
+    }
+
+    public function cartItems(): HasMany
+    {
+        return $this->hasMany(CartItem::class);
+    }
+
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
+    public function scopeAvailable(Builder $query): Builder
+    {
+        return $query->where('is_active', true)->where('stock', '>', 0);
+    }
+
+    public function getDescriptionAttribute(): string
+    {
+        $values = $this->relationLoaded('optionValues')
+            ? $this->optionValues
+            : $this->optionValues()->with('option')->get();
+
+        return $values
+            ->sortBy(fn (ProductOptionValue $value) => $value->option?->sort_order ?? 0)
+            ->map(fn (ProductOptionValue $value) => trim(($value->option?->name ? $value->option->name.': ' : '').$value->value))
+            ->implode(' / ');
     }
 }

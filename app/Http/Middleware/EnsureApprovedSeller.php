@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -10,8 +11,14 @@ class EnsureApprovedSeller
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $seller = $request->user()?->sellers()->latest()->first();
-        abort_if(! $seller || $seller->status !== 'approved', 403, 'An approved seller account is required.');
+        $user = $request->user();
+
+        abort_unless(
+            $user?->isAccountType(User::TYPE_SELLER)
+            && $user->sellerProfile()->where('status', 'ACTIVE')->exists(),
+            403,
+            'An active seller account is required.',
+        );
 
         return $next($request);
     }
