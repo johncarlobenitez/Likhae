@@ -31,7 +31,7 @@ class RiderController extends Controller
     public function pickups(Request $request): View
     {
         $rider = $request->user()->rider()->where('is_active', true)->firstOrFail();
-        $shipments = Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.seller.user', 'sellerOrder.items.product.images'])
+        $shipments = Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.seller.owner', 'sellerOrder.items.product.images'])
             ->where('rider_id', $rider->id)
             ->latest()->get();
 
@@ -44,7 +44,7 @@ class RiderController extends Controller
         $pickups = $shipments->filter(fn ($shipment) => in_array($shipment->status, ['assigned', 'picked_up'], true))->map(function ($shipment) {
             $snapshot = $shipment->sellerOrder->order->shipping_address_snapshot ?? [];
             $buyer = $shipment->sellerOrder->order->buyer?->name ?? 'Buyer';
-            $seller = $shipment->sellerOrder->seller?->name ?? $shipment->sellerOrder->seller?->user?->name ?? 'Seller';
+            $seller = $shipment->sellerOrder->seller?->name ?? $shipment->sellerOrder->seller?->owner?->name ?? 'Seller';
             $path = $shipment->sellerOrder->items->first()?->product?->images?->first()?->path;
 
             return [

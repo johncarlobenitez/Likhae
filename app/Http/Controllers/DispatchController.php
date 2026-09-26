@@ -61,7 +61,7 @@ class DispatchController extends Controller
     public function pickups(Request $request): View
     {
         $provider = $request->user()->logisticsProvider()->where('status', 'approved')->firstOrFail();
-        $shipments = Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.seller.user', 'rider.user', 'sellerOrder.order'])
+        $shipments = Shipment::with(['sellerOrder.order.buyer', 'sellerOrder.seller.owner', 'rider.user'])
             ->where('logistics_provider_id', $provider->id)
             ->whereIn('status', ['unassigned', 'assigned', 'picked_up'])
             ->latest()
@@ -81,7 +81,7 @@ class DispatchController extends Controller
                 'parcel' => [
                     'tracking' => $shipment->tracking_code,
                     'order' => $shipment->sellerOrder?->order?->reference ?? 'N/A',
-                    'seller' => $shipment->sellerOrder?->seller?->name ?? $shipment->sellerOrder?->seller?->user?->name ?? 'Seller',
+                    'seller' => $shipment->sellerOrder?->seller?->name ?? $shipment->sellerOrder?->seller?->owner?->name ?? 'Seller',
                 ],
                 'riders' => $riders,
             ];

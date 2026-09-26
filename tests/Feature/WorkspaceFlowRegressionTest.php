@@ -138,6 +138,7 @@ class WorkspaceFlowRegressionTest extends TestCase
         $shipment = $order->fresh()->shipment;
         $this->actingAs($s['providerUser'])->get(route('logistics.pickups'))->assertOk()->assertSee($shipment->tracking_code)->assertSee('Select rider')->assertSee('Seller Pickup Street');
         $this->post(route('logistics.pickups.assign', $shipment), ['rider_id' => $s['rider']->id])->assertRedirect();
+        $this->actingAs($s['riderUser'])->get(route('rider.pickups'))->assertOk()->assertSee($shipment->tracking_code)->assertSee('Regression Shop');
         foreach ([
             'buyer' => [['buyer.orders.show', $order], ['buyer.product-details', $s['product']->slug], ['buyer.shop', $s['seller']]],
             'sellerUser' => [['seller.orders', []], ['seller.orders.waybill', $order], ['seller.store', []], ['seller.store', ['tab' => 'settings']]],
