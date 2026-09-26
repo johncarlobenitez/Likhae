@@ -1,8 +1,8 @@
 <?php
 
 use App\Http\Controllers\Api\LookupApiController;
-use App\Http\Controllers\Api\ApiAuthController;
 use App\Http\Controllers\Api\ProductApiController;
+use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\TrackingApiController;
 use App\Http\Controllers\Api\WorkflowApiController;
 use App\Http\Middleware\AuthenticateApiToken;
@@ -18,7 +18,7 @@ Route::prefix('v1')->group(function (): void {
         ]);
     })->name('api.v1.health');
 
-    Route::post('/auth/login', [ApiAuthController::class, 'login'])->middleware('throttle:10,1')->name('api.v1.auth.login');
+    Route::post('/auth/login', [MobileAuthController::class, 'login'])->middleware('throttle:10,1')->name('api.v1.auth.login');
 
     Route::get('/categories', [LookupApiController::class, 'categories'])->name('api.v1.categories.index');
     Route::get('/logistics-centers', [LookupApiController::class, 'logisticsCenters'])->name('api.v1.logistics-centers.index');
@@ -30,8 +30,8 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/tracking/{trackingNumber}', [TrackingApiController::class, 'show'])->name('api.v1.tracking.show');
 
     Route::middleware(AuthenticateApiToken::class)->group(function (): void {
-        Route::get('/auth/me', [ApiAuthController::class, 'me'])->name('api.v1.auth.me');
-        Route::post('/auth/logout', [ApiAuthController::class, 'logout'])->name('api.v1.auth.logout');
+        Route::get('/auth/me', [MobileAuthController::class, 'me'])->name('api.v1.auth.me');
+        Route::post('/auth/logout', [MobileAuthController::class, 'logout'])->name('api.v1.auth.logout');
         Route::patch('/seller/orders/{sellerOrder}', [WorkflowApiController::class, 'sellerOrder'])->name('api.v1.seller.orders.transition');
         Route::patch('/rider/assignments/{assignment}', [WorkflowApiController::class, 'riderAssignment'])->name('api.v1.rider.assignments.transition');
         Route::post('/logistics/shipments/{shipment}/receive', [WorkflowApiController::class, 'receiveParcel'])->name('api.v1.logistics.shipments.receive');
