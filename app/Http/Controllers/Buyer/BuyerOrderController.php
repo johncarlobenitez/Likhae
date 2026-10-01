@@ -8,11 +8,16 @@ use App\Models\Buyer\OrderItem;
 use App\Models\Buyer\Review;
 use App\Models\Logistics\ShipmentEvent;
 use App\Models\Admin\CommissionTransaction;
+use App\Models\Admin\Dispute;
 use App\Models\Admin\PlatformSetting;
+use App\Services\RiderRatingService;
+use App\Services\ReviewImageService;
+use App\Services\Fulfillment\ShipmentWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Illuminate\Support\Str;
 
 class BuyerOrderController extends Controller
 {
@@ -34,14 +39,16 @@ class BuyerOrderController extends Controller
         ]);
     }
 
-    public function index(Request $request): View
+    public function index(Request $request, ShipmentWorkflowService $workflow): View
     {
         $orders = $request->user()
             ->orders()
-            ->with(['sellerOrders.items', 'sellerOrders.shipment', 'payments'])
+            ->with(['sellerOrders.items.product.images', 'sellerOrders.shipment', 'payments'])
             ->latest()
             ->paginate(10)
             ->withQueryString();
+
+        $orders->getCollection()->each(fn (Order $order) => $workflow->syncParentOrderProgress($order));
 
         return view('Buyer.orders', [
             'mode' => 'index',
@@ -50,13 +57,32 @@ class BuyerOrderController extends Controller
         ]);
     }
 
-    public function show(Request $request, Order $order): View
+    public function show(Request $request, Order $order, ShipmentWorkflowService $workflow, ReviewImageService $reviewImages): View
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
+        $workflow->syncParentOrderProgress($order);
+        $selectedOrder = $order->load(['sellerOrders.sellerProfile.user', 'sellerOrders.items.review', 'sellerOrders.items.product.images', 'sellerOrders.shipment.events', 'sellerOrders.shipment.riderAssignments.riderProfile.user', 'address', 'payments', 'disputes']);
+        $riderRatingsByShipment = $selectedOrder->sellerOrders->mapWithKeys(function ($sellerOrder): array {
+            $shipment = $sellerOrder->shipment;
+            $assignment = $shipment?->riderAssignments
+                ->where('assignment_type', 'DELIVERY')
+                ->sortByDesc('id')
+                ->first();
+            $review = $assignment
+                ? $sellerOrder->items->first(fn ($item) => (int) $item->review?->rider_profile_id === (int) $assignment->rider_profile_id)?->review
+                : null;
+
+            return $shipment && $assignment
+                ? [$shipment->id => (int) ($review?->rider_rating ?? 0)]
+                : [];
+        });
+        $reviewImagesById = $reviewImages->urlsFor($selectedOrder->sellerOrders->flatMap->items->pluck('review')->filter());
 
         return view('Buyer.orders', [
             'mode' => 'show',
-            'selectedOrder' => $order->load(['sellerOrders.items.review', 'sellerOrders.shipment.events', 'address', 'payments']),
+            'selectedOrder' => $selectedOrder,
+            'riderRatingsByShipment' => $riderRatingsByShipment,
+            'reviewImagesById' => $reviewImagesById,
             'orders' => $request->user()->orders()->with(['sellerOrders.shipment'])->latest()->paginate(10),
         ]);
     }
@@ -65,6 +91,20 @@ class BuyerOrderController extends Controller
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
         abort_unless(in_array($order->status, ['PLACED', 'PROCESSING'], true), 409, 'This order can no longer be cancelled.');
+        $order->loadMissing('sellerOrders.shipment');
+        abort_if(
+            $order->sellerOrders->contains(fn ($sellerOrder): bool => in_array($sellerOrder->shipment?->current_status, [
+                'PICKED_UP',
+                'AT_SORTING_CENTER',
+                'SORTED',
+                'ASSIGNED_TO_RIDER',
+                'OUT_FOR_DELIVERY',
+                'DELIVERED',
+                'COMPLETED',
+            ], true)),
+            409,
+            'An order can no longer be cancelled after a parcel has been picked up.'
+        );
 
         $data = $request->validate([
             'reason' => ['nullable', 'string', 'max:500'],
@@ -98,6 +138,11 @@ class BuyerOrderController extends Controller
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
         $order->loadMissing('sellerOrders.shipment');
+        abort_if(
+            $order->disputes()->where('type', 'RETURN_REFUND')->whereIn('status', ['OPEN', 'UNDER_REVIEW'])->exists(),
+            409,
+            'Resolve the active return/refund request before confirming receipt.'
+        );
         abort_unless(
             $order->sellerOrders->isNotEmpty()
                 && $order->sellerOrders->every(fn ($sellerOrder): bool => $sellerOrder->shipment?->current_status === 'DELIVERED'),
@@ -135,30 +180,117 @@ class BuyerOrderController extends Controller
             }
         }
 
-        return back()->with('buyer_notice', 'Order marked as completed.');
+        return redirect(route('buyer.orders.show', $order).'#reviews')
+            ->with('buyer_notice', 'Order received. You can now rate the products and write a review.');
     }
 
-    public function review(Request $request, OrderItem $item): RedirectResponse
+    public function returnRefund(Request $request, Order $order): RedirectResponse
     {
-        $item->loadMissing('sellerOrder.order');
+        abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
+        $order->loadMissing('sellerOrders.shipment.events');
+        abort_unless(in_array($order->status, ['PROCESSING', 'COMPLETED'], true), 409, 'This order is no longer eligible for return or refund.');
+        abort_unless(
+            $order->sellerOrders->isNotEmpty()
+                && $order->sellerOrders->every(fn ($sellerOrder): bool => $sellerOrder->shipment
+                    && in_array($sellerOrder->shipment->current_status, ['DELIVERED', 'COMPLETED'], true)),
+            409,
+            'Return or refund can only be requested after delivery.'
+        );
+
+        $deliveredAt = $order->sellerOrders
+            ->flatMap(fn ($sellerOrder) => $sellerOrder->shipment->events)
+            ->where('status', 'DELIVERED')
+            ->max('occurred_at');
+        abort_unless($deliveredAt && now()->lte($deliveredAt->copy()->addDays(5)), 409, 'The five-day return and refund window has expired.');
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:2000'],
+        ]);
+
+        $existing = Dispute::query()
+            ->where('order_id', $order->id)
+            ->where('opened_by_user_id', $request->user()->id)
+            ->where('type', 'RETURN_REFUND')
+            ->whereIn('status', ['OPEN', 'UNDER_REVIEW'])
+            ->first();
+
+        if (! $existing) {
+            Dispute::create([
+                'dispute_number' => 'RR-'.now()->format('Ymd').'-'.Str::upper(Str::random(8)),
+                'opened_by_user_id' => $request->user()->id,
+                'order_id' => $order->id,
+                'type' => 'RETURN_REFUND',
+                'subject' => 'Return / Refund Request — '.$order->order_number,
+                'description' => trim($data['reason']),
+                'status' => 'OPEN',
+                'opened_at' => now(),
+            ]);
+        }
+
+        return back()->with('buyer_notice', $existing ? 'Your return/refund request is already under review.' : 'Your return/refund request was submitted for review.');
+    }
+
+    public function review(Request $request, OrderItem $item, RiderRatingService $riderRatings, ReviewImageService $reviewImages): RedirectResponse
+    {
+        $item->loadMissing('review', 'sellerOrder.order', 'sellerOrder.shipment.riderAssignments.riderProfile');
         abort_unless((int) $item->sellerOrder->order->buyer_user_id === (int) $request->user()->id, 403);
         abort_unless($item->sellerOrder->order->status === 'COMPLETED', 409, 'You can review after completing the order.');
 
         $data = $request->validate([
-            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'rider_rating' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'rider_comment' => ['nullable', 'string', 'max:2000'],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'comment' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        Review::query()->updateOrCreate(
-            ['order_item_id' => $item->id],
-            [
-                'buyer_user_id' => $request->user()->id,
-                'rating' => (int) $data['rating'],
-                'comment' => $data['comment'] ?? null,
-                'status' => 'PUBLISHED',
-            ]
-        );
+        if ($item->review && (filled($data['rating'] ?? null) || filled($data['rider_rating'] ?? null) || $request->hasFile('image'))) {
+            return back()->withErrors(['rating' => 'Submitted ratings and photos are locked. You can still edit the review text.'])->withInput();
+        }
 
-        return back()->with('buyer_notice', 'Review saved.');
+        if ($request->hasFile('image') && ! filled($data['rating'] ?? null)) {
+            return back()->withErrors(['rating' => 'Choose a product rating to attach a photo.'])->withInput();
+        }
+
+        if (! $item->review && ! filled($data['rating'] ?? null) && ! filled($data['rider_rating'] ?? null)) {
+            return back()->withErrors(['rating' => 'Choose a product rating or a rider rating.'])->withInput();
+        }
+
+        $review = Review::query()->firstOrNew(['order_item_id' => $item->id]);
+        $review->buyer_user_id = $request->user()->id;
+        $review->status = 'PUBLISHED';
+
+        if (filled($data['rating'] ?? null)) {
+            $review->rating = (int) $data['rating'];
+            $review->comment = $data['comment'] ?? null;
+        }
+
+        if ($item->review) {
+            $review->comment = $data['comment'] ?? $review->comment;
+            $review->rider_comment = $data['rider_comment'] ?? $review->rider_comment;
+        }
+
+        if (filled($data['rider_rating'] ?? null)) {
+            $assignment = $item->sellerOrder->shipment?->riderAssignments
+                ->where('assignment_type', 'DELIVERY')
+                ->sortByDesc('id')
+                ->first();
+            abort_unless($assignment?->riderProfile, 409, 'No delivery rider is available to rate for this order.');
+
+            $riderRatings->record(
+                $review,
+                $assignment->riderProfile,
+                (int) $data['rider_rating'],
+                $data['rider_comment'] ?? null,
+            );
+        }
+
+        $review->save();
+
+        if ($request->hasFile('image')) {
+            $reviewImages->store($review, $request->file('image'), $request->user(), $request);
+        }
+
+        return back()->with('buyer_notice', 'Your ratings were saved.');
     }
 }

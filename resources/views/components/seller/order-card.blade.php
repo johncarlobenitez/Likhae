@@ -17,7 +17,7 @@
 <article class="sl-order-card" data-order-card data-status="{{ $statusKey }}" data-search="{{ mb_strtolower($id.' '.data_get($order, 'buyer').' '.data_get($order, 'product')) }}">
     <header class="sl-order-card-head"><div><span class="sl-order-id">Order #{{ $id }}</span><small>Placed {{ data_get($order, 'date') }}</small></div><span class="sl-status {{ $statusTone }}" data-order-status>{{ $status }}</span></header>
     <div class="sl-order-card-body">
-        <div class="sl-order-product"><span class="sl-order-thumb">{{ mb_strtoupper(mb_substr(data_get($order, 'product','P'),0,1)) }}</span><div><strong>{{ data_get($order,'product') }}</strong><small>{{ data_get($order,'variant','Standard') }} · Qty: {{ data_get($order,'quantity',1) }}</small></div></div>
+        <div class="sl-order-product"><x-product-thumbnail :item="data_get($order, 'first_item')" size="64" class="sl-order-thumb"/><div><strong>{{ data_get($order,'product') }}</strong><small>{{ data_get($order,'variant','Standard') }} · Qty: {{ data_get($order,'quantity',1) }}</small></div></div>
         <dl class="sl-order-details"><div><dt>Buyer</dt><dd>{{ data_get($order,'buyer') }}</dd></div><div><dt>Payment</dt><dd>{{ data_get($order,'payment') }}</dd></div><div><dt>Shipping</dt><dd>{{ data_get($order,'shipping') }}</dd></div><div><dt>Total</dt><dd><strong>₱{{ number_format((float) data_get($order,'total'),2) }}</strong></dd></div></dl>
     </div>
     <footer class="sl-order-card-actions">

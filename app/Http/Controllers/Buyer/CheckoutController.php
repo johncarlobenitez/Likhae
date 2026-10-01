@@ -40,13 +40,23 @@ class CheckoutController extends Controller
 
     public function select(Request $request): RedirectResponse
     {
-        $ids = array_values(array_filter(array_map('intval', (array) $request->input('cart_item_ids', []))));
+        $data = $request->validate([
+            'cart_item_ids' => ['required', 'array', 'min:1'],
+            'cart_item_ids.*' => ['required', 'integer'],
+            'voucher_codes' => ['nullable', 'array'],
+            'voucher_codes.*' => ['nullable', 'string', 'max:80'],
+        ]);
+
+        $ids = array_values(array_unique(array_map('intval', $data['cart_item_ids'])));
+        $ownedIds = $this->cartService->selectedItems($request->user(), $ids)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        abort_unless(count($ownedIds) === count($ids), 403);
+
         $voucherCodes = collect((array) $request->input('voucher_codes', []))
             ->mapWithKeys(fn ($value, $key) => [(int) $key => mb_strtoupper(trim((string) $value))])
             ->filter()
             ->all();
 
-        $request->session()->put('checkout_cart_item_ids', $ids);
+        $request->session()->put('checkout_cart_item_ids', $ownedIds);
         $request->session()->put('checkout_voucher_codes', $voucherCodes);
 
         return redirect()->route('buyer.checkout');

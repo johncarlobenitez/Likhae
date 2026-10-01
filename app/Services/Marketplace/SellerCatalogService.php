@@ -76,6 +76,7 @@ class SellerCatalogService
     private function syncOptions(Product $product, array $optionRows): array
     {
         $valuesByName = [];
+        $keptOptionIds = [];
         $sort = 0;
 
         foreach ($optionRows as $row) {
@@ -90,6 +91,7 @@ class SellerCatalogService
                 ['name' => $name],
                 ['sort_order' => $sort++],
             );
+            $keptOptionIds[] = $option->id;
 
             $valueSort = 0;
             foreach ($this->splitValues($rawValues) as $value) {
@@ -100,6 +102,8 @@ class SellerCatalogService
                 $valuesByName[mb_strtolower($value)] = $valueModel;
             }
         }
+
+        $product->options()->whereNotIn('id', $keptOptionIds)->delete();
 
         return $valuesByName;
     }
@@ -117,6 +121,7 @@ class SellerCatalogService
 
         if ($variantRows->isEmpty()) {
             $variantRows = collect([[
+                'id' => $request->input('single_variant_id'),
                 'sku' => $request->input('sku') ?: 'LK-'.$product->id.'-DEFAULT',
                 'price' => $request->input('price'),
                 'stock' => $request->input('stock'),

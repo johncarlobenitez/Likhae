@@ -45,6 +45,7 @@
         ],
         "deploy": [
             "npm run build",
+            "@php artisan storage:link",
             "@php artisan optimize:clear",
             "@php artisan config:cache",
             "@php artisan route:cache",

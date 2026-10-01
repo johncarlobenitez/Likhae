@@ -155,17 +155,40 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     };
 
-    const productPurchaseUrl = (scope, button, buyNow) => {
-        const variation = selectedVariation(scope);
-        const quantity = one('[data-quantity-input]', scope)?.value || 1;
-        const query = new URLSearchParams({ [buyNow ? 'buy' : 'add']: button.dataset.productSlug, variant: variation?.value || '', quantity });
-        if (variation?.id) query.set('product_variant_id', variation.id);
-        return `/buyer/${buyNow ? 'checkout' : 'cart'}?${query}`;
-    };
-
     all('[data-test-add-cart], [data-test-buy-now]').forEach((button) => button.addEventListener('click', (event) => {
         const scope = event.currentTarget.closest('.lk-detail-info-card') || document;
-        window.location.href = productPurchaseUrl(scope, event.currentTarget, event.currentTarget.hasAttribute('data-test-buy-now'));
+        const variation = selectedVariation(scope);
+        const cartUrl = event.currentTarget.dataset.cartUrl;
+
+        if (!variation?.id || !cartUrl) {
+            showToast('Select an available product variation first.');
+            return;
+        }
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = cartUrl;
+        form.style.display = 'none';
+
+        const fields = {
+            _token: one('meta[name="csrf-token"]')?.content || '',
+            product_variant_id: variation.id,
+            quantity: one('[data-quantity-input]', scope)?.value || 1,
+        };
+
+        if (event.currentTarget.dataset.checkout === '1') fields.checkout = '1';
+
+        Object.entries(fields).forEach(([name, value]) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+            form.appendChild(input);
+        });
+
+        event.currentTarget.disabled = true;
+        document.body.appendChild(form);
+        form.submit();
     }));
 
     all('[data-variant-stock-product]').forEach((product) => {

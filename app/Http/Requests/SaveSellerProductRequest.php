@@ -22,29 +22,31 @@ class SaveSellerProductRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'product_type' => ['required', Rule::in(['single', 'variations'])],
             'name' => ['required', 'string', 'max:200'],
             'category_id' => ['required', 'integer', Rule::exists('categories', 'id')->where('is_active', true)],
             'description' => ['nullable', 'string', 'max:10000'],
             'status' => ['required', Rule::in(['DRAFT', 'ACTIVE', 'ARCHIVED'])],
 
-            'price' => ['required', 'numeric', 'min:0', 'max:999999.99'],
-            'stock' => ['required', 'integer', 'min:0', 'max:999999'],
+            'price' => ['required_if:product_type,single', 'nullable', 'numeric', 'min:0', 'max:999999.99'],
+            'stock' => ['required_if:product_type,single', 'nullable', 'integer', 'min:0', 'max:999999'],
             'sku' => ['nullable', 'string', 'max:100'],
+            'single_variant_id' => ['nullable', 'integer'],
 
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'images' => ['nullable', 'array', 'max:8'],
             'images.*' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
 
-            'options' => ['nullable', 'array', 'max:5'],
-            'options.*.name' => ['nullable', 'string', 'max:100'],
-            'options.*.values' => ['nullable', 'string', 'max:1000'],
+            'options' => ['required_if:product_type,variations', 'nullable', 'array', 'max:5'],
+            'options.*.name' => ['required_with:options.*.values', 'nullable', 'string', 'max:100'],
+            'options.*.values' => ['required_with:options.*.name', 'nullable', 'string', 'max:1000'],
 
-            'variants' => ['nullable', 'array', 'max:100'],
+            'variants' => ['required_if:product_type,variations', 'nullable', 'array', 'max:100'],
             'variants.*.id' => ['nullable', 'integer'],
             'variants.*.sku' => ['nullable', 'string', 'max:100', 'distinct'],
-            'variants.*.price' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
-            'variants.*.stock' => ['nullable', 'integer', 'min:0', 'max:999999'],
-            'variants.*.values' => ['nullable', 'string', 'max:500'],
+            'variants.*.price' => ['required_if:product_type,variations', 'nullable', 'numeric', 'min:0', 'max:999999.99'],
+            'variants.*.stock' => ['required_if:product_type,variations', 'nullable', 'integer', 'min:0', 'max:999999'],
+            'variants.*.values' => ['required_if:product_type,variations', 'nullable', 'string', 'max:500'],
             'variants.*.is_active' => ['nullable', 'boolean'],
         ];
     }

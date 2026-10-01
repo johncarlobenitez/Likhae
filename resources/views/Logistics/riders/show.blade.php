@@ -4,7 +4,9 @@
 
 @php
     $data = $rider ?? [];
-    $name = data_get($data, 'name', 'Rider Account');
+    $name = data_get($data, 'name', data_get($data, 'user.name', 'Rider Account'));
+    $ratingAverage = (float) data_get($data, 'rating_average', 0);
+    $ratingCount = (int) data_get($data, 'rating_count', 0);
     $initials = collect(explode(' ', trim($name)))
         ->filter()
         ->take(2)
@@ -54,6 +56,16 @@
                     <strong class="mt-2 block break-words text-[10px] font-semibold text-ink">{{ $item[1] }}</strong>
                 </div>
             @endforeach
+        </div>
+    </section>
+
+    <section class="rounded-xl border border-line bg-surface p-5">
+        <h2 class="text-[13px] font-semibold text-ink">Buyer Ratings</h2>
+        <div class="mt-3 flex items-baseline gap-2">
+            <strong class="text-2xl font-semibold text-ink">{{ number_format($ratingAverage, 1) }}</strong>
+            <span class="text-xs text-muted">/ 5</span>
+            <span class="text-sm text-yellow-500" aria-label="{{ number_format($ratingAverage, 1) }} out of 5 stars">{{ str_repeat('★', (int) round($ratingAverage)) }}<span class="text-stone-300">{{ str_repeat('★', 5 - (int) round($ratingAverage)) }}</span></span>
+            <span class="text-xs text-muted">({{ $ratingCount }} {{ \Illuminate\Support\Str::plural('rating', $ratingCount) }})</span>
         </div>
     </section>
 

@@ -111,7 +111,7 @@ class RiderController extends Controller
         $rider = $this->rider($request);
         abort_unless((int) $assignment->rider_profile_id === (int) $rider->id && $assignment->assignment_type === 'PICKUP', 403);
 
-        $assignment->load(['shipment.sellerOrder.items', 'shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user', 'shipment.events', 'shipment.scans']);
+        $assignment->load(['shipment.sellerOrder.items.product.images', 'shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user', 'shipment.events', 'shipment.scans']);
 
         $shipment = $assignment->shipment;
         $order = $shipment->sellerOrder->order;
@@ -173,7 +173,7 @@ class RiderController extends Controller
         $rider = $this->rider($request);
         abort_unless((int) $assignment->rider_profile_id === (int) $rider->id && $assignment->assignment_type === 'DELIVERY', 403);
 
-        $assignment->load(['shipment.sellerOrder.items', 'shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user', 'shipment.events', 'shipment.deliveryAttempts']);
+        $assignment->load(['shipment.sellerOrder.items.product.images', 'shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user', 'shipment.events', 'shipment.deliveryAttempts']);
 
         $shipment = $assignment->shipment;
         $order = $shipment->sellerOrder->order;

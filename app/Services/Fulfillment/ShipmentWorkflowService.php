@@ -144,6 +144,11 @@ class ShipmentWorkflowService
 
             if ($assignmentType === 'PICKUP') {
                 $this->requireShipmentStatus($shipment, ['READY_FOR_PICKUP'], 'assign a pickup rider');
+
+                $pickupArea = $this->sellerPickupServiceArea($shipment);
+                if ($pickupArea && ! $rider->areaAssignments()->where('service_area_id', $pickupArea->id)->where('is_active', true)->exists()) {
+                    throw new RuntimeException('The rider is not assigned to the seller pickup area.');
+                }
             } else {
                 $this->requireShipmentStatus($shipment, ['SORTED', 'DELIVERY_FAILED'], 'assign a delivery rider');
 
@@ -334,11 +339,41 @@ class ShipmentWorkflowService
         return $query->first()?->serviceArea;
     }
 
+    public function pickupServiceArea(Shipment $shipment, ?LogisticsCenter $center = null): ?ServiceArea
+    {
+        return $this->sellerPickupServiceArea($shipment, $center)
+            ?: ((! $center || (int) $shipment->serviceArea?->logistics_center_id === (int) $center->id)
+                ? $shipment->serviceArea
+                : null);
+    }
+
+    public function sellerPickupServiceArea(Shipment $shipment, ?LogisticsCenter $center = null): ?ServiceArea
+    {
+        $shipment->loadMissing('sellerOrder.sellerProfile.businessAddress', 'serviceArea');
+        $address = $shipment->sellerOrder?->sellerProfile?->businessAddress;
+
+        if ($address) {
+            $area = $this->findServiceAreaForAddress(
+                (string) $address->province_code,
+                (string) $address->municipality_code,
+                (string) $address->barangay_code,
+                $center,
+            );
+
+            if ($area) {
+                return $area;
+            }
+        }
+
+        return null;
+    }
+
     private function confirmSellerOrder(SellerOrder $sellerOrder, Shipment $shipment, User $actor): void
     {
         $this->requireSellerAndShipmentStatus($sellerOrder, $shipment, 'PLACED', 'confirm the order');
         $sellerOrder->update(['status' => 'CONFIRMED']);
         $shipment->update(['current_status' => 'CONFIRMED']);
+        $this->syncParentOrderProgress($sellerOrder->order);
         $this->recordEvent($shipment, 'CONFIRMED', $actor, 'Seller confirmed the order.');
     }
 
@@ -354,7 +389,11 @@ class ShipmentWorkflowService
     {
         $this->requireSellerAndShipmentStatus($sellerOrder, $shipment, 'PREPARING', 'mark the order ready for pickup');
         $sellerOrder->update(['status' => 'READY_FOR_PICKUP']);
-        $shipment->update(['current_status' => 'READY_FOR_PICKUP']);
+        $pickupArea = $this->pickupServiceArea($shipment);
+        $shipment->update([
+            'current_status' => 'READY_FOR_PICKUP',
+            'logistics_center_id' => $pickupArea?->logistics_center_id ?: $shipment->logistics_center_id,
+        ]);
 
         PickupRequest::firstOrCreate(
             ['shipment_id' => $shipment->id, 'status' => 'PENDING'],
@@ -475,6 +514,11 @@ class ShipmentWorkflowService
         $this->requireAssignmentStatus($assignment, ['IN_PROGRESS'], 'complete delivery');
         $this->requireShipmentStatus($shipment, ['OUT_FOR_DELIVERY'], 'complete delivery');
 
+        $proofPath = trim((string) ($payload['proof_path'] ?? ''));
+        if ($proofPath === '') {
+            throw ValidationException::withMessages(['proof_file' => 'A delivery proof photo is required before marking the parcel delivered.']);
+        }
+
         $attemptNumber = (int) $shipment->deliveryAttempts()->count() + 1;
 
         DeliveryAttempt::create([
@@ -482,7 +526,7 @@ class ShipmentWorkflowService
             'rider_assignment_id' => $assignment->id,
             'attempt_number' => $attemptNumber,
             'status' => 'DELIVERED',
-            'proof_path' => $payload['proof_path'] ?? null,
+            'proof_path' => $proofPath,
             'attempted_at' => now(),
         ]);
 
@@ -492,6 +536,7 @@ class ShipmentWorkflowService
         ]);
 
         $shipment->update(['current_status' => 'DELIVERED']);
+        $this->syncParentOrderProgress($shipment->sellerOrder?->order);
         $this->recordEvent($shipment, 'DELIVERED', $actor, 'Delivery rider delivered the parcel.', $assignment);
         $this->createEarning($assignment, '75.00');
     }
@@ -573,6 +618,23 @@ class ShipmentWorkflowService
                 'status' => 'COMPLETED',
                 'completed_at' => now(),
             ]);
+        }
+    }
+
+    public function syncParentOrderProgress(?Order $order): void
+    {
+        if (! $order || in_array($order->status, ['COMPLETED', 'CANCELLED', 'PARTIALLY_CANCELLED', 'RETURNED'], true)) {
+            return;
+        }
+
+        $order->loadMissing('sellerOrders.shipment');
+        $hasStarted = $order->sellerOrders->contains(fn (SellerOrder $sellerOrder): bool =>
+            $sellerOrder->status !== 'PLACED'
+            || ($sellerOrder->shipment && $sellerOrder->shipment->current_status !== 'PLACED')
+        );
+
+        if ($hasStarted && $order->status !== 'PROCESSING') {
+            $order->update(['status' => 'PROCESSING']);
         }
     }
 

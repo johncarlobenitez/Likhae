@@ -5,5 +5,5 @@
 @section('subtitle', 'Review the product, seller, specifications, and ratings.')
 
 @section('content')
-    <x-buyer.product-detail :product="$product" :products="$buyerProducts" />
+    <x-buyer.product-detail :product="$product" :products="$relatedProducts ?? collect()" />
 @endsection

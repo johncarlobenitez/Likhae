@@ -8,13 +8,18 @@ use App\Models\Seller\ProductImage;
 use App\Models\Seller\ProductOptionValue;
 use App\Models\Seller\ProductVariant;
 use App\Models\Seller\SellerProfile;
+use App\Models\Buyer\Review;
+use App\Services\ReviewImageService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class ProductCatalogService
 {
+    public function __construct(private readonly ReviewImageService $reviewImages) {}
+
     /** @return array<int, string> */
     public function productRelations(): array
     {
@@ -31,22 +36,32 @@ class ProductCatalogService
     {
         return Product::query()
             ->visible()
-            ->with($this->productRelations());
+            ->with($this->productRelations())
+            ->withAvg('reviews', 'rating')
+            ->withCount('reviews')
+            ->withSum('orderItems', 'quantity');
     }
 
     public function applyFilters(Builder $query, Request $request): Builder
     {
-        $search = trim((string) $request->query('search', ''));
+        $search = trim((string) $request->query('q', $request->query('search', '')));
 
         if ($search !== '') {
             $query->where(function (Builder $inner) use ($search): void {
                 $inner->where('name', 'like', "%{$search}%")
                     ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('category', fn (Builder $category) => $category->where('name', 'like', "%{$search}%"))
                     ->orWhereHas('sellerProfile', fn (Builder $seller) => $seller->where('business_name', 'like', "%{$search}%"));
             });
         }
 
-        if ($request->filled('category_id')) {
+        $category = trim((string) $request->query('category', ''));
+        if ($category !== '' && strtolower($category) !== 'all') {
+            $query->whereHas('category', function (Builder $categoryQuery) use ($category): void {
+                $categoryQuery->where('slug', $category)
+                    ->orWhereHas('parent', fn (Builder $parent) => $parent->where('slug', $category));
+            });
+        } elseif ($request->filled('category_id')) {
             $query->where('category_id', (int) $request->query('category_id'));
         }
 
@@ -62,8 +77,21 @@ class ProductCatalogService
             $query->whereHas('variants', fn (Builder $variant) => $variant->where('price', '>=', (float) $request->query('min_price')));
         }
 
-        if ($request->filled('max_price')) {
+        if ((float) $request->query('max_price', 0) > 0) {
             $query->whereHas('variants', fn (Builder $variant) => $variant->where('price', '<=', (float) $request->query('max_price')));
+        }
+
+        $minimumRating = min(5, max(0, (float) $request->query('rating', 0)));
+        if ($minimumRating > 0) {
+            $ratedProductIds = DB::table('order_items')
+                ->join('reviews', 'reviews.order_item_id', '=', 'order_items.id')
+                ->where('reviews.status', 'PUBLISHED')
+                ->whereNotNull('reviews.rating')
+                ->groupBy('order_items.product_id')
+                ->havingRaw('AVG(reviews.rating) >= ?', [$minimumRating])
+                ->select('order_items.product_id');
+
+            $query->whereIn('products.id', $ratedProductIds);
         }
 
         return $query;
@@ -79,10 +107,12 @@ class ProductCatalogService
                     ->where('is_active', true)
             ),
             'price-high' => $query->orderByDesc(
-                ProductVariant::selectRaw('MAX(price)')
+                ProductVariant::selectRaw('MIN(price)')
                     ->whereColumn('product_variants.product_id', 'products.id')
                     ->where('is_active', true)
             ),
+            'best-rated' => $query->orderByDesc('reviews_avg_rating')->orderByDesc('products.id'),
+            'best-selling' => $query->orderByDesc('order_items_sum_quantity')->orderByDesc('products.id'),
             'oldest' => $query->oldest(),
             default => $query->latest(),
         };
@@ -131,6 +161,9 @@ class ProductCatalogService
             'slug' => $product->slug,
             'description' => $includeDetails ? $product->description : str($product->description ?? '')->limit(180)->toString(),
             'status' => $product->status,
+            'rating' => (float) ($product->reviews_avg_rating ?? 0),
+            'reviews' => (int) ($product->reviews_count ?? 0),
+            'sold' => (int) ($product->order_items_sum_quantity ?? 0),
             'min_price' => $minPrice === null ? null : number_format((float) $minPrice, 2, '.', ''),
             'stock' => $activeVariants->sum('stock'),
             'primary_image' => $primaryImage,
@@ -151,6 +184,19 @@ class ProductCatalogService
         ];
 
         if ($includeDetails) {
+            $product->loadMissing('reviews.buyer');
+            $reviewImageUrls = $this->reviewImages->urlsFor($product->reviews);
+            $payload['customer_reviews'] = $product->reviews
+                ->sortByDesc('created_at')
+                ->map(fn (Review $review): array => [
+                    'name' => $this->maskedBuyerName($review->buyer?->name),
+                    'rating' => (int) $review->rating,
+                    'comment' => $review->comment,
+                    'image_url' => $reviewImageUrls[$review->id] ?? null,
+                    'date' => $review->created_at?->format('M j, Y') ?? 'Recently',
+                ])
+                ->values()
+                ->all();
             $payload['options'] = $product->options
                 ->map(fn ($option): array => [
                     'id' => $option->id,
@@ -212,12 +258,50 @@ class ProductCatalogService
             ->firstOrFail();
     }
 
+    public function sellerRating(SellerProfile $seller): float
+    {
+        $average = Review::query()
+            ->where('status', 'PUBLISHED')
+            ->whereHas('orderItem.sellerOrder', fn (Builder $query) => $query->where('seller_profile_id', $seller->id))
+            ->avg('rating');
+
+        return round((float) ($average ?? 0), 1);
+    }
+
+    private function maskedBuyerName(?string $name): string
+    {
+        $name = preg_replace('/\s+/u', '', trim((string) $name));
+        $length = mb_strlen($name);
+
+        if ($length === 0) {
+            return 'Verified Buyer';
+        }
+
+        if ($length <= 4) {
+            return mb_substr($name, 0, 1).str_repeat('*', 3);
+        }
+
+        return mb_substr($name, 0, 2).'****'.mb_substr($name, -2);
+    }
+
     public function categories()
     {
         return Category::query()
             ->where('is_active', true)
+            ->with('parent')
+            ->withCount(['products' => fn (Builder $products) => $products->visible()])
             ->orderBy('name')
             ->get();
+    }
+
+    public function maxVisiblePrice(): int
+    {
+        $price = ProductVariant::query()
+            ->where('is_active', true)
+            ->whereHas('product', fn (Builder $product) => $product->visible())
+            ->max('price');
+
+        return max(10000, (int) ceil((float) ($price ?? 0)));
     }
 
     public function publicUrl(?string $path): ?string

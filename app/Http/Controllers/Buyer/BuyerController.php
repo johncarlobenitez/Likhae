@@ -46,6 +46,8 @@ class BuyerController extends Controller
             'products' => $products,
             'buyerProducts' => $products->getCollection()->map(fn (Product $product) => $this->catalog->productPayload($product)),
             'categories' => $this->catalog->categories(),
+            'catalogMaxPrice' => $this->catalog->maxVisiblePrice(),
+            'catalogTotal' => $this->catalog->visibleQuery()->count(),
             'focus' => $request->query('focus'),
         ]);
     }
@@ -53,10 +55,14 @@ class BuyerController extends Controller
     public function product(string $slug): View
     {
         $product = $this->catalog->findVisibleBySlug($slug);
+        $productPayload = $this->catalog->productPayload($product, true);
+        $productPayload['seller_rating'] = $product->sellerProfile
+            ? $this->catalog->sellerRating($product->sellerProfile)
+            : 0;
 
         return view('Buyer.product-details', [
             'productModel' => $product,
-            'product' => $this->catalog->productPayload($product, true),
+            'product' => $productPayload,
             'relatedProducts' => $this->catalog->visibleQuery()
                 ->whereKeyNot($product->id)
                 ->where('category_id', $product->category_id)
@@ -69,10 +75,9 @@ class BuyerController extends Controller
     public function shop(string $seller, Request $request): View
     {
         $sellerProfile = $this->catalog->sellerByRouteKey($seller);
-        $query = Product::query()
-            ->visible()
-            ->where('seller_profile_id', $sellerProfile->id)
-            ->with($this->catalog->productRelations());
+        $sellerProfile->setAttribute('rating', $this->catalog->sellerRating($sellerProfile));
+        $query = $this->catalog->visibleQuery()
+            ->where('seller_profile_id', $sellerProfile->id);
 
         $products = $this->catalog->applySort(
             $this->catalog->applyFilters($query, $request),
@@ -105,9 +110,12 @@ class BuyerController extends Controller
             'checkout' => ['nullable', 'boolean'],
         ]);
 
-        $this->cartService->add($request->user(), $product, (int) $data['product_variant_id'], (int) ($data['quantity'] ?? 1));
+        $item = $this->cartService->add($request->user(), $product, (int) $data['product_variant_id'], (int) ($data['quantity'] ?? 1));
 
         if ($request->boolean('checkout')) {
+            $request->session()->put('checkout_cart_item_ids', [$item->id]);
+            $request->session()->forget('checkout_voucher_codes');
+
             return redirect()->route('buyer.checkout');
         }
 

@@ -84,9 +84,13 @@
 
     $specs = collect(data_get($product, 'specs', []));
 
-    $variations = collect(data_get($product, 'variations', []));
+    $variants = collect(data_get($product, 'variants', []))->values();
 
-    $variantStock = data_get($product, 'variant_stock', []);
+    $defaultVariant = $variants->firstWhere('is_default', true) ?? $variants->first();
+
+    $variantStock = $variants
+        ->mapWithKeys(fn ($variant) => [(string) data_get($variant, 'id') => (int) data_get($variant, 'stock', 0)])
+        ->all();
 
     $hasBuyerShopRoute = \Illuminate\Support\Facades\Route::has('buyer.shop');
 
@@ -1265,40 +1269,19 @@
             </div>
 
             <div class="lk-detail-options">
-                @foreach($variations as $variationName => $options)
+                @if($variants->count() > 1)
                     <div>
-                        <span class="lk-detail-option-label">
-                            {{ $variationName }}
-                        </span>
-
-                        <div
-                            class="lk-detail-option-group"
-                            data-variation-group
-                            data-variation-name="{{ $variationName }}"
-                        >
-                            @foreach((array) $options as $option)
-                                @php
-                                    $optionId = is_array($option) ? data_get($option, 'id') : null;
-                                    $optionValue = is_array($option) ? data_get($option, 'value') : $option;
-                                    $optionStock = is_array($option) ? (int) data_get($option, 'stock', 0) : null;
-                                    $optionPrice = is_array($option) ? data_get($option, 'price') : null;
-                                @endphp
-                                <button
-                                    type="button"
-                                    class="lk-detail-option-btn {{ $loop->first ? 'is-selected' : '' }}"
-                                    data-variation-option
-                                    data-variation-id="{{ $optionId }}"
-                                    data-variation-value="{{ $optionValue }}"
-                                    @if($optionStock !== null) data-variation-stock="{{ $optionStock }}" @endif
-                                    @if($optionPrice !== null) data-variation-price="{{ $optionPrice }}" @endif
-                                    aria-pressed="{{ $loop->first ? 'true' : 'false' }}"
-                                >
-                                    {{ $optionValue }}
-                                </button>
+                        <span class="lk-detail-option-label">Choose a variation</span>
+                        <div class="lk-detail-option-group" data-variation-group>
+                            @foreach($variants as $variant)
+                                @php $selected = (string) data_get($variant, 'id') === (string) data_get($defaultVariant, 'id'); @endphp
+                                <button type="button" class="lk-detail-option-btn {{ $selected ? 'is-selected' : '' }}" data-variation-option data-variation-id="{{ data_get($variant, 'id') }}" data-variation-value="{{ data_get($variant, 'description', data_get($variant, 'sku')) }}" data-variation-stock="{{ data_get($variant, 'stock', 0) }}" data-variation-price="{{ data_get($variant, 'price', 0) }}" aria-pressed="{{ $selected ? 'true' : 'false' }}">{{ data_get($variant, 'description', data_get($variant, 'sku')) }}</button>
                             @endforeach
                         </div>
                     </div>
-                @endforeach
+                @elseif($defaultVariant)
+                    <button type="button" hidden data-variation-option data-variation-id="{{ data_get($defaultVariant, 'id') }}" data-variation-value="{{ data_get($defaultVariant, 'description', 'Default') }}" data-variation-stock="{{ data_get($defaultVariant, 'stock', 0) }}" data-variation-price="{{ data_get($defaultVariant, 'price', 0) }}" aria-pressed="true">Default</button>
+                @endif
 
                 <div class="lk-detail-qty-row">
                     <div class="lk-detail-qty-copy">
@@ -1375,7 +1358,7 @@
                         type="button"
                         class="lk-btn lk-btn-light lk-btn-full"
                         data-test-add-cart
-                        data-product-slug="{{ $slug }}"
+                        data-cart-url="{{ route('buyer.cart.add', ['product' => $productId]) }}"
                         data-product-purchase
                     >
                         Add to Cart
@@ -1385,7 +1368,8 @@
                         type="button"
                         class="lk-btn lk-btn-red lk-btn-full"
                         data-test-buy-now
-                        data-product-slug="{{ $slug }}"
+                        data-cart-url="{{ route('buyer.cart.add', ['product' => $productId]) }}"
+                        data-checkout="1"
                         data-product-purchase
                     >
                         Buy Now
@@ -1559,6 +1543,10 @@
                             <p class="lk-detail-review-comment">
                                 {{ data_get($review, 'comment') }}
                             </p>
+
+                            @if(data_get($review, 'image_url'))
+                                <img class="mt-3 max-h-64 max-w-full rounded-lg object-contain" src="{{ data_get($review, 'image_url') }}" alt="Photo shared with buyer review" loading="lazy">
+                            @endif
 
                             @if(data_get($review, 'variant'))
                                 <span class="lk-detail-review-variant">

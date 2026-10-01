@@ -1,4 +1,5 @@
 import { BrowserMultiFormatReader } from '@zxing/browser';
+import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 
 export function initializeParcelScanners() {
     document.querySelectorAll('[data-parcel-scanner]').forEach((scanner) => {
@@ -44,9 +45,19 @@ export function initializeParcelScanners() {
 
                 stream = await navigator.mediaDevices.getUserMedia({
                     audio: false,
-                    video: { facingMode: { ideal: 'environment' } },
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                    },
                 });
-                const reader = new BrowserMultiFormatReader();
+                const hints = new Map();
+                hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.CODE_128, BarcodeFormat.QR_CODE]);
+                hints.set(DecodeHintType.TRY_HARDER, true);
+                const reader = new BrowserMultiFormatReader(hints, {
+                    delayBetweenScanAttempts: 100,
+                    delayBetweenScanSuccess: 500,
+                });
                 video.classList.remove('hidden');
                 placeholder.classList.add('hidden');
                 start.classList.add('hidden');

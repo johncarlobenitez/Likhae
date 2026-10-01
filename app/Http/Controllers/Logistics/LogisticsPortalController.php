@@ -12,6 +12,7 @@ use App\Models\Rider\RiderProfile;
 use App\Models\User;
 use App\Services\Communication\ConversationService;
 use App\Services\RegistrationWorkflowService;
+use App\Services\RiderRatingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -121,12 +122,15 @@ class LogisticsPortalController extends Controller
         return view('Logistics.riders.index', compact('riders', 'center'));
     }
 
-    public function riderShow(Request $request, RiderProfile $rider): View
+    public function riderShow(Request $request, RiderProfile $rider, RiderRatingService $riderRatings): View
     {
         $center = $request->user()->logisticsCenter;
         abort_unless($center && (int) $rider->logistics_center_id === (int) $center->id, 403);
 
         $rider->load(['user', 'areaAssignments.serviceArea', 'assignments.shipment.sellerOrder.order.address', 'earnings']);
+        $ratingSummary = $riderRatings->summary($rider);
+        $rider->setAttribute('rating_average', $ratingSummary['average']);
+        $rider->setAttribute('rating_count', $ratingSummary['count']);
 
         return view('Logistics.riders.show', compact('rider', 'center'));
     }

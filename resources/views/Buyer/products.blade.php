@@ -5,5 +5,5 @@
 @section('subtitle', 'Find products from trusted local sellers.')
 
 @section('content')
-    <x-buyer.product-catalog :products="$buyerProducts" />
+    <x-buyer.product-catalog :products="$buyerProducts" :categories="$categories" :catalog-max-price="$catalogMaxPrice" :catalog-total="$catalogTotal" :paginator="$products" />
 @endsection

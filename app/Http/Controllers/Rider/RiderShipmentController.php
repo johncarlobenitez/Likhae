@@ -7,7 +7,9 @@ use App\Models\Rider\RiderAssignment;
 use App\Services\Fulfillment\ShipmentWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Throwable;
 
 class RiderShipmentController extends Controller
 {
@@ -38,10 +40,24 @@ class RiderShipmentController extends Controller
             'attempt_status' => ['nullable', 'string', 'in:FAILED,RESCHEDULED,RETURNED'],
             'next_attempt_at' => ['required_if:attempt_status,RESCHEDULED', 'nullable', 'date', 'after:now'],
             'reason' => ['nullable', 'string', 'max:1000'],
-            'proof_path' => ['nullable', 'string', 'max:500'],
+            'proof_file' => ['required_if:action,delivery_success', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
         ]);
 
-        $workflow->riderTransition($assignment, $data['action'], $request->user(), $data);
+        $proofPath = null;
+        if ($request->hasFile('proof_file')) {
+            $proofPath = $request->file('proof_file')->store('delivery-proofs', 'public');
+            $data['proof_path'] = $proofPath;
+        }
+
+        try {
+            $workflow->riderTransition($assignment, $data['action'], $request->user(), $data);
+        } catch (Throwable $exception) {
+            if ($proofPath) {
+                Storage::disk('public')->delete($proofPath);
+            }
+
+            throw $exception;
+        }
 
         return back()->with('status', 'Rider assignment updated.');
     }

@@ -19,8 +19,11 @@
                 <td class="p-4">
                     @php($activeAssignment = $shipment->riderAssignments->where('assignment_type','PICKUP')->whereIn('status',['ASSIGNED','ACCEPTED','IN_PROGRESS'])->sortByDesc('id')->first())
                     @if($activeAssignment)<span class="font-semibold">{{ $activeAssignment->riderProfile?->user?->name }}</span><small class="block text-muted">{{ str($activeAssignment->status)->headline() }}</small>
-                    @else<form method="POST" action="{{ route('logistics.pickups.assign', $shipment) }}" class="flex min-w-72 gap-2">@csrf
-                        <select name="rider_profile_id" required class="min-h-11 flex-1 border border-line bg-white px-3"><option value="">Select active rider</option>@foreach($riders as $rider)<option value="{{ $rider->id }}">{{ $rider->user?->name }} — {{ $rider->vehicle_type }}</option>@endforeach</select>
+                    @else
+                    @php($pickupAreaId = $pickupAreaIds[$shipment->id] ?? null)
+                    @php($eligibleRiders = $pickupAreaId ? $riders->filter(fn ($rider) => $rider->areaAssignments->contains(fn ($assignment) => $assignment->is_active && (int) $assignment->service_area_id === (int) $pickupAreaId)) : $riders)
+                    <form method="POST" action="{{ route('logistics.pickups.assign', $shipment) }}" class="flex min-w-72 gap-2">@csrf
+                        <select name="rider_profile_id" required class="min-h-11 flex-1 border border-line bg-white px-3"><option value="">{{ $eligibleRiders->isEmpty() ? 'No rider covers pickup area' : 'Select nearby rider' }}</option>@foreach($eligibleRiders as $rider)<option value="{{ $rider->id }}">{{ $rider->user?->name }} — {{ $rider->vehicle_type }}</option>@endforeach</select>
                         <button class="bg-primary px-4 py-2 font-semibold text-white">Assign</button>
                     </form>@endif
                 </td>

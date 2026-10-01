@@ -37,10 +37,14 @@ class GuestMarketplaceController extends Controller
     public function show(string $slug): View
     {
         $product = $this->catalog->findVisibleBySlug($slug);
+        $productPayload = $this->catalog->productPayload($product, true);
+        $productPayload['seller_rating'] = $product->sellerProfile
+            ? $this->catalog->sellerRating($product->sellerProfile)
+            : 0;
 
         return view('guest.product-details', [
             'productModel' => $product,
-            'product' => $this->catalog->productPayload($product, true),
+            'product' => $productPayload,
             'relatedProducts' => $this->catalog->visibleQuery()
                 ->whereKeyNot($product->id)
                 ->where('category_id', $product->category_id)

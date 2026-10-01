@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Admin\CommissionTransaction;
 use App\Models\Buyer\Order;
 use App\Models\Buyer\OrderAddress;
+use App\Models\Buyer\Address;
 use App\Models\Logistics\LogisticsCenter;
 use App\Models\Logistics\ServiceArea;
 use App\Models\Logistics\ServiceAreaLocation;
@@ -53,9 +54,23 @@ class EndToEndShipmentLifecycleTest extends TestCase
         ]);
 
         $category = Category::create(['name' => 'E2E Category', 'slug' => 'e2e-category', 'is_active' => true]);
+        $sellerAddress = Address::create([
+            'user_id' => $sellerUser->id,
+            'label' => 'Business',
+            'recipient_name' => $sellerUser->name,
+            'contact_number' => $sellerUser->contact_number,
+            'province_code' => 'P-E2E',
+            'province_name' => 'Test Province',
+            'municipality_code' => 'M-E2E',
+            'municipality_name' => 'Test Municipality',
+            'barangay_code' => 'B-E2E',
+            'barangay_name' => 'Test Barangay',
+            'street_address' => 'Seller Pickup Street',
+        ]);
         $seller = SellerProfile::create([
             'user_id' => $sellerUser->id,
             'primary_category_id' => $category->id,
+            'business_address_id' => $sellerAddress->id,
             'business_name' => 'E2E Store',
             'status' => 'ACTIVE',
         ]);
@@ -90,10 +105,23 @@ class EndToEndShipmentLifecycleTest extends TestCase
         $workflow->sellerTransition($sellerOrder, 'ready', $sellerUser);
         $shipment = $sellerOrder->shipment()->firstOrFail();
         $pickupRequest = $shipment->pickupRequests()->firstOrFail();
+
+        $this->actingAs($centerUser)
+            ->get(route('logistics.pickups'))
+            ->assertOk()
+            ->assertSee($shipment->tracking_number);
+
         $workflow->approvePickup($pickupRequest, $centerUser);
 
         $pickupRiderUser = User::factory()->create(['account_type' => User::TYPE_RIDER]);
         $pickupRider = $this->rider($pickupRiderUser, $center);
+        RiderAreaAssignment::create([
+            'rider_profile_id' => $pickupRider->id,
+            'service_area_id' => $area->id,
+            'assigned_by_user_id' => $centerUser->id,
+            'is_active' => true,
+            'assigned_at' => now(),
+        ]);
         $pickupAssignment = $workflow->assignRider($shipment, $pickupRider, 'PICKUP', $centerUser);
         $workflow->riderTransition($pickupAssignment, 'accept', $pickupRiderUser);
         $workflow->riderTransition($pickupAssignment, 'start', $pickupRiderUser);
@@ -101,6 +129,14 @@ class EndToEndShipmentLifecycleTest extends TestCase
             'scan_method' => 'BARCODE',
             'scanned_code' => $shipment->tracking_number,
         ]);
+
+        $this->actingAs($buyer)
+            ->get(route('buyer.orders.show', $order))
+            ->assertOk()
+            ->assertDontSee('Cancel Order');
+        $this->actingAs($buyer)
+            ->post(route('buyer.orders.cancel', $order))
+            ->assertStatus(409);
 
         $workflow->receiveAtCenter($shipment->fresh(), $center, $centerUser, $shipment->tracking_number, 'BARCODE');
         $workflow->sortShipment($shipment->fresh(), $center, $centerUser, $area);
@@ -117,7 +153,11 @@ class EndToEndShipmentLifecycleTest extends TestCase
         $deliveryAssignment = $workflow->assignRider($shipment->fresh(), $deliveryRider, 'DELIVERY', $centerUser);
         $workflow->riderTransition($deliveryAssignment, 'accept', $deliveryRiderUser);
         $workflow->riderTransition($deliveryAssignment, 'start', $deliveryRiderUser);
-        $workflow->riderTransition($deliveryAssignment, 'delivery_success', $deliveryRiderUser);
+        $workflow->riderTransition($deliveryAssignment, 'delivery_success', $deliveryRiderUser, [
+            'proof_path' => 'delivery-proofs/e2e-proof.jpg',
+        ]);
+
+        $this->assertSame('PROCESSING', $order->fresh()->status);
 
         $this->actingAs($buyer)
             ->post(route('buyer.orders.received', $order))

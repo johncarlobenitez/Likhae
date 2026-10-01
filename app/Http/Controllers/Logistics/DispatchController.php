@@ -11,6 +11,7 @@ use App\Models\Rider\RiderProfile;
 use App\Services\Fulfillment\ShipmentWorkflowService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DispatchController extends Controller
@@ -52,14 +53,26 @@ class DispatchController extends Controller
                     $query->where(function ($q) use ($center) {
                         $q->where('logistics_center_id', $center->id)
                             ->orWhere(fn ($unassigned) => $unassigned->whereNull('logistics_center_id')
-                                ->whereHas('serviceArea', fn ($area) => $area->where('logistics_center_id', $center->id)));
+                                ->whereHas('serviceArea', fn ($area) => $area->where('logistics_center_id', $center->id)))
+                            ->orWhereHas('sellerOrder.sellerProfile.businessAddress', function ($address) use ($center) {
+                                $address->whereExists(function ($locations) use ($center) {
+                                    $locations->select(DB::raw(1))
+                                        ->from('service_area_locations')
+                                        ->join('service_areas', 'service_areas.id', '=', 'service_area_locations.service_area_id')
+                                        ->where('service_areas.logistics_center_id', $center->id)
+                                        ->where('service_areas.is_active', true)
+                                        ->whereColumn('service_area_locations.province_code', 'addresses.province_code')
+                                        ->whereColumn('service_area_locations.municipality_code', 'addresses.municipality_code')
+                                        ->whereColumn('service_area_locations.barangay_code', 'addresses.barangay_code');
+                                });
+                            });
                     });
                 }
                 if ($tracking !== '') {
                     $query->where('tracking_number', $tracking);
                 }
             })
-            ->with(['shipment.sellerOrder.sellerProfile.user', 'shipment.sellerOrder.order.address', 'shipment.riderAssignments.riderProfile.user'])
+            ->with(['shipment.sellerOrder.sellerProfile.user', 'shipment.sellerOrder.sellerProfile.businessAddress', 'shipment.sellerOrder.order.address', 'shipment.serviceArea', 'shipment.riderAssignments.riderProfile.user'])
             ->latest()
             ->paginate(15)
             ->withQueryString();
@@ -67,11 +80,16 @@ class DispatchController extends Controller
         $riders = RiderProfile::query()
             ->where('status', 'ACTIVE')
             ->when($center, fn ($query) => $query->where('logistics_center_id', $center->id))
-            ->with('user')
+            ->with(['user', 'areaAssignments'])
             ->orderBy('id')
             ->get();
 
-        return view('Logistics.pickups.index', compact('pickups', 'riders', 'center'));
+        $workflow = app(ShipmentWorkflowService::class);
+        $pickupAreaIds = $pickups->getCollection()->mapWithKeys(fn ($pickup) => [
+            $pickup->shipment_id => $workflow->sellerPickupServiceArea($pickup->shipment, $center)?->id,
+        ]);
+
+        return view('Logistics.pickups.index', compact('pickups', 'riders', 'center', 'pickupAreaIds'));
     }
 
     public function receive(Request $request): View
@@ -169,7 +187,7 @@ class DispatchController extends Controller
         $center = request()->user()?->logisticsCenter;
         abort_unless($center, 403);
         $this->ensureShipmentBelongsToCenter($shipment, $center);
-        $shipment->load(['sellerOrder.items', 'sellerOrder.sellerProfile.user', 'sellerOrder.order.address', 'sellerOrder.order.buyer', 'serviceArea', 'riderAssignments.riderProfile.user', 'events.actor', 'scans', 'deliveryAttempts']);
+        $shipment->load(['sellerOrder.items.product.images', 'sellerOrder.sellerProfile.user', 'sellerOrder.order.address', 'sellerOrder.order.buyer', 'serviceArea', 'riderAssignments.riderProfile.user', 'events.actor', 'scans', 'deliveryAttempts']);
 
         return view('Logistics.parcels.show', compact('shipment'));
     }
@@ -287,11 +305,20 @@ class DispatchController extends Controller
 
     private function ensureShipmentBelongsToCenter(Shipment $shipment, LogisticsCenter $center): void
     {
-        $shipment->loadMissing('serviceArea');
+        $shipment->loadMissing('serviceArea', 'sellerOrder.sellerProfile.businessAddress');
         $isAssignedToCenter = (int) $shipment->logistics_center_id === (int) $center->id;
         $areaBelongsToCenter = ! $shipment->logistics_center_id
             && (int) $shipment->serviceArea?->logistics_center_id === (int) $center->id;
+        $pickupAddress = $shipment->sellerOrder?->sellerProfile?->businessAddress;
+        $pickupBelongsToCenter = $pickupAddress && ServiceArea::query()
+            ->where('logistics_center_id', $center->id)
+            ->where('is_active', true)
+            ->whereHas('locations', fn ($location) => $location
+                ->where('province_code', $pickupAddress->province_code)
+                ->where('municipality_code', $pickupAddress->municipality_code)
+                ->where('barangay_code', $pickupAddress->barangay_code))
+            ->exists();
 
-        abort_unless($isAssignedToCenter || $areaBelongsToCenter, 403);
+        abort_unless($isAssignedToCenter || $areaBelongsToCenter || $pickupBelongsToCenter, 403);
     }
 }

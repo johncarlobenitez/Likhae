@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Logistics;
 
 use App\Http\Controllers\Controller;
 use App\Models\Rider\RiderProfile;
+use App\Services\RiderRatingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -46,7 +47,7 @@ class ProviderRiderController extends Controller
         ]);
     }
 
-    public function show(Request $request, RiderProfile $rider): View
+    public function show(Request $request, RiderProfile $rider, RiderRatingService $riderRatings): View
     {
         $center = $request->user()->logisticsCenter()->where('status', 'ACTIVE')->firstOrFail();
         abort_unless((int) $rider->logistics_center_id === (int) $center->id, 403);
@@ -54,6 +55,7 @@ class ProviderRiderController extends Controller
         $rider->load(['user', 'areaAssignments.serviceArea']);
         $activeArea = $rider->areaAssignments->firstWhere('is_active', true)?->serviceArea?->name;
         $activeAssignments = $rider->assignments()->whereIn('status', ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS'])->count();
+        $ratingSummary = $riderRatings->summary($rider);
 
         return view('Logistics.riders.show', [
             'rider' => [
@@ -67,6 +69,8 @@ class ProviderRiderController extends Controller
                 'vehicle' => str($rider->vehicle_type)->headline()->toString(),
                 'plate' => $rider->plate_number,
                 'license' => $rider->drivers_license_number,
+                'rating_average' => $ratingSummary['average'],
+                'rating_count' => $ratingSummary['count'],
             ],
         ]);
     }

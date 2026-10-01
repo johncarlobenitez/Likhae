@@ -18,7 +18,7 @@ class SellerOrderController extends Controller
 
         $orders = SellerOrder::query()
             ->where('seller_profile_id', $seller->id)
-            ->with(['order.buyer', 'order.address', 'order.payments', 'items', 'shipment.events', 'shipment.pickupRequests', 'shipment.riderAssignments.riderProfile.user'])
+            ->with(['order.buyer', 'order.address', 'order.payments', 'items.product.images', 'shipment.events', 'shipment.pickupRequests', 'shipment.riderAssignments.riderProfile.user'])
             ->latest()
             ->get();
 
@@ -70,6 +70,7 @@ class SellerOrderController extends Controller
             'buyer_id' => $order->order?->buyer_user_id,
             'buyer' => $order->order?->buyer?->name ?? 'Buyer',
             'product' => $items->pluck('product_name')->filter()->join(', '),
+            'first_item' => $items->first(),
             'variant' => $items->pluck('variant_description')->filter()->join(', ') ?: 'Standard',
             'quantity' => (int) $items->sum('quantity'),
             'total' => (float) $order->grand_total,

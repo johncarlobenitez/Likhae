@@ -34,6 +34,7 @@ Route::prefix('buyer')
         Route::get('/orders/{order}', [BuyerOrderController::class, 'show'])->name('orders.show');
         Route::post('/orders/{order}/cancel', [BuyerOrderController::class, 'cancel'])->name('orders.cancel');
         Route::post('/orders/{order}/received', [BuyerOrderController::class, 'received'])->name('orders.received');
+        Route::post('/orders/{order}/return-refund', [BuyerOrderController::class, 'returnRefund'])->name('orders.return-refund');
         Route::post('/orders/items/{item}/review', [BuyerOrderController::class, 'review'])->name('orders.review.store');
 
         Route::get('/messages', [BuyerController::class, 'messages'])->name('messages');

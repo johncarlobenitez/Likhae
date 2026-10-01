@@ -13,7 +13,6 @@ use App\Services\Marketplace\ProductCatalogService;
 use App\Services\Marketplace\SellerCatalogService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -31,17 +30,22 @@ class SellerProductController extends Controller
             ->with(['category', 'images', 'options.values', 'variants.optionValues.option', 'orderItems.review'])
             ->latest()
             ->get();
+        $sellerProducts = $products->map(fn (Product $product) => $this->viewData($product));
 
         $selected = null;
         if ($request->filled('product')) {
-            $selected = $products->firstWhere('id', (int) $request->query('product'));
+            $selected = $sellerProducts->firstWhere('db_id', $request->integer('product'));
+        }
+
+        if ($request->query('mode') === 'edit' && $selected === null) {
+            abort(404);
         }
 
         return view('Seller.products', [
             'mode' => $request->query('mode', 'list'),
             'seller' => $seller,
             'products' => $products,
-            'sellerProducts' => $products->map(fn (Product $product) => $this->viewData($product)),
+            'sellerProducts' => $sellerProducts,
             'selectedProduct' => $selected,
             'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
         ]);
@@ -144,7 +148,19 @@ class SellerProductController extends Controller
             'rating' => (float) $product->orderItems->pluck('review.rating')->filter()->avg(),
             'status' => $product->status,
             'description' => $product->description,
-            'image' => $firstImage?->file_path ? Storage::url($firstImage->file_path) : null,
+            'image' => $firstImage?->file_path
+                ? $this->catalog->publicUrl($firstImage->file_path)
+                : asset('images/product-placeholder.svg'),
+            'images' => $product->images->map(fn ($image): array => [
+                'id' => $image->id,
+                'url' => $this->catalog->publicUrl($image->file_path),
+                'alt' => $image->alt_text ?: $product->name,
+                'is_primary' => (bool) $image->is_primary,
+            ])->all(),
+            'option_rows' => $product->options->map(fn ($option): array => [
+                'name' => $option->name,
+                'values' => $option->values->pluck('value')->join(', '),
+            ])->all(),
             'variation_rows' => $activeVariants->map(fn (ProductVariant $variant): array => [
                 'id' => $variant->id,
                 'sku' => $variant->sku,
