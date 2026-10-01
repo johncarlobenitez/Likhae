@@ -45,7 +45,7 @@
                     <p class="lp-hero__description">From the first pickup to the final doorstep. Bring your parcels, people, and daily deliveries together in one workspace.</p>
                     <div class="lp-hero__actions">
                         <a href="{{ route('logistics.login') }}" class="lp-button lp-button--primary">
-                            Open your workspace
+                            Sign in
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
                         </a>
                         <a href="#workspaces" class="lp-button lp-button--secondary">Join the network</a>

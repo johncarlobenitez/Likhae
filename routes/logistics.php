@@ -17,7 +17,7 @@ Route::prefix('logistics')->name('logistics.')->group(function (): void {
             'description' => 'Logistics centers manage intake and assignments. Riders manage only their own pickup and delivery work.',
             'homeRoute' => route('logistics.home'),
             'loginRoute' => route('logistics.login.store'),
-            'registerRoute' => route('register'),
+            'registerRoute' => route('register', ['role' => 'logistics']),
         ]);
     })->middleware('guest')->name('login');
 

@@ -674,7 +674,7 @@
         .lk-quick-grid,
         .lk-category-grid,
         .lk-product-grid {
-            grid-template-columns: 1fr !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         }
 
         .lk-countdown {

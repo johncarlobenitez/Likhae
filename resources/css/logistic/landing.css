@@ -90,13 +90,13 @@ html { scroll-behavior: smooth; scroll-padding-top: 28px; }
 .lp-eyebrow svg { width: 16px; height: 16px; }
 .lp-hero h1 {
     margin: 24px 0 22px;
-    font-size: clamp(44px, 4.7vw, 66px); font-weight: 600; line-height: 1.07; letter-spacing: -0.055em;
+    font-size: clamp(58px, 6vw, 92px); font-weight: 600; line-height: 1.07; letter-spacing: -0.055em;
 }
 .lp-hero h1 em, .lp-workflow h2 em {
     color: var(--lp-red); font-family: Georgia, "Times New Roman", serif;
     font-size: 1.12em; font-weight: 400; letter-spacing: -0.05em;
 }
-.lp-hero__description { max-width: 375px; margin: 0; color: #67574a; font-size: 13px; line-height: 1.9; text-wrap: pretty; }
+.lp-hero__description { max-width: 500px; margin: 0; color: #67574a; font-size: 16px; line-height: 1.8; text-wrap: pretty; }
 .lp-hero__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
 .lp-hero__note { display: flex; align-items: center; gap: 8px; margin: 24px 0 0; color: var(--lp-muted); font-size: 10px; line-height: 1.6; }
 .lp-hero__note > span { width: 5px; height: 5px; border-radius: 50%; background: var(--lp-red); }
@@ -205,7 +205,7 @@ html { scroll-behavior: smooth; scroll-padding-top: 28px; }
         background: linear-gradient(100deg, rgba(246, 240, 229, 0.99), rgba(246, 240, 229, 0.9) 38%, rgba(246, 240, 229, 0.15) 90%);
     }
     .lp-hero__caption { bottom: 22px; }
-    .lp-hero h1 { font-size: 50px; }
+    .lp-hero h1 { font-size: clamp(54px, 7vw, 72px); }
     .lp-highlights { grid-template-columns: 1fr; padding: 8px 24px; }
     .lp-highlights li { justify-content: flex-start; padding: 17px 0; }
     .lp-highlights li + li { border-top: 1px solid var(--lp-line); border-left: 0; }
@@ -230,8 +230,8 @@ html { scroll-behavior: smooth; scroll-padding-top: 28px; }
     }
     .lp-hero__content { min-height: 0; padding: 30px 24px 0; }
     .lp-eyebrow { font-size: 9px; letter-spacing: 0.08em; }
-    .lp-hero h1 { margin-top: 20px; font-size: clamp(38px, 10.5vw, 50px); }
-    .lp-hero__description { font-size: 12px; }
+    .lp-hero h1 { margin-top: 20px; font-size: clamp(40px, 10.5vw, 52px); }
+    .lp-hero__description { font-size: 13px; }
     .lp-hero__actions { width: 100%; gap: 10px; margin-top: 24px; }
     .lp-hero__actions .lp-button { width: 100%; }
     .lp-hero__note { margin-top: 18px; font-size: 9px; }
@@ -256,4 +256,116 @@ html { scroll-behavior: smooth; scroll-padding-top: 28px; }
 @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .lp-page *, .lp-page *::before, .lp-page *::after { transition: none !important; }
+}
+
+/* Full-width landing composition, with navigation layered over the hero. */
+.lp-page > .lp-header {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 5;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    margin: 0;
+    padding: 24px clamp(20px, 4vw, 64px);
+}
+
+.lp-page > main.lp-container {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+}
+
+.lp-hero {
+    border: 0;
+    border-radius: 0;
+}
+
+.lp-hero__scene {
+    display: flex;
+    align-items: stretch;
+    min-height: 100vh;
+    min-height: 100svh;
+}
+
+.lp-hero__content {
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100svh;
+    padding: max(150px, calc(8vh + 96px)) clamp(32px, 6vw, 96px) 110px;
+}
+
+.lp-highlights {
+    padding-inline: clamp(24px, 5vw, 72px);
+}
+
+.lp-workspaces,
+.lp-workflow {
+    width: min(1600px, calc(100% - clamp(32px, 4vw, 64px)));
+    margin-inline: auto;
+}
+
+.lp-workspaces {
+    padding-block: clamp(56px, 7vw, 88px) clamp(40px, 5vw, 64px);
+}
+
+.lp-workflow {
+    margin-bottom: 12px;
+}
+
+.lp-page > footer.lp-footer.lp-container {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 30px clamp(24px, 4vw, 64px);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    background: var(--lp-ink);
+    color: #f2e8dc;
+}
+
+.lp-page > footer.lp-footer strong {
+    color: #e7b98f;
+}
+
+.lp-page > footer.lp-footer a:hover {
+    color: #e7b98f;
+}
+
+@media (max-width: 820px) {
+    .lp-page > .lp-header {
+        padding: 20px 24px 12px;
+    }
+
+    .lp-hero__content {
+        min-height: 100vh;
+        min-height: 100svh;
+        padding-top: max(156px, calc(12vh + 90px));
+    }
+}
+
+@media (max-width: 600px) {
+    .lp-page > .lp-header {
+        padding: 18px 16px 10px;
+    }
+
+    .lp-hero { border-radius: 0; }
+
+    .lp-hero__scene {
+        display: block;
+        min-height: max(780px, 100svh);
+        padding-bottom: 245px;
+    }
+
+    .lp-hero__content {
+        width: 100%;
+        min-height: 0;
+        padding: 156px 24px 0;
+    }
+
+    .lp-workspaces,
+    .lp-workflow {
+        width: calc(100% - 32px);
+    }
+
+    .lp-workspaces { padding-block: 48px 36px; }
 }

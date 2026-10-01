@@ -1,4 +1,5 @@
 import { initPostalAddressForm } from '../address/postal-code.js';
+import './hero-carousel.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const one = (selector, root = document) => root.querySelector(selector);

@@ -41,42 +41,7 @@
     {{-- ══════════════════════════════════════════════════════
          HERO
     ══════════════════════════════════════════════════════ --}}
-    <section class="lk-ed-hero" aria-label="Welcome banner">
-
-        {{-- Left copy --}}
-        <div class="lk-ed-hero-copy">
-            <span class="lk-ed-eyebrow">MORE THAN A MARKETPLACE</span>
-
-            <h1 class="lk-ed-hero-h1">
-                Discover Products<br>
-                <em>for Everyday Needs</em>
-            </h1>
-
-            <p class="lk-ed-hero-desc">
-                LIKHAE is a modern e-commerce marketplace that connects buyers with trusted sellers,
-                offering a convenient, secure, and community-centered shopping experience for everyday needs.
-            </p>
-
-            <div class="lk-ed-hero-actions">
-                <a href="{{ route('products') }}" class="lk-btn lk-btn-red lk-ed-btn-primary">
-                    Shop Now
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-                </a>
-                <a href="#lk-categories" class="lk-btn lk-ed-btn-outline">
-                    Explore Categories
-                </a>
-            </div>
-
-            <div class="lk-ed-hero-tagline">"Crafted for Everyday Needs"</div>
-
-            <div class="lk-ed-dots" aria-hidden="true">
-                <span class="is-active"></span><span></span><span></span>
-            </div>
-        </div>
-
-        {{-- Right visual — real photo --}}
-        <div class="lk-ed-hero-visual" aria-hidden="true"></div>
-    </section>
+    @include('guest.partials.hero-carousel')
 
     {{-- ══════════════════════════════════════════════════════
          TRUST BAR

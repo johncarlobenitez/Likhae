@@ -21,7 +21,7 @@
         (function () { var theme = localStorage.getItem('likhae-theme'); if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark'); })();
     </script>
 </head>
-<body class="lk-buyer-body lk-guest-body">
+<body class="lk-buyer-body lk-guest-body {{ request()->routeIs('home') ? 'lk-landing-body' : '' }}">
     <div class="lk-guest-shell">
         <header class="lk-header is-guest" role="banner">
             <div class="lk-guest-header-left">
