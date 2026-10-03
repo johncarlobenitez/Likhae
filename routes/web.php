@@ -80,6 +80,12 @@ Route::post('/email/verification-notification', function (Request $request) {
 Route::get('/register', [RegistrationController::class, 'create'])
     ->middleware('guest')
     ->name('register');
+Route::post('/register/email-verification/send', [RegistrationController::class, 'sendEmailVerificationCode'])
+    ->middleware(['guest', 'throttle:3,10'])
+    ->name('register.email-verification.send');
+Route::post('/register/email-verification/verify', [RegistrationController::class, 'verifyEmailCode'])
+    ->middleware(['guest', 'throttle:10,1'])
+    ->name('register.email-verification.verify');
 Route::post('/register', [RegistrationController::class, 'store'])
     ->middleware(['guest', 'throttle:10,1'])
     ->name('register.store');

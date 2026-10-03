@@ -41,7 +41,7 @@
 
     .lk-page {
         min-height: 100vh !important;
-        padding: 28px 32px 56px !important;
+        padding: 40px 0 56px !important;
     }
 
     .lk-section {
@@ -640,7 +640,7 @@
 
     @media (max-width: 900px) {
         .lk-page {
-            padding: 22px 18px 44px !important;
+            padding: 30px 0 44px !important;
         }
 
         .lk-section-head {
@@ -667,8 +667,9 @@
 
     @media (max-width: 560px) {
         .lk-page {
-            padding-left: 14px !important;
-            padding-right: 14px !important;
+            padding-top: 24px !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
         }
 
         .lk-quick-grid,
@@ -701,28 +702,6 @@
 
     $featuredProducts = $products->take(4);
     $recommendedProducts = $products->skip(4)->take(4);
-
-    $heroProduct = $products->firstWhere('slug', 'wireless-headphones')
-        ?? $products->first();
-
-    $heroImage = data_get($heroProduct, 'primary_image.url');
-
-    $heroName = data_get(
-        $heroProduct,
-        'name',
-        'Discover meaningful local products'
-    );
-
-    $heroPrice = max(
-        0,
-        (float) data_get($heroProduct, 'min_price', 0)
-    );
-
-    $heroCategoryValue = data_get($heroProduct, 'category.name') ?? 'Featured Product';
-
-    $heroCategory = is_scalar($heroCategoryValue)
-        ? (string) $heroCategoryValue
-        : 'Featured Product';
 
     /*
     |--------------------------------------------------------------------------
@@ -786,12 +765,11 @@
     ];
 @endphp
 
-<div class="lk-page">
+<div class="lk-page lk-home-page">
 
     {{-- Hero --}}
     <x-buyer.marketplace-hero
-        :products="$products"
-        :hero-product="$heroProduct"
+        :products="$heroProducts ?? collect()"
         :browse-url="route('buyer.products')"
         :categories-url="route('buyer.products')"
         :orders-url="route('buyer.orders')"

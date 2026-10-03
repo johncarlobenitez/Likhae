@@ -18,9 +18,9 @@
         (function(){var t=localStorage.getItem('likhae-theme')||'light';document.documentElement.classList.toggle('dark',t==='dark')} )();
     </script></head>
 <body class="sl-body">
-    @include('components.seller.sidebar', ['active' => $activePage])
+    <x-admin.sidebar role="seller" :active="$activePage" />
 
-    <div class="sl-shell">
+    <div class="sl-shell" data-sidebar-content>
         @include('components.seller.header', [
             'title' => $pageTitle,
             'subtitle' => $pageSubtitle,
@@ -33,7 +33,6 @@
         @include('components.seller.footer')
     </div>
 
-    <div class="sl-overlay" data-sl-overlay></div>
     <div class="sl-toast" data-sl-toast data-flash="{{ session('status') }}" data-error="{{ $errors->first() }}" role="status" aria-live="polite"></div>
 
     @include('partials.darkmode')

@@ -1175,6 +1175,36 @@ html.dark .likhae-logo .likhae-logo__image--dark { display: block; }
     line-height: 1.4;
 }
 
+.register-email-verification {
+    display: grid;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.register-email-verification__button {
+    justify-self: start;
+    padding: 8px 12px;
+    color: var(--reg-red);
+    background: #fff;
+    border: 1px solid var(--reg-border-dark);
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.register-email-verification__button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.register-email-verification__status.is-success {
+    color: var(--reg-success);
+}
+
+.register-email-verification__status.is-error {
+    color: var(--reg-error);
+}
+
 
 .register-field
 input.is-invalid,

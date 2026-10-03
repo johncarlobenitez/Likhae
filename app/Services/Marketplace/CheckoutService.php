@@ -21,6 +21,35 @@ use Illuminate\Validation\ValidationException;
 
 class CheckoutService
 {
+    public function availableVouchers(Collection $items, ?User $buyer = null): Collection
+    {
+        return $items
+            ->groupBy(fn (CartItem $item) => (int) $item->productVariant->product->seller_profile_id)
+            ->map(function (Collection $sellerItems, int $sellerId) use ($buyer): Collection {
+                $subtotal = $sellerItems->sum(
+                    fn (CartItem $item): float => (float) $item->productVariant->price * (int) $item->quantity
+                );
+
+                return Voucher::query()
+                    ->where('seller_profile_id', $sellerId)
+                    ->where('is_active', true)
+                    ->where('minimum_order_amount', '<=', $subtotal)
+                    ->where(fn ($query) => $query->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
+                    ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>=', now()))
+                    ->withCount([
+                        'sellerOrders',
+                        'sellerOrders as buyer_uses_count' => fn ($query) => $buyer
+                            ? $query->whereHas('order', fn ($order) => $order->where('buyer_user_id', $buyer->id))
+                            : $query->whereRaw('1 = 0'),
+                    ])
+                    ->get()
+                    ->filter(fn (Voucher $voucher): bool => ($voucher->usage_limit === null || $voucher->seller_orders_count < $voucher->usage_limit)
+                        && ($voucher->per_user_limit === null || $voucher->buyer_uses_count < $voucher->per_user_limit)
+                    )
+                    ->values();
+            });
+    }
+
     public function preview(Collection $items, array $voucherCodes = []): array
     {
         $groups = [];

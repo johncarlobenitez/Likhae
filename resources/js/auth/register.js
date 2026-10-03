@@ -13,6 +13,54 @@ document.addEventListener('DOMContentLoaded', () => {
             'registrationForm'
         );
 
+    const emailInput =
+        document.getElementById(
+            'email'
+        );
+
+    const emailVerification =
+        document.querySelector(
+            '[data-registration-email-verification]'
+        );
+
+    const emailCodeInput =
+        document.querySelector(
+            '[data-email-verification-code]'
+        );
+
+    const sendEmailCodeButton =
+        document.querySelector(
+            '[data-send-email-code]'
+        );
+
+    const verifyEmailCodeButton =
+        document.querySelector(
+            '[data-verify-email-code]'
+        );
+
+    const emailVerificationStatus =
+        document.querySelector(
+            '[data-email-verification-status]'
+        );
+
+    let emailVerified =
+        emailInput?.readOnly === true;
+
+    emailInput?.addEventListener('input', () => {
+        emailVerified = false;
+
+        if (emailCodeInput) {
+            emailCodeInput.value = '';
+            emailCodeInput.disabled = true;
+        }
+
+        if (verifyEmailCodeButton) {
+            verifyEmailCodeButton.disabled = true;
+        }
+
+        setEmailVerificationStatus('Verify your email address before continuing.');
+    });
+
 
     const accountTypeInput =
         document.getElementById(
@@ -941,6 +989,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         }
 
+        if (
+            current.name === 'contact'
+            && !emailVerified
+        ) {
+            showStepError();
+            sendEmailCodeButton?.focus();
+            return false;
+        }
+
 
         hideStepError();
 
@@ -948,6 +1005,91 @@ document.addEventListener('DOMContentLoaded', () => {
         return true;
 
     }
+
+    function setEmailVerificationStatus(message, success = false) {
+        if (!emailVerificationStatus) {
+            return;
+        }
+
+        emailVerificationStatus.textContent = message;
+        emailVerificationStatus.classList.toggle('is-success', success);
+        emailVerificationStatus.classList.toggle('is-error', !success);
+    }
+
+    async function postEmailVerification(url, payload) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            },
+            body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.errors?.email?.[0]
+                || result.errors?.code?.[0]
+                || result.message
+                || 'Email verification failed. Please try again.'
+            );
+        }
+
+        return result;
+    }
+
+    sendEmailCodeButton?.addEventListener('click', async () => {
+        if (!emailInput?.reportValidity()) {
+            return;
+        }
+
+        sendEmailCodeButton.disabled = true;
+        setEmailVerificationStatus('Sending verification code...');
+
+        try {
+            const result = await postEmailVerification(
+                emailVerification.dataset.sendUrl,
+                { email: emailInput.value }
+            );
+
+            emailCodeInput.disabled = false;
+            verifyEmailCodeButton.disabled = false;
+            emailCodeInput.focus();
+            setEmailVerificationStatus(result.message);
+        } catch (error) {
+            setEmailVerificationStatus(error.message);
+        } finally {
+            sendEmailCodeButton.disabled = false;
+        }
+    });
+
+    verifyEmailCodeButton?.addEventListener('click', async () => {
+        if (!emailCodeInput?.reportValidity()) {
+            return;
+        }
+
+        verifyEmailCodeButton.disabled = true;
+        setEmailVerificationStatus('Checking verification code...');
+
+        try {
+            const result = await postEmailVerification(
+                emailVerification.dataset.verifyUrl,
+                { email: emailInput.value, code: emailCodeInput.value }
+            );
+
+            emailVerified = true;
+            emailInput.readOnly = true;
+            emailCodeInput.disabled = true;
+            sendEmailCodeButton.hidden = true;
+            verifyEmailCodeButton.hidden = true;
+            setEmailVerificationStatus(result.message, true);
+        } catch (error) {
+            setEmailVerificationStatus(error.message);
+            verifyEmailCodeButton.disabled = false;
+        }
+    });
 
 
     /*

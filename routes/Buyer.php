@@ -43,8 +43,7 @@ Route::prefix('buyer')
 
         Route::get('/notifications', [BuyerController::class, 'notifications'])->name('notifications');
         Route::post('/notifications/read-all', [BuyerController::class, 'markNotificationsRead'])->name('notifications.read-all');
-        // Wishlist and Rewards are intentionally out of final scope.
-        // They are not routed because the final 57-table schema has no wishlist/reward tables.
+        Route::get('/rewards', [BuyerController::class, 'rewards'])->name('rewards');
 
         Route::get('/account', [BuyerController::class, 'account'])->name('account');
         Route::get('/account/profile', fn () => redirect()->route('buyer.account', ['tab' => 'profile']))->name('account.profile');

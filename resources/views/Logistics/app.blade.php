@@ -90,7 +90,7 @@
             SIDEBAR
         ================================================== --}}
 
-        @include('Logistics.layouts.sidebar')
+        <x-admin.sidebar role="logistics" />
 
 
         {{-- =================================================
@@ -124,6 +124,7 @@
         ================================================== --}}
 
         <main
+            data-sidebar-content
             class="
                 min-h-screen
 
@@ -132,7 +133,7 @@
                 transition-all
                 duration-300
 
-                lg:ml-[245px]
+                lg:ml-[252px]
             "
         >
 
@@ -147,7 +148,7 @@
                     z-30
 
                     flex
-                    h-16
+                    h-[62px]
                     items-center
                     justify-between
 
@@ -291,11 +292,13 @@
                     w-full
                     max-w-[1500px]
 
-                    p-5
+                    px-[14px]
+                    py-5
 
-                    sm:p-6
-                    lg:p-8
-                    xl:p-9
+                    sm:px-6
+                    sm:py-6
+                    lg:py-8
+                    xl:py-9
                 "
             >
 

@@ -40,7 +40,7 @@
 
     --sl-sidebar: 252px;
     --sl-sidebar-mini: 76px;
-    --sl-header: 72px;
+    --sl-header: 62px;
     --sl-radius: 18px;
     --sl-shadow: 0 8px 24px rgba(86, 28, 23, .055);
     --sl-shadow-card: 0 18px 44px rgba(86, 28, 23, .10);
@@ -728,7 +728,7 @@ a.sl-stat-card:hover {
 }
 
 @media (max-width: 767px) {
-    .sl-header { min-height: 64px; padding-inline: 14px; }.sl-header-title p { display: none; }.sl-header-title h1 { font-size: 15px; }.sl-header-actions .sl-header-action:first-child { display: none; }
+    .sl-header { min-height: var(--sl-header); padding-inline: 14px; }.sl-header-title p { display: none; }.sl-header-title h1 { font-size: 15px; }.sl-header-actions .sl-header-action:first-child { display: none; }
     .sl-main { padding: 16px 12px 28px; }.sl-page { gap: 14px; }.sl-page-toolbar { align-items: flex-start; flex-direction: column; gap: 10px; }.sl-page-toolbar > .sl-btn, .sl-page-toolbar > .sl-toolbar-group { width: 100%; }.sl-page-toolbar .sl-toolbar-group .sl-btn { flex: 1; }
     .sl-welcome-panel { padding: 18px; align-items: flex-start; flex-direction: column; }.sl-welcome-actions { width: 100%; }.sl-welcome-actions .sl-btn { flex: 1; }
     .sl-stat-grid { grid-template-columns: repeat(5, 1fr); gap: 8px; }
@@ -2632,4 +2632,30 @@ html.dark .sl-seller-dashboard .sl-stat-change {
     background: #2D1414 !important;
     border-color: #60463A !important;
     color: #EBA99D !important;
+}
+
+/* Consistent near-edge layout across authenticated seller pages. */
+.sl-main {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+}
+
+.sl-main > .sl-page,
+.sl-main > .sl-page-narrow {
+    width: 100% !important;
+    max-width: none !important;
+}
+
+@media (max-width: 900px) {
+    .sl-main {
+        padding-left: 24px !important;
+        padding-right: 24px !important;
+    }
+}
+
+@media (max-width: 760px) {
+    .sl-main {
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+    }
 }

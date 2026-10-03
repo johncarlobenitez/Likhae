@@ -100,7 +100,7 @@
 
         .rider-brand {
             display: flex;
-            min-height: 68px;
+            min-height: 62px;
             align-items: center;
             gap: 11px;
             padding: 0 18px;
@@ -378,7 +378,7 @@
             top: 0;
             z-index: 40;
             display: flex;
-            min-height: 68px;
+            min-height: 62px;
             align-items: center;
             justify-content: space-between;
             gap: 20px;
@@ -427,7 +427,7 @@
 
         .rider-content {
             width: 100%;
-            padding: 24px 26px 34px;
+            padding: 24px 24px 34px;
         }
 
         .rider-mobile-bar {
@@ -494,7 +494,7 @@
                 top: 0;
                 z-index: 45;
                 display: flex;
-                min-height: 64px;
+                min-height: 62px;
                 align-items: center;
                 justify-content: space-between;
                 padding: 0 16px;
@@ -507,6 +507,10 @@
                 display: flex;
                 align-items: center;
                 gap: 9px;
+            }
+
+            body.workspace-sidebar-open .rider-mobile-brand {
+                visibility: hidden;
             }
 
             .rider-mobile-brand .rider-brand-mark {
@@ -524,7 +528,7 @@
             }
 
             .rider-content {
-                padding: 20px 16px 28px;
+                padding: 20px 14px 28px;
             }
         }
 
@@ -633,196 +637,9 @@
 
 <body class="rider-shell">
     <div class="rider-layout">
+        <x-admin.sidebar role="rider" />
 
-        <div
-            id="riderSidebarOverlay"
-            class="rider-sidebar-overlay"
-        ></div>
-
-        <aside
-            id="riderSidebar"
-            class="rider-sidebar"
-        >
-            <div class="rider-brand">
-                <span class="rider-brand-mark">
-                    L
-                </span>
-
-                <div class="rider-brand-copy">
-                    <strong>LIKHAE</strong>
-                    <span>Rider Panel</span>
-                </div>
-            </div>
-
-            <section class="rider-profile-card">
-                <div class="rider-profile-top">
-                    <span class="rider-avatar">
-                        {{ $riderInitials }}
-                    </span>
-
-                    <div class="rider-profile-copy">
-                        <strong>{{ $riderName }}</strong>
-                        <span>{{ $riderStatus }} Rider</span>
-                    </div>
-                </div>
-            </section>
-
-            <nav class="rider-nav"><a href="{{ route('rider.messages') }}" class="rider-nav-link">Messages</a>
-                <span class="rider-nav-label">
-                    Operations
-                </span>
-
-                <div class="rider-nav-list">
-                    <a
-                        href="{{ route('rider.dashboard') }}"
-                        class="rider-nav-link {{ request()->routeIs('rider.dashboard') ? 'is-active' : '' }}"
-                    >
-                        <span class="rider-nav-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M3 12L12 3l9 9"></path>
-                                <path d="M9 21V12h6v9"></path>
-                                <path d="M5 10v11h14V10"></path>
-                            </svg>
-                        </span>
-
-                        Dashboard
-                    </a>
-
-                    <a
-                        href="{{ route('rider.pickups') }}"
-                        class="rider-nav-link {{ request()->routeIs('rider.pickups', 'rider.pickups.*') ? 'is-active' : '' }}"
-                    >
-                        <span class="rider-nav-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M21 8 12 3 3 8l9 5 9-5Z"></path>
-                                <path d="M3 8v8l9 5 9-5V8"></path>
-                                <path d="M12 13v8"></path>
-                            </svg>
-                        </span>
-
-                        Pickup Assignments
-                    </a>
-
-                    <a
-                        href="{{ route('rider.deliveries') }}"
-                        class="rider-nav-link {{ request()->routeIs('rider.deliveries', 'rider.deliveries.*') ? 'is-active' : '' }}"
-                    >
-                        <span class="rider-nav-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M3 6h11v11H3z"></path>
-                                <path d="M14 10h4l3 3v4h-7z"></path>
-                                <circle cx="7" cy="19" r="2"></circle>
-                                <circle cx="18" cy="19" r="2"></circle>
-                            </svg>
-                        </span>
-
-                        Delivery Assignments
-                    </a>
-
-                    <a
-                        href="{{ route('rider.history') }}"
-                        class="rider-nav-link {{ request()->routeIs('rider.history') ? 'is-active' : '' }}"
-                    >
-                        <span class="rider-nav-icon">
-                            <svg viewBox="0 0 24 24">
-                                <circle cx="12" cy="12" r="9"></circle>
-                                <path d="M12 7v5l3 3"></path>
-                            </svg>
-                        </span>
-
-                        Delivery History
-                    </a>
-
-                    <a
-                        href="{{ route('rider.earnings') }}"
-                        class="rider-nav-link {{ request()->routeIs('rider.earnings') ? 'is-active' : '' }}"
-                    >
-                        <span class="rider-nav-icon">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M6 3h8a4 4 0 0 1 0 8H6z"></path>
-                                <path d="M6 11h8a4 4 0 0 1 0 8H6z"></path>
-                                <path d="M4 7h4"></path>
-                                <path d="M4 15h4"></path>
-                                <path d="M6 3v18"></path>
-                            </svg>
-                        </span>
-
-                        Earnings
-                    </a>
-                </div>
-
-                <span class="rider-nav-label" style="margin-top:12px;">
-                    Account
-                </span>
-
-                <div class="rider-nav-list">
-                    <a
-                        href="{{ route('rider.account') }}"
-                        class="rider-nav-link {{ request()->routeIs('rider.account') ? 'is-active' : '' }}"
-                    >
-                        <span class="rider-nav-icon">
-                            <svg viewBox="0 0 24 24">
-                                <circle cx="12" cy="8" r="4"></circle>
-                                <path d="M4 21c0-5 3-8 8-8s8 3 8 8"></path>
-                            </svg>
-                        </span>
-
-                        Profile
-                    </a>
-                </div>
-            </nav>
-
-            <div class="rider-sidebar-footer">
-                <button
-                    id="themeToggle"
-                    type="button"
-                    class="rider-footer-btn"
-                >
-                    <span class="rider-footer-left">
-                        <svg viewBox="0 0 24 24">
-                            <path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z"></path>
-                        </svg>
-
-                        <span class="rider-appearance-text">
-                            <strong>Appearance</strong>
-                            <small>Light / Dark Mode</small>
-                        </span>
-                    </span>
-
-                    <span
-                        id="themeToggleBadge"
-                        class="rider-theme-badge"
-                    >
-                        Light
-                    </span>
-                </button>
-
-                <form
-                    method="POST"
-                    action="{{ route('logout') }}"
-                    class="rider-logout-form"
-                >
-                    @csrf
-
-                    <button
-                        type="submit"
-                        class="rider-footer-btn rider-logout-btn"
-                    >
-                        <span class="rider-footer-left">
-                            <svg viewBox="0 0 24 24">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                                <path d="m16 17 5-5-5-5"></path>
-                                <path d="M21 12H9"></path>
-                            </svg>
-
-                            Logout
-                        </span>
-                    </button>
-                </form>
-            </div>
-        </aside>
-
-        <main class="rider-main">
+        <main class="rider-main" data-sidebar-content>
 
             <div class="rider-mobile-bar">
                 <div class="rider-mobile-brand">
@@ -872,112 +689,6 @@
         </main>
 
     </div>
-
-    <script>
-        document.addEventListener(
-            'DOMContentLoaded',
-            function () {
-                const root =
-                    document.documentElement;
-
-                const sidebar =
-                    document.getElementById('riderSidebar');
-
-                const sidebarToggle =
-                    document.getElementById('riderMobileSidebarToggle');
-
-                const sidebarOverlay =
-                    document.getElementById('riderSidebarOverlay');
-
-                const themeToggle =
-                    document.getElementById('themeToggle');
-
-                const themeBadge =
-                    document.getElementById('themeToggleBadge');
-
-
-                function openSidebar() {
-                    sidebar?.classList.add('is-open');
-                    sidebarOverlay?.classList.add('is-visible');
-                    document.body.style.overflow = 'hidden';
-                }
-
-
-                function closeSidebar() {
-                    sidebar?.classList.remove('is-open');
-                    sidebarOverlay?.classList.remove('is-visible');
-                    document.body.style.overflow = '';
-                }
-
-
-                function syncTheme() {
-                    const isDark =
-                        root.classList.contains('dark');
-
-                    if (themeBadge) {
-                        themeBadge.textContent =
-                            isDark ? 'Dark' : 'Light';
-                    }
-                }
-
-
-                sidebarToggle?.addEventListener(
-                    'click',
-                    openSidebar
-                );
-
-
-                sidebarOverlay?.addEventListener(
-                    'click',
-                    closeSidebar
-                );
-
-
-                sidebar
-                    ?.querySelectorAll('a')
-                    .forEach(function (link) {
-                        link.addEventListener(
-                            'click',
-                            closeSidebar
-                        );
-                    });
-
-
-                document.addEventListener(
-                    'keydown',
-                    function (event) {
-                        if (event.key === 'Escape') {
-                            closeSidebar();
-                        }
-                    }
-                );
-
-
-                themeToggle?.addEventListener(
-                    'click',
-                    function () {
-                        const nextDark =
-                            !root.classList.contains('dark');
-
-                        root.classList.toggle(
-                            'dark',
-                            nextDark
-                        );
-
-                        localStorage.setItem(
-                            'likhae-theme',
-                            nextDark ? 'dark' : 'light'
-                        );
-
-                        syncTheme();
-                    }
-                );
-
-
-                syncTheme();
-            }
-        );
-    </script>
 
     @stack('scripts')
 </body>

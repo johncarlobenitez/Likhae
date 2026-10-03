@@ -4,75 +4,17 @@
 
 @section('content')
 <div class="ad-page">
-    <div class="ad-page-header">
-        <div>
-            <p class="ad-eyebrow">Account Onboarding</p>
-            <h1>Registration Applications</h1>
-            <p>Review Buyer, Seller, Logistics, and Rider registrations submitted through the account registration flow.</p>
-        </div>
-    </div>
-
-    @if(session('success'))
-        <div class="ad-card ad-card-body" style="margin-bottom:16px;color:#166534;background:#f0fdf4;border-color:#bbf7d0;">
-            {{ session('success') }}
-        </div>
-    @endif
-
-    <form method="GET" class="ad-card ad-card-body ad-filter-bar" style="margin-bottom:16px;">
-        <select name="type" onchange="this.form.submit()">
-            <option value="">All account types</option>
-            @foreach(['BUYER' => 'Buyer', 'SELLER' => 'Seller', 'LOGISTICS' => 'Logistics', 'RIDER' => 'Rider / Courier'] as $value => $label)
-                <option value="{{ $value }}" @selected($type === $value)>{{ $label }}</option>
-            @endforeach
-        </select>
-
-        <select name="status" onchange="this.form.submit()">
-            @foreach(['PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'CANCELLED'] as $value)
-                <option value="{{ $value }}" @selected($status === $value)>{{ str($value)->replace('_', ' ')->headline() }}</option>
-            @endforeach
-        </select>
-    </form>
-
-    <div class="ad-card ad-card-body">
-        @forelse($records as $application)
-            @php
-                $user = $application->user;
-                $address = $user?->addresses?->firstWhere('is_default', true) ?? $user?->addresses?->first();
-                $businessName = $application->sellerData?->business_name ?? $application->logisticsData?->business_name;
-                $riderSummary = $application->riderData ? str($application->riderData->vehicle_type)->headline().' · '.$application->riderData->plate_number : null;
-            @endphp
-
-            <article style="padding:18px 0;border-bottom:1px solid #e7e5e4;display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;">
-                <div style="min-width:260px;flex:1;">
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <strong>{{ $user?->name ?? 'Unknown applicant' }}</strong>
-                        <span class="ad-badge">{{ str($user?->account_type ?? 'UNKNOWN')->headline() }}</span>
-                        <span class="ad-badge">{{ str($application->status)->replace('_', ' ')->headline() }}</span>
-                    </div>
-                    <div style="margin-top:6px;color:#78716c;">{{ $user?->email }} · {{ $user?->contact_number }}</div>
-                    @if($businessName)
-                        <div style="margin-top:6px;">{{ $businessName }}</div>
-                    @endif
-                    @if($riderSummary)<div style="margin-top:6px;">{{ $riderSummary }}</div>@endif
-                    @if($address)
-                        <div style="margin-top:6px;color:#78716c;">{{ $address->formatted() }}</div>
-                    @endif
-                    <div style="margin-top:6px;color:#a8a29e;font-size:12px;">
-                        {{ $application->application_number }} · Submitted {{ $application->submitted_at?->diffForHumans() ?? 'recently' }}
-                    </div>
-                </div>
-
-                <div class="ad-inline-actions">
-                    <a class="ad-btn ad-btn-secondary" href="{{ route('admin.registrations.show', $application) }}">Review</a>
-                </div>
-            </article>
-        @empty
-            <p>No matching registration applications.</p>
-        @endforelse
-
-        <div style="margin-top:16px;">
-            {{ $records->links() }}
-        </div>
-    </div>
+    <div class="ad-page-head"><div><span class="ad-overline">Account onboarding</span><h2>Registration applications</h2><p>Review Buyer, Seller, Logistics, and Rider registrations submitted through the account registration flow.</p></div><span class="ad-muted">Updated {{ now()->format('M j, Y · g:i A') }}</span></div>
+    @if(session('success'))<div class="ad-card ad-card-body" style="margin-bottom:16px;color:#166534;background:#f0fdf4;border-color:#bbf7d0;">{{ session('success') }}</div>@endif
+    <section class="ad-stat-grid" aria-label="Registration summary"><x-admin.stat-card label="Applications shown" :value="number_format($records->total())" detail="Matching the current filters" icon="users" tone="blue" /><x-admin.stat-card label="Current queue" :value="str($status)->replace('_', ' ')->headline()" detail="Selected review status" icon="case" tone="warning" /><x-admin.stat-card label="Account type" :value="$type ? str($type)->headline() : 'All types'" detail="Selected registration segment" icon="chart" tone="success" /></section>
+    <section class="ad-card" style="margin-bottom:16px;"><div class="ad-card-head"><div><span class="ad-overline">Review queue</span><h2>Filter applications</h2></div><span class="ad-muted">{{ $records->total() }} result{{ $records->total() === 1 ? '' : 's' }}</span></div><form method="GET" class="ad-card-body ad-filter-bar"><label class="ad-field"><span>Account type</span><select name="type" onchange="this.form.submit()"><option value="">All account types</option>@foreach(['BUYER' => 'Buyer', 'SELLER' => 'Seller', 'LOGISTICS' => 'Logistics', 'RIDER' => 'Rider / Courier'] as $value => $label)<option value="{{ $value }}" @selected($type === $value)>{{ $label }}</option>@endforeach</select></label><label class="ad-field"><span>Application status</span><select name="status" onchange="this.form.submit()">@foreach(['PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'CANCELLED'] as $value)<option value="{{ $value }}" @selected($status === $value)>{{ str($value)->replace('_', ' ')->headline() }}</option>@endforeach</select></label></form></section>
+    <div class="ad-card"><div class="ad-card-head"><div><span class="ad-overline">Applicant list</span><h2>Applications to review</h2></div><span class="ad-muted">Newest first</span></div><div class="ad-table-wrap"><table class="ad-table"><thead><tr><th>Applicant</th><th>Account</th><th>Contact</th><th>Submitted</th><th>Status</th><th></th></tr></thead><tbody>
+    @forelse($records as $application)
+        @php $user = $application->user; $address = $user?->addresses?->firstWhere('is_default', true) ?? $user?->addresses?->first(); $businessName = $application->sellerData?->business_name ?? $application->logisticsData?->business_name; $riderSummary = $application->riderData ? str($application->riderData->vehicle_type)->headline().' · '.$application->riderData->plate_number : null; @endphp
+        <tr><td><strong>{{ $user?->name ?? 'Unknown applicant' }}</strong><small>{{ $application->application_number }}</small>@if($businessName)<small>{{ $businessName }}</small>@endif @if($riderSummary)<small>{{ $riderSummary }}</small>@endif</td><td>{{ str($user?->account_type ?? 'UNKNOWN')->headline() }}</td><td>{{ $user?->email }}<small>{{ $user?->contact_number ?: 'No phone provided' }}</small></td><td>{{ $application->submitted_at?->diffForHumans() ?? 'Recently' }}<small>{{ $address?->formatted() ?: 'No address provided' }}</small></td><td><span class="ad-status is-{{ \Illuminate\Support\Str::slug($application->status) }}">{{ str($application->status)->replace('_', ' ')->headline() }}</span></td><td><a class="ad-btn ad-btn-secondary ad-btn-sm" href="{{ route('admin.registrations.show', $application) }}">Review</a></td></tr>
+    @empty
+        <tr><td colspan="6"><div style="padding:42px 20px;text-align:center;"><strong style="display:block;font-size:16px;margin-bottom:6px;">No applications in this view</strong><span class="ad-muted">Try changing the account type or status filter.</span></div></td></tr>
+    @endforelse
+    </tbody></table></div><div class="ad-card-body">{{ $records->links() }}</div></div>
 </div>
 @endsection

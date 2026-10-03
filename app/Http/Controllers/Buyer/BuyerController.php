@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Buyer;
 
 use App\Http\Controllers\Controller;
-use App\Models\Admin\Notification;
 use App\Models\Buyer\Address;
 use App\Models\Buyer\CartItem;
-use App\Models\Buyer\Order;
 use App\Models\Seller\Product;
 use App\Models\Seller\SellerProfile;
+use App\Models\Seller\Voucher;
 use App\Services\Communication\ConversationService;
 use App\Services\Marketplace\CartService;
+use App\Services\Marketplace\CheckoutService;
 use App\Services\Marketplace\ProductCatalogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -30,10 +30,16 @@ class BuyerController extends Controller
     public function home(Request $request): View
     {
         $products = $this->catalog->paginated($request, 12);
+        $bestSellingProducts = $this->catalog->applySort(
+            $this->catalog->visibleQuery(),
+            'best-selling'
+        )->limit(2)->get()
+            ->map(fn (Product $product) => $this->catalog->productPayload($product));
 
         return view('Buyer.home', [
             'products' => $products,
             'buyerProducts' => $products->getCollection()->map(fn (Product $product) => $this->catalog->productPayload($product)),
+            'heroProducts' => $bestSellingProducts,
             'categories' => $this->catalog->categories(),
         ]);
     }
@@ -94,8 +100,12 @@ class BuyerController extends Controller
 
     public function cart(Request $request): View
     {
+        $cartItems = $this->cartService->items($request->user());
+
         return view('Buyer.cart', [
-            'cartItems' => $this->cartService->items($request->user()),
+            'cartItems' => $cartItems,
+            'availableVouchers' => app(CheckoutService::class)
+                ->availableVouchers($cartItems, $request->user()),
             'defaultAddress' => $request->user()->addresses()->orderByDesc('is_default')->latest()->first(),
         ]);
     }
@@ -217,9 +227,68 @@ class BuyerController extends Controller
         return back()->with('buyer_notice', 'Wishlist is disabled in the final scope.');
     }
 
-    public function rewards(): RedirectResponse
+    public function rewards(Request $request): View
     {
-        return redirect()->route('buyer.home')->with('buyer_notice', 'Rewards are not part of the final 57-table scope.');
+        $buyer = $request->user();
+        $orders = $buyer->orders()
+            ->with(['sellerOrders.voucher', 'items.review'])
+            ->latest('placed_at')
+            ->get();
+
+        $activeVouchers = Voucher::query()
+            ->with('sellerProfile')
+            ->withCount('sellerOrders')
+            ->where('is_active', true)
+            ->where(fn ($query) => $query->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
+            ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>=', now()))
+            ->get()
+            ->filter(fn (Voucher $voucher): bool => $voucher->usage_limit === null || $voucher->seller_orders_count < $voucher->usage_limit)
+            ->map(fn (Voucher $voucher): array => [
+                'icon' => $voucher->discount_type === 'PERCENT' ? number_format((float) $voucher->discount_value, 0).'%' : '₱',
+                'status' => $voucher->sellerProfile?->business_name ?? 'Platform voucher',
+                'value' => $voucher->discount_type === 'PERCENT'
+                    ? number_format((float) $voucher->discount_value, 0).'% off'
+                    : '₱'.number_format((float) $voucher->discount_value, 2).' off',
+                'condition' => (float) $voucher->minimum_order_amount > 0
+                    ? 'Minimum spend ₱'.number_format((float) $voucher->minimum_order_amount, 2)
+                    : 'No minimum spend',
+                'code' => $voucher->code,
+                'expires' => $voucher->ends_at?->format('M j, Y') ?? 'No expiry',
+            ])
+            ->values();
+
+        $voucherHistory = $orders->flatMap(fn ($order) => $order->sellerOrders
+            ->whereNotNull('voucher_id')
+            ->map(fn ($sellerOrder): array => [
+                'voucher' => $sellerOrder->voucher?->code ?? 'Voucher',
+                'benefit' => '-₱'.number_format((float) $sellerOrder->voucher_discount, 2),
+                'order' => $order->order_number,
+                'status' => str($order->status)->headline()->toString(),
+            ]))->values();
+
+        $completedOrders = $orders->where('status', 'COMPLETED');
+        $reviews = $orders->flatMap->items->pluck('review')->filter();
+        $pointActivities = $completedOrders->map(fn ($order): array => [
+            'label' => 'Completed order '.$order->order_number,
+            'date' => $order->completed_at?->format('M j, Y') ?? $order->placed_at?->format('M j, Y'),
+            'amount' => '+50 points',
+            'negative' => false,
+        ])->concat($reviews->map(fn ($review): array => [
+            'label' => 'Product review submitted',
+            'date' => $review->created_at?->format('M j, Y'),
+            'amount' => '+20 points',
+            'negative' => false,
+        ]))->values();
+
+        return view('Buyer.rewards', [
+            'activeVouchers' => $activeVouchers,
+            'voucherHistory' => $voucherHistory,
+            'pointsBalance' => ($completedOrders->count() * 50) + ($reviews->count() * 20),
+            'pointActivities' => $pointActivities,
+            'availableCashback' => 0,
+            'pendingCashback' => 0,
+            'cashbackActivities' => collect(),
+        ]);
     }
 
     public function notifications(Request $request): View

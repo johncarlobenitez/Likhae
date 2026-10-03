@@ -368,7 +368,7 @@
                             <p class="text-sm text-stone-500">No saved delivery address yet.</p>
                         @endforelse
 
-                        <form method="POST" action="{{ route('buyer.account.addresses.store') }}" class="grid gap-4 rounded-xl border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2" data-postal-address data-postal-base="{{ url()->to('/address/philippines', [], false) }}">
+                        <form method="POST" action="{{ route('buyer.account.addresses.store') }}" class="grid gap-4 rounded-xl border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2" data-postal-address data-postal-base="{{ \Illuminate\Support\Str::beforeLast(route('address.philippines.regions', [], false), '/regions') }}">
                             @csrf
                             <div class="sm:col-span-2"><h3 class="text-sm font-semibold text-stone-900">Add delivery address</h3></div>
                             <input required name="label" value="{{ old('label','Home') }}" placeholder="Label (Home, Work)" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">

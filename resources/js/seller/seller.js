@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const setCollapsed = (collapsed, persist = true) => {
+        if (!sidebar) return;
         if (!desktop.matches) collapsed = false;
         document.body.classList.toggle('sl-sidebar-collapsed', collapsed);
         collapseButton?.setAttribute('aria-expanded', String(!collapsed));

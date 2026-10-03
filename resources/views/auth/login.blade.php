@@ -227,6 +227,7 @@
                                 id="togglePassword"
                                 class="auth-eye"
                                 aria-label="Show password"
+                                aria-pressed="false"
                             >
 
                                 <svg
@@ -440,58 +441,6 @@
         </section>
 
     </div>
-
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-
-            const password = document.getElementById('password');
-
-            const toggleButton = document.getElementById('togglePassword');
-
-            const eyeOpen = document.getElementById('eyeOpen');
-
-            const eyeClosed = document.getElementById('eyeClosed');
-
-
-            toggleButton?.addEventListener('click', () => {
-
-                if (!password) {
-                    return;
-                }
-
-
-                const showPassword = password.type === 'password';
-
-
-                password.type = showPassword
-                    ? 'text'
-                    : 'password';
-
-
-                eyeOpen?.classList.toggle(
-                    'hidden',
-                    showPassword
-                );
-
-
-                eyeClosed?.classList.toggle(
-                    'hidden',
-                    !showPassword
-                );
-
-
-                toggleButton.setAttribute(
-                    'aria-label',
-                    showPassword
-                        ? 'Hide password'
-                        : 'Show password'
-                );
-
-            });
-
-        });
-    </script>
 
 </body>
 </html>

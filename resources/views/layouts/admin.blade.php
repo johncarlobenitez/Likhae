@@ -18,7 +18,7 @@
         <x-admin.sidebar :active="trim($__env->yieldContent('active', 'dashboard'))" />
         <button class="ad-overlay" type="button" data-admin-overlay aria-label="Close navigation"></button>
 
-        <div class="ad-shell">
+        <div class="ad-shell" data-sidebar-content>
             <x-admin.header
                 :title="trim($__env->yieldContent('title', 'Dashboard'))"
                 :subtitle="trim($__env->yieldContent('subtitle', 'Platform operations and marketplace health at a glance.'))"

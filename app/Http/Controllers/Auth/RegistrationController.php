@@ -4,16 +4,28 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreRegistrationRequest;
+use App\Mail\RegistrationEmailVerificationCode;
 use App\Models\Admin\PlatformSetting;
 use App\Models\Logistics\LogisticsCenter;
 use App\Models\Seller\Category;
+use App\Models\User;
 use App\Services\RegistrationWorkflowService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class RegistrationController extends Controller
 {
+    private const EMAIL_CODE_TTL_MINUTES = 10;
+
+    private const EMAIL_CODE_MAX_ATTEMPTS = 5;
+
     public function __construct(
         private readonly RegistrationWorkflowService $workflow,
     ) {
@@ -46,6 +58,116 @@ class RegistrationController extends Controller
         ]);
     }
 
+    public function sendEmailVerificationCode(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+        ]);
+        $email = mb_strtolower(trim($data['email']));
+
+        if (User::query()->whereRaw('LOWER(email) = ?', [$email])->exists()) {
+            return response()->json([
+                'message' => 'An account with this email already exists.',
+                'errors' => ['email' => ['An account with this email already exists.']],
+            ], 422);
+        }
+
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        try {
+            Mail::to($email)->send(new RegistrationEmailVerificationCode($code));
+        } catch (TransportExceptionInterface $exception) {
+            report($exception);
+
+            return response()->json([
+                'message' => 'The verification email could not be sent. Check the SMTP settings and try again.',
+            ], 503);
+        }
+
+        Cache::put(
+            $this->emailCodeCacheKey($email),
+            [
+                'hash' => Hash::make($code),
+                'attempts' => 0,
+                'expires_at' => now()->addMinutes(self::EMAIL_CODE_TTL_MINUTES)->timestamp,
+            ],
+            now()->addMinutes(self::EMAIL_CODE_TTL_MINUTES),
+        );
+
+        $request->session()->forget('registration_email_verified');
+
+        return response()->json([
+            'message' => 'A verification code was sent. It expires in 10 minutes.',
+        ]);
+    }
+
+    public function verifyEmailCode(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+            'code' => ['required', 'digits:6'],
+        ]);
+        $email = mb_strtolower(trim($data['email']));
+        $cacheKey = $this->emailCodeCacheKey($email);
+        $challenge = Cache::get($cacheKey);
+
+        if (! is_array($challenge) || ! isset($challenge['hash'], $challenge['attempts'], $challenge['expires_at'])) {
+            return response()->json([
+                'message' => 'This code has expired. Request a new verification code.',
+            ], 422);
+        }
+
+        if ((int) $challenge['expires_at'] <= now()->timestamp) {
+            Cache::forget($cacheKey);
+
+            return response()->json([
+                'message' => 'This code has expired. Request a new verification code.',
+            ], 422);
+        }
+
+        if ((int) $challenge['attempts'] >= self::EMAIL_CODE_MAX_ATTEMPTS) {
+            Cache::forget($cacheKey);
+
+            return response()->json([
+                'message' => 'Too many incorrect attempts. Request a new verification code.',
+            ], 429);
+        }
+
+        if (! Hash::check($data['code'], $challenge['hash'])) {
+            $attempts = (int) $challenge['attempts'] + 1;
+
+            if ($attempts >= self::EMAIL_CODE_MAX_ATTEMPTS) {
+                Cache::forget($cacheKey);
+
+                return response()->json([
+                    'message' => 'Too many incorrect attempts. Request a new verification code.',
+                ], 429);
+            }
+
+            Cache::put(
+                $cacheKey,
+                [
+                    'hash' => $challenge['hash'],
+                    'attempts' => $attempts,
+                    'expires_at' => $challenge['expires_at'],
+                ],
+                now()->addSeconds(max(1, (int) $challenge['expires_at'] - now()->timestamp)),
+            );
+
+            return response()->json([
+                'message' => 'That verification code is incorrect.',
+                'errors' => ['code' => ['That verification code is incorrect.']],
+            ], 422);
+        }
+
+        Cache::forget($cacheKey);
+        $request->session()->put('registration_email_verified', $email);
+
+        return response()->json([
+            'message' => 'Email verified. You can continue your registration.',
+        ]);
+    }
+
     public function store(StoreRegistrationRequest $request): RedirectResponse
     {
         abort_unless(
@@ -55,6 +177,19 @@ class RegistrationController extends Controller
         );
 
         $data = $request->validated();
+        $googleRegistration = $request->session()->get('google_buyer_registration');
+        $googleEmail = is_array($googleRegistration)
+            ? mb_strtolower(trim((string) ($googleRegistration['email'] ?? '')))
+            : '';
+
+        if (
+            $googleEmail !== mb_strtolower(trim($data['email']))
+            && $request->session()->get('registration_email_verified') !== mb_strtolower(trim($data['email']))
+        ) {
+            throw ValidationException::withMessages([
+                'email' => 'Verify your email address before submitting your registration.',
+            ]);
+        }
 
         abort_unless(
             PhilippineAddressController::selectionIsValid(
@@ -85,7 +220,7 @@ class RegistrationController extends Controller
         }
 
         $application = $this->workflow->submit($request);
-        $request->session()->forget('google_buyer_registration');
+        $request->session()->forget(['google_buyer_registration', 'registration_email_verified']);
 
         $type = strtolower((string) $application->user->account_type);
         $reviewer = $type === 'rider' ? 'the selected LIKHAE Logistics Center' : 'the LIKHAE administrator';
@@ -97,5 +232,10 @@ class RegistrationController extends Controller
                 'status',
                 'Registration submitted successfully. Application '.$application->application_number.' is pending review by '.$reviewer.'.',
             );
+    }
+
+    private function emailCodeCacheKey(string $email): string
+    {
+        return 'registration_email_code:'.hash('sha256', $email);
     }
 }

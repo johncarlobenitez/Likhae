@@ -516,7 +516,7 @@
                 class="register-form"
                 id="registrationForm"
                 novalidate
-                data-address-base="{{ url()->to('/address/philippines', [], false) }}"
+                data-address-base="{{ \Illuminate\Support\Str::beforeLast(route('address.philippines.regions', [], false), '/regions') }}"
             >
 
                 @csrf
@@ -750,7 +750,12 @@
                         <div class="register-grid">
 
                             {{-- EMAIL --}}
-                            <div class="register-field">
+                            <div
+                                class="register-field"
+                                data-registration-email-verification
+                                data-send-url="{{ route('register.email-verification.send') }}"
+                                data-verify-url="{{ route('register.email-verification.verify') }}"
+                            >
 
                                 <label for="email">
                                     Email Address
@@ -767,6 +772,37 @@
                                     autocomplete="email"
                                     required
                                 >
+
+                                @if (empty($googleBuyerRegistration))
+                                    <div class="register-email-verification">
+                                        <button type="button" class="register-email-verification__button" data-send-email-code>
+                                            Send verification code
+                                        </button>
+                                        <label for="email_verification_code">Email verification code</label>
+                                        <input
+                                            id="email_verification_code"
+                                            type="text"
+                                            inputmode="numeric"
+                                            autocomplete="one-time-code"
+                                            maxlength="6"
+                                            pattern="[0-9]{6}"
+                                            placeholder="6-digit code"
+                                            data-email-verification-code
+                                            disabled
+                                            required
+                                        >
+                                        <button type="button" class="register-email-verification__button" data-verify-email-code disabled>
+                                            Verify email
+                                        </button>
+                                        <small class="register-email-verification__status" data-email-verification-status aria-live="polite">
+                                            Verify your email address before continuing.
+                                        </small>
+                                    </div>
+                                @else
+                                    <small class="register-email-verification__status is-success">
+                                        This Google email address is already verified.
+                                    </small>
+                                @endif
 
                             </div>
 
@@ -1275,7 +1311,7 @@
                     data-step-error
                     hidden
                 >
-                    Please complete all required fields before continuing.
+                    Please complete the required fields and verify your email before continuing.
                 </div>
 
 

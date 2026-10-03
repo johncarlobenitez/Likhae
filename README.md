@@ -12,11 +12,28 @@ php artisan app:create-admin
 npm run build
 ```
 
-For local development, run the Laravel dev command:
+For local development, run:
 
 ```sh
-composer run dev
+php artisan serve
 ```
+
+This starts Laravel and the Vite development server together, so the site loads with CSS and JavaScript and reflects asset changes automatically. To open the development site on a phone, connect the phone and computer to the same Wi-Fi and browse to the computer's LAN address (for example, `http://192.168.1.52:8000`). Laravel and Vite bind to the local network for this development workflow. If Windows Firewall prompts, allow PHP/Node on your private network. `VITE_HMR_HOST` can be set in `.env` to override the automatically detected LAN address when the computer has multiple network interfaces. `composer run dev` remains an alternative.
+
+Registration sends a six-digit email verification code before an application can be submitted. For Gmail SMTP, configure these values in the local `.env` using a Google App Password (with two-step verification enabled):
+
+```dotenv
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_SCHEME=smtp
+MAIL_USERNAME=your-address@gmail.com
+MAIL_PASSWORD="your-new-google-app-password"
+MAIL_FROM_ADDRESS=your-address@gmail.com
+MAIL_FROM_NAME="LIKHAE"
+```
+
+Keep the password out of source control and use a newly generated app password if one has been exposed. Clear cached Laravel configuration after changing mail settings with `php artisan config:clear`.
 
 For production or hosting uploads, always run:
 
@@ -30,7 +47,7 @@ The admin command privately prompts for a password and never overwrites an exist
 
 For an existing installation, run `php artisan app:secure-registration-documents` after migration to move old public uploads into private storage. New uploads are private automatically and can only be downloaded through an authenticated admin route.
 
-Address dropdowns require `PSGC_API_TOKEN` in `.env`. Decision emails are not sent; applicants sign in after approval. PHP's `mbstring` extension must be enabled. For this XAMPP CLI, commands can also be run with `php -d extension=mbstring artisan ...`.
+Address dropdowns require `PSGC_API_TOKEN` in `.env`. Approval and rejection decision emails are sent to the applicant using the configured mail settings. PHP's `mbstring` extension must be enabled. For this XAMPP CLI, commands can also be run with `php -d extension=mbstring artisan ...`.
 
 Run the backend checks with `php -d extension=mbstring vendor/phpunit/phpunit/phpunit --columns=80` (tests use an isolated SQLite database).
 

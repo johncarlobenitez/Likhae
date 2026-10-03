@@ -20,9 +20,8 @@
 </head>
 <body class="lk-buyer-body">
     <div class="lk-buyer-app" data-lk-buyer-app>
-        <x-buyer.sidebar :active="$activePage" />
-        <button class="lk-overlay" type="button" data-lk-overlay aria-label="Close navigation"></button>
-        <div class="lk-shell">
+        <x-admin.sidebar role="buyer" :active="$activePage" />
+        <div class="lk-shell" data-sidebar-content>
             <x-buyer.header :title="$pageTitle" />
             <main class="lk-main" id="main-content">@yield('content')</main>
             <x-buyer.footer />

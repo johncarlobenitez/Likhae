@@ -58,7 +58,7 @@
 
     --lk-sidebar: 252px;
     --lk-sidebar-collapsed: 76px;
-    --lk-header: 72px;
+    --lk-header: 62px;
     --lk-content: 1440px;
 
     --lk-sans: "DM Sans", Poppins, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -744,7 +744,10 @@ body.lk-sidebar-is-collapsed .lk-nav-toggle {
     top: 0;
     z-index: 50;
     display: flex;
+    height: var(--lk-header);
     min-height: var(--lk-header);
+    flex: 0 0 var(--lk-header);
+    box-sizing: border-box;
     align-items: center;
     gap: 16px;
     padding: 10px 24px;
@@ -807,6 +810,13 @@ body.lk-sidebar-is-collapsed .lk-nav-toggle {
     border: 0;
     outline: 0;
     font-size: 12px;
+}
+
+.lk-search input[type="search"] {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0;
+    box-shadow: none !important;
 }
 
 .lk-search input::placeholder,
@@ -7237,4 +7247,31 @@ html .lk-landing-body .lk-header.is-guest {
     .lk-landing-body .lk-ed-newsletter-copy { align-items: flex-start; }
     .lk-landing-body .lk-ed-newsletter-form { flex-direction: column; }
     .lk-landing-body .lk-ed-newsletter-form input { flex: auto; width: 100%; }
+}
+
+/* Consistent near-edge layout across authenticated buyer pages. */
+.lk-main {
+    max-width: none;
+    padding-left: 24px;
+    padding-right: 24px;
+}
+
+.lk-main > .lk-page,
+.lk-main > .lk-page-narrow {
+    width: 100%;
+    max-width: none;
+}
+
+@media (max-width: 900px) {
+    .lk-main {
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+}
+
+@media (max-width: 760px) {
+    .lk-main {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
 }

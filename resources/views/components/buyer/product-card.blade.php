@@ -66,7 +66,10 @@
     $detailsUrl = $guest
         ? route('products.show', ['slug' => $slug])
         : route('buyer.product-details', ['slug' => $slug]);
-    $hasVariations = collect(data_get($product, 'variants', []))->count() > 1;
+    $variants = collect(data_get($product, 'variants', []));
+    $hasVariations = $variants->count() > 1;
+    $singleVariant = $hasVariations ? null : $variants->first();
+    $canAddToCart = data_get($singleVariant, 'id') && (int) data_get($singleVariant, 'stock', 0) > 0;
 
     $storeUrl = $guest
         ? route('products.show', ['slug' => $slug])
@@ -485,6 +488,16 @@
         padding-top: 13px !important;
     }
 
+    .lk-product-card--palette .lk-card-actions > form .lk-add-cart {
+        width: 100%;
+        height: 100%;
+    }
+
+    .lk-product-card--palette .lk-add-cart:disabled {
+        opacity: 0.5;
+        cursor: not-allowed !important;
+    }
+
     .lk-product-card--palette .lk-btn-view,
     .lk-product-card--palette .lk-add-cart {
         display: inline-flex !important;
@@ -785,9 +798,9 @@
                         Add to Cart
                     </span>
                 </button>
-            @else
+            @elseif($hasVariations)
                 <a
-                    href="{{ $hasVariations ? $detailsUrl : route('buyer.cart', ['add' => $id ?? $slug]) }}"
+                    href="{{ $detailsUrl }}"
                     class="lk-add-cart"
                 >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -800,6 +813,20 @@
                         Add to Cart
                     </span>
                 </a>
+            @else
+                <form method="POST" action="{{ route('buyer.cart.add', ['product' => $id ?? $slug]) }}">
+                    @csrf
+                    <input type="hidden" name="product_variant_id" value="{{ data_get($singleVariant, 'id') }}">
+                    <input type="hidden" name="quantity" value="1">
+                    <button type="submit" class="lk-add-cart" @disabled(! $canAddToCart)>
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M6 6h15l-2 8H8zM6 6 5 3H2"/>
+                            <circle cx="9" cy="20" r="1"/>
+                            <circle cx="18" cy="20" r="1"/>
+                        </svg>
+                        <span>{{ $canAddToCart ? 'Add to Cart' : 'Out of Stock' }}</span>
+                    </button>
+                </form>
             @endif
         </div>
     </div>

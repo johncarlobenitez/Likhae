@@ -945,7 +945,7 @@
         {{-- Rewards --}}
         <div class="lk-nav-section">
             <span class="lk-nav-section-title">
-                Rewards
+                Benefits
             </span>
 
             <button
@@ -978,7 +978,7 @@
             >
                 @foreach($rewardLinks as $key => $label)
                     <a
-                        href="{{ route('buyer.products', ['focus' => 'deals']) }}"
+                        href="{{ route('buyer.rewards', ['tab' => $key]) }}"
                         class="{{ $active === 'rewards' && $rewardTab === $key ? 'is-active' : '' }}"
                     >
                         {{ $label }}

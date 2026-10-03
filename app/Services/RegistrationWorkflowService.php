@@ -40,6 +40,7 @@ class RegistrationWorkflowService
                     'email' => mb_strtolower(trim($data['email'])),
                     'contact_number' => trim($data['contact_number']),
                     'birthday' => $data['birthday'],
+                    'email_verified_at' => now(),
                     'password' => $data['password'],
                     'status' => User::STATUS_PENDING,
                 ]);

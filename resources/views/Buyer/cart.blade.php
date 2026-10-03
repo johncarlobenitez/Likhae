@@ -10,6 +10,14 @@
     $normalizedCartItems = $cartItems->map(function ($item) {
         $variant = data_get($item, 'productVariant');
         $product = data_get($variant, 'product');
+        $productImages = collect(data_get($product, 'images', []));
+        $imagePath = data_get($productImages->firstWhere('is_primary', true), 'file_path')
+            ?? data_get($productImages->first(), 'file_path');
+        $imageUrl = filled($imagePath)
+            ? (str_starts_with($imagePath, 'http://') || str_starts_with($imagePath, 'https://')
+                ? $imagePath
+                : \Illuminate\Support\Facades\Storage::disk('public')->url($imagePath))
+            : asset('images/product-placeholder.svg');
 
         $categoryValue = data_get($product, 'category.name')
             ?? data_get($item, 'category.name')
@@ -71,12 +79,12 @@
                 )
             ),
 
-            'image' => data_get(collect(data_get($product, 'images', []))->firstWhere('is_primary', true), 'file_path')
-                ?? data_get(collect(data_get($product, 'images', []))->first(), 'file_path'),
+            'image' => $imageUrl,
         ];
     });
 
     $hasItems = $normalizedCartItems->isNotEmpty();
+    $availableVouchers = collect($availableVouchers ?? []);
 
     $subtotal = $normalizedCartItems->sum(
         fn ($item) => $item['price'] * $item['quantity']
@@ -277,28 +285,12 @@
                                     aria-label="View {{ $item['name'] }}"
                                     @if (!$hasProductDetailsRoute) onclick="return false;" @endif
                                 >
-                                    @if ($item['image'])
-                                        <img
-                                            src="{{ $item['image'] }}"
-                                            alt="{{ $item['name'] }}"
-                                            class="h-full w-full object-cover"
-                                        >
-                                    @else
-                                        <svg
-                                            width="36"
-                                            height="36"
-                                            viewBox="0 0 24 24"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            stroke-width="1.5"
-                                            class="text-stone-300"
-                                            aria-hidden="true"
-                                        >
-                                            <path d="M4 5h16v14H4z"/>
-                                            <path d="m4 15 4-4 4 4 3-3 5 5"/>
-                                            <circle cx="15.5" cy="8.5" r="1.5"/>
-                                        </svg>
-                                    @endif
+                                    <img
+                                        src="{{ $item['image'] }}"
+                                        alt="{{ $item['name'] }}"
+                                        class="h-full w-full object-cover"
+                                        onerror="this.onerror=null;this.src='{{ asset('images/product-placeholder.svg') }}';"
+                                    >
                                 </a>
 
                                 <div class="min-w-0 flex-1">
@@ -439,201 +431,6 @@
                 </div>
             </section>
 
-            {{-- Delivery address --}}
-            <section class="rounded-2xl border border-stone-200 bg-white shadow-sm">
-                <div class="flex items-center justify-between gap-4 border-b border-stone-100 px-5 py-4">
-                    <div>
-                        <h2 class="text-sm font-semibold text-stone-900">
-                            Delivery Address
-                        </h2>
-
-                        <p class="mt-1 text-xs text-stone-500">
-                            Your order will be delivered to this address.
-                        </p>
-                    </div>
-
-                    <a
-                        href="{{ route('buyer.account', ['tab' => 'addresses']) }}"
-                        class="shrink-0 text-xs font-semibold text-red-800 transition hover:text-red-900"
-                    >
-                        Change
-                    </a>
-                </div>
-
-                <div class="p-5">
-                    <div class="flex gap-3 rounded-xl border border-amber-200 bg-red-50/60 p-4">
-                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-800">
-                            <svg
-                                width="18"
-                                height="18"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
-                            >
-                                <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/>
-                                <circle cx="12" cy="10" r="2.5"/>
-                            </svg>
-                        </div>
-
-                        <div class="min-w-0">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <strong class="text-sm font-semibold text-stone-900">
-                                    {{ $addressRecipient }}
-                                </strong>
-
-                                <span class="text-xs text-stone-500">
-                                    {{ $addressPhone }}
-                                </span>
-
-                                <span class="rounded-full bg-red-100 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-red-900">
-                                    Default
-                                </span>
-                            </div>
-
-                            <p class="mt-2 text-xs leading-5 text-stone-600">
-                                {{ $addressLine }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {{-- Payment method --}}
-            <section class="rounded-2xl border border-stone-200 bg-white shadow-sm">
-                <div class="border-b border-stone-100 px-5 py-4">
-                    <h2 class="text-sm font-semibold text-stone-900">
-                        Payment Method
-                    </h2>
-
-                    <p class="mt-1 text-xs text-stone-500">
-                        Select how you want to pay for your order.
-                    </p>
-                </div>
-
-                <div class="grid gap-3 p-5 sm:grid-cols-3">
-                    <label class="cursor-pointer">
-                        <input
-                            type="radio"
-                            name="payment_method"
-                            value="cod"
-                            class="peer sr-only"
-                            checked
-                        >
-
-                        <span class="flex h-full items-start gap-3 rounded-xl border border-stone-200 p-4 transition peer-checked:border-red-800 peer-checked:bg-red-50 peer-focus-visible:ring-4 peer-focus-visible:ring-red-100">
-                            <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-stone-600">
-                                <svg
-                                    width="17"
-                                    height="17"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.8"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    aria-hidden="true"
-                                >
-                                    <rect x="3" y="6" width="18" height="12" rx="2"/>
-                                    <circle cx="12" cy="12" r="2.5"/>
-                                    <path d="M7 9v6M17 9v6"/>
-                                </svg>
-                            </span>
-
-                            <span>
-                                <strong class="block text-xs font-semibold text-stone-800">
-                                    Cash on Delivery
-                                </strong>
-
-                                <small class="mt-1 block text-[10px] leading-4 text-stone-500">
-                                    Pay when your order arrives.
-                                </small>
-                            </span>
-                        </span>
-                    </label>
-
-                    <label class="cursor-pointer">
-                        <input
-                            type="radio"
-                            name="payment_method"
-                            value="gcash"
-                            class="peer sr-only"
-                        >
-
-                        <span class="flex h-full items-start gap-3 rounded-xl border border-stone-200 p-4 transition peer-checked:border-red-800 peer-checked:bg-red-50 peer-focus-visible:ring-4 peer-focus-visible:ring-red-100">
-                            <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-800">
-                                <svg
-                                    width="17"
-                                    height="17"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.8"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    aria-hidden="true"
-                                >
-                                    <rect x="3" y="5" width="18" height="14" rx="2"/>
-                                    <path d="M3 10h18"/>
-                                    <path d="M7 15h3"/>
-                                </svg>
-                            </span>
-
-                            <span>
-                                <strong class="block text-xs font-semibold text-stone-800">
-                                    GCash
-                                </strong>
-
-                                <small class="mt-1 block text-[10px] leading-4 text-stone-500">
-                                    Pay using your GCash wallet.
-                                </small>
-                            </span>
-                        </span>
-                    </label>
-
-                    <label class="cursor-pointer">
-                        <input
-                            type="radio"
-                            name="payment_method"
-                            value="card"
-                            class="peer sr-only"
-                        >
-
-                        <span class="flex h-full items-start gap-3 rounded-xl border border-stone-200 p-4 transition peer-checked:border-red-800 peer-checked:bg-red-50 peer-focus-visible:ring-4 peer-focus-visible:ring-red-100">
-                            <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-800">
-                                <svg
-                                    width="17"
-                                    height="17"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.8"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                    aria-hidden="true"
-                                >
-                                    <rect x="3" y="5" width="18" height="14" rx="2"/>
-                                    <path d="M3 10h18"/>
-                                    <path d="M7 15h4"/>
-                                </svg>
-                            </span>
-
-                            <span>
-                                <strong class="block text-xs font-semibold text-stone-800">
-                                    Debit/Credit Card
-                                </strong>
-
-                                <small class="mt-1 block text-[10px] leading-4 text-stone-500">
-                                    Visa and Mastercard.
-                                </small>
-                            </span>
-                        </span>
-                    </label>
-                </div>
-            </section>
         </div>
 
         {{-- Order summary --}}
@@ -650,7 +447,43 @@
                 </div>
 
                 <div class="p-5">
-                    <div class="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-xs leading-5 text-stone-500">Seller discounts are already reflected in the product prices shown at checkout.</div>
+                    <div class="space-y-3 rounded-xl border border-stone-200 bg-stone-50 p-4">
+                        <div>
+                            <h3 class="text-xs font-semibold text-stone-800">Seller or platform voucher</h3>
+                            <p class="mt-1 text-[11px] text-stone-500">Enter a code or choose an available voucher for each shop.</p>
+                        </div>
+
+                        @forelse($availableVouchers as $sellerId => $vouchers)
+                            @php
+                                $sellerName = data_get($vouchers->first(), 'sellerProfile.business_name')
+                                    ?? data_get($cartItems->first(fn ($cartItem) => (int) data_get($cartItem, 'productVariant.product.seller_profile_id') === (int) $sellerId), 'productVariant.product.sellerProfile.business_name')
+                                    ?? 'Seller';
+                            @endphp
+                            <div class="rounded-lg border border-stone-200 bg-white p-3">
+                                <label class="block text-[11px] font-semibold text-stone-700" for="voucher-{{ $sellerId }}">{{ $sellerName }}</label>
+                                <div class="mt-2 flex gap-2">
+                                    <input id="voucher-{{ $sellerId }}" data-voucher-code data-seller-id="{{ $sellerId }}" maxlength="80" class="min-w-0 flex-1 rounded-lg border border-stone-300 px-3 py-2 text-xs uppercase" placeholder="Enter voucher code">
+                                </div>
+                                @if($vouchers->isNotEmpty())
+                                    <div class="mt-2 flex flex-wrap gap-2">
+                                        @foreach($vouchers as $voucher)
+                                            <button type="button" data-use-voucher data-seller-id="{{ $sellerId }}" data-voucher-code="{{ $voucher->code }}" class="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-semibold text-red-800">
+                                                {{ $voucher->code }} · {{ $voucher->discount_type === 'PERCENT' ? number_format((float) $voucher->discount_value, 0).'%' : '₱'.number_format((float) $voucher->discount_value, 2) }} off
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                @else
+                                    <p class="mt-2 text-[10px] text-stone-400">No listed vouchers. You can still enter a code manually.</p>
+                                @endif
+                            </div>
+                        @empty
+                            <div class="rounded-lg border border-stone-200 bg-white p-3">
+                                <label class="block text-[11px] font-semibold text-stone-700" for="voucher-manual">Voucher code</label>
+                                <input id="voucher-manual" data-voucher-code maxlength="80" class="mt-2 block w-full rounded-lg border border-stone-300 px-3 py-2 text-xs uppercase" placeholder="Enter voucher code">
+                                <p class="mt-2 text-[10px] text-stone-400">No available vouchers for the selected products.</p>
+                            </div>
+                        @endforelse
+                    </div>
 
                     <div class="mt-5 space-y-3 border-t border-stone-100 pt-5 text-sm">
                         <div class="flex items-center justify-between gap-4">
@@ -1080,8 +913,25 @@ document.addEventListener('DOMContentLoaded', () => {
             form.appendChild(input);
         });
 
+        page.querySelectorAll('[data-voucher-code][data-seller-id]').forEach((voucherInput) => {
+            const code = voucherInput.value.trim();
+            if (!code) return;
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = `voucher_codes[${voucherInput.dataset.sellerId}]`;
+            input.value = code;
+            form.appendChild(input);
+        });
+
         document.body.appendChild(form);
         form.submit();
+    });
+
+    page.querySelectorAll('[data-use-voucher]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const input = page.querySelector(`[data-voucher-code][data-seller-id="${button.dataset.sellerId}"]`);
+            if (input) input.value = button.dataset.voucherCode || '';
+        });
     });
 
     getItems().forEach((item) => {

@@ -13,6 +13,40 @@ require __DIR__.'/vendor/autoload.php';
 /** @var Application $app */
 $app = require_once __DIR__.'/bootstrap/app.php';
 
-$status = $app->handleCommand(new ArgvInput);
+$argv = $_SERVER['argv'] ?? [];
+
+if (
+    ($argv[1] ?? null) === 'serve'
+    && getenv('LIKHAE_ARTISAN_DEV_SUPERVISED') !== '1'
+    && ! array_intersect(['--help', '-h'], array_slice($argv, 2))
+) {
+    $serveArguments = array_slice($argv, 2);
+    $hasHostOption = false;
+
+    foreach ($serveArguments as $argument) {
+        if ($argument === '--host' || $argument === '-H' || str_starts_with($argument, '--host=')) {
+            $hasHostOption = true;
+            break;
+        }
+    }
+
+    if (! $hasHostOption) {
+        $serveArguments[] = '--host=0.0.0.0';
+    }
+
+    $serveCommand = 'php artisan serve';
+
+    if ($serveArguments !== []) {
+        $serveCommand .= ' '.implode(' ', array_map('escapeshellarg', $serveArguments));
+    }
+
+    \Illuminate\Foundation\DevCommands::register($serveCommand, 'server');
+    \Illuminate\Foundation\DevCommands::only('server', 'vite');
+    putenv('LIKHAE_ARTISAN_DEV_SUPERVISED=1');
+    $argv = array_slice($argv, 0, 2);
+    $argv[1] = 'dev';
+}
+
+$status = $app->handleCommand(new ArgvInput($argv));
 
 exit($status);
