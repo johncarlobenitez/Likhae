@@ -31,4 +31,12 @@ class GoogleAuthenticationTest extends TestCase
         $this->assertTrue($routes->contains('logistics.dashboard'));
         $this->assertTrue($routes->contains('rider.dashboard'));
     }
+
+    public function test_google_profile_verification_fields_are_supported(): void
+    {
+        $controller = file_get_contents(app_path('Http/Controllers/Auth/GoogleAuthenticationController.php'));
+
+        $this->assertStringContainsString("'email_verified'", $controller);
+        $this->assertStringContainsString("'verified_email'", $controller);
+    }
 }

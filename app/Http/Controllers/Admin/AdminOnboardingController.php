@@ -139,6 +139,7 @@ class AdminOnboardingController extends Controller
     public function document(
         RegistrationApplication $application,
         ApplicationDocument $document,
+        Request $request,
     ): StreamedResponse {
         $this->ensureAdminReviewable($application);
         abort_unless($document->registration_application_id === $application->id, 404);
@@ -146,6 +147,15 @@ class AdminOnboardingController extends Controller
 
         $extension = pathinfo($document->original_name ?: $document->file_path, PATHINFO_EXTENSION);
         $filename = strtolower($document->document_type).($extension ? '.'.$extension : '');
+
+        if ($request->boolean('preview')) {
+            return Storage::disk('registrations')->response(
+                $document->file_path,
+                $filename,
+                ['Content-Type' => $document->mime_type ?: 'application/octet-stream', 'Cache-Control' => 'private, no-store'],
+                'inline',
+            );
+        }
 
         return Storage::disk('registrations')->download(
             $document->file_path,

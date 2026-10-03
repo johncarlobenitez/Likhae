@@ -78,9 +78,26 @@
         <h2>Submitted Documents</h2>
         <div class="ad-inline-actions" style="margin-top:16px;flex-wrap:wrap;">
             @forelse($application->documents as $document)
-                <a class="ad-btn ad-btn-secondary" href="{{ route('admin.registrations.documents.show', [$application, $document]) }}">
-                    {{ str($document->document_type)->replace('_', ' ')->headline() }}
-                </a>
+                @php
+                    $documentUrl = route('admin.registrations.documents.show', [$application, $document]);
+                    $previewUrl = $documentUrl.'?preview=1';
+                    $mime = strtolower((string) $document->mime_type);
+                @endphp
+                <article style="width:min(100%,560px);padding:14px;border:1px solid var(--ad-border);border-radius:14px;background:var(--ad-surface,#fff);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;">
+                        <strong>{{ str($document->document_type)->replace('_', ' ')->headline() }}</strong>
+                        <a class="ad-btn ad-btn-secondary" href="{{ $documentUrl }}">Download</a>
+                    </div>
+                    <div style="width:100%;height:clamp(180px,32vw,360px);overflow:hidden;border:1px solid var(--ad-border);border-radius:10px;background:#f8fafc;display:flex;align-items:center;justify-content:center;">
+                        @if(str_starts_with($mime, 'image/'))
+                            <img src="{{ $previewUrl }}" alt="{{ str($document->document_type)->replace('_', ' ')->headline() }}" style="display:block;width:100%;height:100%;object-fit:contain;">
+                        @elseif($mime === 'application/pdf')
+                            <iframe src="{{ $previewUrl }}" title="{{ str($document->document_type)->replace('_', ' ')->headline() }}" style="display:block;width:100%;height:100%;border:0;"></iframe>
+                        @else
+                            <a class="ad-btn ad-btn-secondary" href="{{ $documentUrl }}">Open document</a>
+                        @endif
+                    </div>
+                </article>
             @empty
                 <p>No documents were submitted.</p>
             @endforelse

@@ -45,7 +45,14 @@ class GoogleAuthenticationController extends Controller
         }
 
         $email = mb_strtolower(trim((string) $googleUser->getEmail()));
-        $verified = filter_var(data_get($googleUser->getRaw(), 'email_verified', false), FILTER_VALIDATE_BOOLEAN);
+        // Google userinfo responses use `verified_email`; some OpenID responses
+        // use `email_verified`. Accept either form so valid accounts are not
+        // rejected after the OAuth callback.
+        $raw = $googleUser->getRaw();
+        $verified = filter_var(
+            data_get($raw, 'email_verified', data_get($raw, 'verified_email', false)),
+            FILTER_VALIDATE_BOOLEAN,
+        );
 
         if ($email === '' || ! $verified) {
             return redirect()->route('login')->withErrors([
@@ -56,8 +63,6 @@ class GoogleAuthenticationController extends Controller
         $user = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
 
         if (! $user) {
-            $raw = $googleUser->getRaw();
-
             $request->session()->put('google_buyer_registration', [
                 'email' => $email,
                 'first_name' => trim((string) ($raw['given_name'] ?? str($googleUser->getName())->beforeLast(' '))),
