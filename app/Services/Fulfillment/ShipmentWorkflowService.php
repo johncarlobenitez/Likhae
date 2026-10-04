@@ -43,6 +43,17 @@ class ShipmentWorkflowService
         });
     }
 
+    public function requestSellerHandover(SellerOrder $sellerOrder, User $actor, bool $sellerDropoff, ?string $note = null): SellerOrder
+    {
+        return DB::transaction(function () use ($sellerOrder, $actor, $sellerDropoff, $note): SellerOrder {
+            $sellerOrder->loadMissing('shipment', 'order.address');
+            $shipment = $this->ensureShipment($sellerOrder);
+            $this->readyForPickup($sellerOrder, $shipment, $actor, $sellerDropoff, $note);
+
+            return $sellerOrder->refresh();
+        });
+    }
+
     public function ensureShipment(SellerOrder $sellerOrder): Shipment
     {
         $sellerOrder->loadMissing('shipment', 'order.address');
@@ -189,7 +200,10 @@ class ShipmentWorkflowService
     public function receiveAtCenter(Shipment $shipment, LogisticsCenter $center, User $actor, string $code, string $method = 'MANUAL'): Shipment
     {
         return DB::transaction(function () use ($shipment, $center, $actor, $code, $method): Shipment {
-            $this->requireShipmentStatus($shipment, ['PICKED_UP'], 'receive the parcel at the sorting center');
+            $dropoffRequest = $shipment->pickupRequests()->whereIn('status', ['PENDING', 'APPROVED'])
+                ->where('notes', 'like', 'SELLER_DROPOFF:%')->latest()->first();
+            $isSellerDropoff = $shipment->current_status === 'READY_FOR_PICKUP' && $dropoffRequest;
+            $this->requireShipmentStatus($shipment, $isSellerDropoff ? ['READY_FOR_PICKUP'] : ['PICKED_UP'], 'receive the parcel at the sorting center');
 
             if ($shipment->logistics_center_id && (int) $shipment->logistics_center_id !== (int) $center->id) {
                 throw new RuntimeException('This parcel belongs to another logistics center.');
@@ -209,6 +223,7 @@ class ShipmentWorkflowService
                 'logistics_center_id' => $center->id,
                 'current_status' => 'AT_SORTING_CENTER',
             ]);
+            $dropoffRequest?->update(['status' => 'FULFILLED', 'reviewed_by_user_id' => $actor->id, 'reviewed_at' => now()]);
             $this->recordEvent($shipment, 'AT_SORTING_CENTER', $actor, 'Parcel received at logistics center.', null, $center);
 
             $shipment->sellerOrder?->update(['status' => 'PICKED_UP']);
@@ -385,7 +400,7 @@ class ShipmentWorkflowService
         $this->recordEvent($shipment, 'PREPARING', $actor, 'Seller is preparing the parcel.');
     }
 
-    private function readyForPickup(SellerOrder $sellerOrder, Shipment $shipment, User $actor): void
+    private function readyForPickup(SellerOrder $sellerOrder, Shipment $shipment, User $actor, bool $sellerDropoff = false, ?string $note = null): void
     {
         $this->requireSellerAndShipmentStatus($sellerOrder, $shipment, 'PREPARING', 'mark the order ready for pickup');
         $sellerOrder->update(['status' => 'READY_FOR_PICKUP']);
@@ -400,12 +415,12 @@ class ShipmentWorkflowService
             [
                 'requested_by_user_id' => $actor->id,
                 'requested_at' => now(),
-                'notes' => 'Seller marked parcel ready for pickup.',
+                'notes' => ($sellerDropoff ? 'SELLER_DROPOFF:' : 'LOGISTICS_PICKUP:').($note ?: 'Seller marked parcel ready for pickup.'),
             ],
         );
 
         $this->generateWaybill($shipment, $actor);
-        $this->recordEvent($shipment, 'READY_FOR_PICKUP', $actor, 'Seller marked parcel ready for pickup.');
+        $this->recordEvent($shipment, 'READY_FOR_PICKUP', $actor, $sellerDropoff ? 'Seller registered a drop-off at the assigned logistics center.' : 'Seller marked parcel ready for pickup.');
     }
 
     private function cancelSellerOrder(SellerOrder $sellerOrder, Shipment $shipment, User $actor): void

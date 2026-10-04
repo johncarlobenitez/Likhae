@@ -16,8 +16,11 @@ class SellerEngagementController extends Controller
 {
     public function messages(Request $request, ConversationService $conversationService): View
     {
+        $conversations = $conversationService->listFor($request->user());
+        $conversations->each(fn ($conversation) => $conversationService->markRead($conversation, $request->user()));
+
         return view('Seller.messages', [
-            'conversations' => $conversationService->listFor($request->user()),
+            'conversations' => $conversations,
             'contacts' => \App\Models\User::query()->where('status', 'ACTIVE')->whereKeyNot($request->user()->id)->orderBy('first_name')->get(),
         ]);
     }
@@ -125,8 +128,26 @@ class SellerEngagementController extends Controller
 
     public function notifications(Request $request): View
     {
+        $categoryFor = static function (string $type): string {
+            $type = strtolower($type);
+
+            return str_contains($type, 'order') ? 'orders'
+                : (str_contains($type, 'inventory') || str_contains($type, 'stock') ? 'inventory'
+                    : (str_contains($type, 'finance') || str_contains($type, 'payment') ? 'finance' : 'system'));
+        };
+        $notificationCounts = array_fill_keys(['all', 'orders', 'inventory', 'finance', 'system'], 0);
+        $request->user()->notifications()->select(['type'])->get()->each(function ($notification) use (&$notificationCounts, $categoryFor): void {
+            $notificationCounts['all']++;
+            $notificationCounts[$categoryFor((string) $notification->type)]++;
+        });
+        $notifications = $request->user()->notifications()->latest()->paginate(20);
+        $notifications->getCollection()->each(function ($notification) use ($categoryFor): void {
+            $notification->setAttribute('category', $categoryFor((string) $notification->type));
+        });
+
         return view('Seller.notifications', [
-            'notifications' => $request->user()->notifications()->latest()->paginate(20),
+            'notifications' => $notifications,
+            'notificationCounts' => $notificationCounts,
         ]);
     }
 

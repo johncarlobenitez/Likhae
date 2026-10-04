@@ -1,5 +1,9 @@
 @php
-    $pageTitle = trim($__env->yieldContent('title')) ?: 'Buyer';
+    $pageTitle = html_entity_decode(
+        trim($__env->yieldContent('title')) ?: 'Buyer',
+        ENT_QUOTES | ENT_HTML5,
+        'UTF-8'
+    );
     $activePage = trim($__env->yieldContent('active')) ?: 'home';
 @endphp
 <!doctype html>

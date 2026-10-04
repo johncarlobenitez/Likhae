@@ -91,8 +91,11 @@ class AdminOperationsController extends Controller
 
     public function messages(Request $request, ConversationService $conversationService): View
     {
+        $conversations = $conversationService->listFor($request->user());
+        $conversations->each(fn ($conversation) => $conversationService->markRead($conversation, $request->user()));
+
         return view('Admin.messages', [
-            'conversations' => $conversationService->listFor($request->user()),
+            'conversations' => $conversations,
             'contacts' => User::query()->where('status', 'ACTIVE')->whereKeyNot($request->user()->id)->orderBy('first_name')->get(),
             'announcements' => Announcement::query()->latest()->paginate(10),
         ]);
@@ -318,7 +321,7 @@ class AdminOperationsController extends Controller
     {
         $data = $request->validate([
             'status' => ['required', 'string', 'in:OPEN,UNDER_REVIEW,RESOLVED,REJECTED'],
-            'resolution' => ['nullable', 'string', 'max:5000'],
+            'resolution' => [in_array($request->input('status'), ['RESOLVED', 'REJECTED'], true) ? 'required' : 'nullable', 'string', 'max:5000'],
         ]);
         $dispute->update([
             'assigned_admin_user_id' => $request->user()->id,
@@ -326,6 +329,18 @@ class AdminOperationsController extends Controller
             'resolution' => $data['resolution'] ?? null,
             'resolved_at' => in_array($data['status'], ['RESOLVED', 'REJECTED'], true) ? now() : null,
         ]);
+
+        if ($dispute->openedBy && in_array($data['status'], ['RESOLVED', 'REJECTED'], true)) {
+            Notification::create([
+                'user_id' => $dispute->opened_by_user_id,
+                'type' => 'RETURN_REFUND',
+                'title' => $data['status'] === 'RESOLVED' ? 'Return / refund request resolved' : 'Return / refund request declined',
+                'message' => 'Request '.$dispute->dispute_number.' was '.$data['status'].'. '.($data['resolution'] ?? ''),
+                'reference_type' => Dispute::class,
+                'reference_id' => $dispute->id,
+                'action_url' => $dispute->order ? route('buyer.orders.show', $dispute->order) : null,
+            ]);
+        }
 
         return back()->with('status', 'Dispute updated.');
     }

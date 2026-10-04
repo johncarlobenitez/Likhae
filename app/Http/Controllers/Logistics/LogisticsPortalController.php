@@ -303,8 +303,11 @@ class LogisticsPortalController extends Controller
 
     public function messages(Request $request, ConversationService $conversationService): View
     {
+        $conversations = $conversationService->listFor($request->user());
+        $conversations->each(fn ($conversation) => $conversationService->markRead($conversation, $request->user()));
+
         return view('Logistics.messages.index', [
-            'conversations' => $conversationService->listFor($request->user()),
+            'conversations' => $conversations,
             'contacts' => User::query()->where('status', 'ACTIVE')->whereKeyNot($request->user()->id)->orderBy('first_name')->get(),
         ]);
     }

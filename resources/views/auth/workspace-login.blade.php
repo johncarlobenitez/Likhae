@@ -9,59 +9,86 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    <title>{{ $accountLabel }} Login — LIKHAE</title>
+    <title>{{ $accountLabel }} Login &mdash; LIKHAE</title>
 
     @vite([
         'resources/css/auth/login.css',
         'resources/js/auth/login.js'
     ])
 </head>
-<body>
+<body class="{{ ($workspace ?? '') === 'logistics' ? 'auth-workspace-logistics' : '' }}" @if (($workspace ?? '') === 'logistics') style="--lk-auth-bg-image: url('{{ asset('images/logistics-login-hero.png') }}')" @endif>
 <div class="auth-shell">
-    <section class="auth-hero">
+    <section class="auth-hero" aria-labelledby="workspace-hero-title">
         <div class="auth-hero__inner">
             <a href="{{ $homeRoute }}" class="auth-brand">
-                <x-likhae-logo :context="$accountLabel" class="likhae-logo--auth" />
+                <span class="likhae-logo likhae-logo--auth likhae-logo--logistics" role="img" aria-label="LIKHAE {{ $accountLabel }}">
+                    <img class="likhae-logo__image" src="{{ asset('images/likhae-logo.png') }}" alt="" width="194" height="42" loading="eager" decoding="async" aria-hidden="true">
+                </span>
             </a>
 
             <div class="auth-hero__content">
                 <div class="auth-hero__copy">
-                    <span class="auth-eyebrow">{{ $accountLabel }} workspace</span>
+                    <span class="auth-eyebrow">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M3 10 12 3l9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z" />
+                            <path d="M9 21v-7h6v7M3 10h18" />
+                        </svg>
+                        {{ $accountLabel }}
+                    </span>
 
-                    <h1>{{ $headline }}</h1>
+                    <h1 id="workspace-hero-title">
+                        Every parcel,
+                        <em>right on schedule.</em>
+                    </h1>
 
-                    <p>{{ $description }}</p>
+                    <p>Coordinate parcel intake, sorting, and delivery from one workspace built for logistics teams and riders.</p>
                 </div>
-
-                <ul class="auth-hero__pills">
-                    @if ($workspace === 'logistics')
-                        <li><span class="auth-pill-icon">✓</span> Parcel intake and sorting</li>
-                        <li><span class="auth-pill-icon">✓</span> Rider application management</li>
-                        <li><span class="auth-pill-icon">✓</span> Delivery assignment monitoring</li>
-                    @else
-                        <li><span class="auth-pill-icon">✓</span> Pickup assignments</li>
-                        <li><span class="auth-pill-icon">✓</span> Delivery assignments</li>
-                        <li><span class="auth-pill-icon">✓</span> Earnings and delivery history</li>
-                    @endif
-                </ul>
             </div>
 
             <div class="auth-hero__footer">
-                LIKHAE · {{ $accountLabel }}
-            </div>
-
-            <div class="auth-hero__deco" aria-hidden="true">
-                <div class="deco-ring deco-ring--1"></div>
-                <div class="deco-ring deco-ring--2"></div>
+                <ul class="auth-hero__benefits" aria-label="Logistics workspace features">
+                    <li>
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+                            <path d="m3 12 9 5 9-5M3 16l9 5 9-5M12 13v8" />
+                        </svg>
+                        <strong>Parcel intake</strong>
+                        <span>Track every handover</span>
+                    </li>
+                    <li>
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M3 6h11v12H3zM14 10h4l3 4v4h-7" />
+                            <circle cx="7" cy="18" r="2" />
+                            <circle cx="18" cy="18" r="2" />
+                        </svg>
+                        <strong>Rider dispatch</strong>
+                        <span>Coordinate local routes</span>
+                    </li>
+                    <li>
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z" />
+                            <path d="m8.5 12 2.5 2.5 4.5-5" />
+                        </svg>
+                        <strong>Delivery updates</strong>
+                        <span>Follow each parcel's progress</span>
+                    </li>
+                </ul>
+                <p class="auth-hero__tagline">From parcel intake to the customer&rsquo;s door.</p>
             </div>
         </div>
     </section>
 
     <section class="auth-panel">
         <div class="auth-panel__inner">
-            <div class="auth-mobile-brand">
+            <div class="auth-mobile-brand {{ ($workspace ?? '') === 'logistics' ? 'auth-panel-brand auth-logistics-card-brand' : '' }}">
                 <a href="{{ $homeRoute }}" class="auth-brand">
-                    <x-likhae-logo :context="$accountLabel" class="likhae-logo--auth" />
+                    @if (($workspace ?? '') === 'logistics')
+                        <span class="likhae-logo likhae-logo--auth-panel" role="img" aria-label="LIKHAE {{ $accountLabel }}">
+                            <img src="{{ asset('images/likhae-logo-black-text.png') }}" alt="" width="194" height="42" loading="eager" decoding="async" aria-hidden="true">
+                        </span>
+                    @else
+                        <x-likhae-logo :context="$accountLabel" class="likhae-logo--auth" />
+                    @endif
                 </a>
             </div>
 
@@ -111,7 +138,7 @@
                     </div>
 
                     <div class="auth-field__wrap">
-                        <span class="auth-input-icon">•</span>
+                        <span class="auth-input-icon">&#8226;</span>
                         <input
                             id="password"
                             name="password"
@@ -150,6 +177,8 @@
                     </svg>
                 </button>
             </form>
+
+            <p class="auth-switch" style="margin-top: 10px;"><a href="{{ route('password.request') }}">Forgot your password?</a></p>
 
             <p class="auth-switch">
                 Need a {{ strtolower($accountLabel) }} account?

@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const preview = select(previewSelector);
         if (!preview) return;
         preview.innerHTML = '';
-        Array.from(event.target.files || []).slice(0, 5).forEach((file) => {
+        Array.from(event.target.files || []).slice(0, 8).forEach((file) => {
             const image = document.createElement('img');
             image.src = URL.createObjectURL(file);
             image.alt = file.name;
