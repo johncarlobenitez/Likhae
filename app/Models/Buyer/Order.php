@@ -6,6 +6,7 @@ use App\Models\Admin\Dispute;
 use App\Models\Communication\Conversation;
 use App\Models\Seller\SellerOrder;
 use App\Models\User;
+use App\Models\Buyer\ReturnRefundRequest;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -85,5 +86,10 @@ class Order extends Model
     public function disputes(): HasMany
     {
         return $this->hasMany(Dispute::class);
+    }
+
+    public function returnRefundRequests(): HasMany
+    {
+        return $this->hasMany(ReturnRefundRequest::class);
     }
 }

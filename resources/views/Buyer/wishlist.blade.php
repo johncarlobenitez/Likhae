@@ -709,13 +709,13 @@
                 </span>
             </div>
 
-            <button
-                type="button"
-                class="lk-wishlist-clear"
-                data-clear-wishlist
-            >
-                Clear Wishlist
-            </button>
+            <form method="POST" action="{{ route('buyer.wishlist.clear') }}" onsubmit="return confirm('Clear your entire wishlist?');">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="lk-wishlist-clear">
+                    Clear Wishlist
+                </button>
+            </form>
         </section>
 
         <section class="lk-wishlist-toolbar">

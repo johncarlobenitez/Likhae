@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Buyer;
 use App\Http\Controllers\Controller;
 use App\Models\Buyer\Address;
 use App\Models\Buyer\CartItem;
+use App\Models\Buyer\WishlistItem;
 use App\Models\Seller\Product;
 use App\Models\Seller\SellerProfile;
 use App\Models\Seller\Voucher;
@@ -217,14 +218,52 @@ class BuyerController extends Controller
         return back()->with('buyer_notice', 'Message sent.');
     }
 
-    public function wishlist(): RedirectResponse
+    public function wishlist(Request $request): View
     {
-        return redirect()->route('buyer.products')->with('buyer_notice', 'Wishlist is not part of the final 57-table scope.');
+        $wishlistProducts = WishlistItem::query()
+            ->where('user_id', $request->user()->id)
+            ->with(['product' => fn ($query) => $query->with($this->catalog->productRelations())->withAvg('reviews', 'rating')->withCount('reviews')])
+            ->latest()
+            ->get()
+            ->filter(fn (WishlistItem $item) => $item->product !== null)
+            ->map(function (WishlistItem $item) {
+                $payload = $this->catalog->productPayload($item->product);
+                $payload['wishlist_added_at'] = $item->created_at;
+                return $payload;
+            });
+
+        return view('Buyer.wishlist', compact('wishlistProducts'));
     }
 
-    public function toggleWishlist(): RedirectResponse
+    public function toggleWishlist(Request $request, Product $product): RedirectResponse
     {
-        return back()->with('buyer_notice', 'Wishlist is disabled in the final scope.');
+        $item = WishlistItem::query()->where('user_id', $request->user()->id)->where('product_id', $product->id)->first();
+        $item ? $item->delete() : WishlistItem::create(['user_id' => $request->user()->id, 'product_id' => $product->id]);
+        return back()->with('buyer_notice', $item ? 'Product removed from your wishlist.' : 'Product saved to your wishlist.');
+    }
+
+    public function removeWishlistItems(Request $request): RedirectResponse
+    {
+        $productIds = $request->validate([
+            'product_ids' => ['required', 'array', 'min:1'],
+            'product_ids.*' => ['integer'],
+        ])['product_ids'];
+
+        WishlistItem::query()
+            ->where('user_id', $request->user()->id)
+            ->whereIn('product_id', $productIds)
+            ->delete();
+
+        return back()->with('buyer_notice', 'Selected products removed from your wishlist.');
+    }
+
+    public function clearWishlist(Request $request): RedirectResponse
+    {
+        WishlistItem::query()
+            ->where('user_id', $request->user()->id)
+            ->delete();
+
+        return back()->with('buyer_notice', 'Wishlist cleared.');
     }
 
     public function rewards(Request $request): View

@@ -83,7 +83,16 @@
         <div class="lk-ed-cat-grid">
             @foreach($categories as $cat)
                 <a href="{{ route('products', ['category' => $cat['slug']]) }}" class="lk-ed-cat-card">
-                    <div class="lk-ed-cat-img" style="background-image:url('{{ $cat['img'] }}')"></div>
+                    <img
+                        class="lk-ed-cat-img"
+                        src="{{ $cat['img'] }}"
+                        alt="{{ $cat['name'] }}"
+                        width="800"
+                        height="680"
+                        loading="lazy"
+                        fetchpriority="low"
+                        decoding="async"
+                    >
                     <div class="lk-ed-cat-body">
                         <div>
                             <strong>{{ $cat['name'] }}</strong>

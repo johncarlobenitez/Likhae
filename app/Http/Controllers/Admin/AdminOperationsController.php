@@ -326,6 +326,17 @@ class AdminOperationsController extends Controller
             'resolution' => $data['resolution'] ?? null,
             'resolved_at' => in_array($data['status'], ['RESOLVED', 'REJECTED'], true) ? now() : null,
         ]);
+        $dispute->load('returnRefundRequest');
+        if ($dispute->returnRefundRequest) {
+            $dispute->returnRefundRequest->update([
+                'status' => match ($data['status']) {
+                    'UNDER_REVIEW' => 'UNDER_REVIEW',
+                    'RESOLVED' => 'RESOLVED',
+                    'REJECTED' => 'REJECTED',
+                    default => 'REQUEST_SUBMITTED',
+                },
+            ]);
+        }
 
         return back()->with('status', 'Dispute updated.');
     }

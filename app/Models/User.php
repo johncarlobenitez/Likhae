@@ -8,6 +8,7 @@ use App\Models\Auth\RegistrationApplication;
 use App\Models\Buyer\Address;
 use App\Models\Buyer\Cart;
 use App\Models\Buyer\Order;
+use App\Models\Buyer\WishlistItem;
 use App\Models\Communication\Conversation;
 use App\Models\Communication\Message;
 use App\Models\Logistics\LogisticsCenter;
@@ -72,6 +73,7 @@ class User extends Authenticatable
         'password',
         'status',
         'notification_preferences',
+        'profile_photo_path',
     ];
 
     protected $hidden = [
@@ -150,6 +152,11 @@ class User extends Authenticatable
     public function addresses(): HasMany
     {
         return $this->hasMany(Address::class);
+    }
+
+    public function wishlistItems(): HasMany
+    {
+        return $this->hasMany(WishlistItem::class);
     }
 
     public function registrationApplications(): HasMany

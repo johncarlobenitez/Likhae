@@ -3802,10 +3802,13 @@ dialog::backdrop {
 
 .lk-ed-cat-img,
 .lk-guest-category-image {
+    display: block;
+    width: 100%;
     aspect-ratio: 1 / 0.85;
     background-size: cover;
     background-position: center;
     background-color: var(--lk-bg-alt);
+    object-fit: cover;
 }
 
 .lk-guest-category-image {
@@ -5350,6 +5353,9 @@ dialog,
 
 @media (max-width: 900px) {
     .lk-header {
+        height: auto;
+        min-height: var(--lk-header);
+        flex-wrap: wrap;
         gap: 10px;
         padding-inline: 16px;
     }
@@ -5359,8 +5365,11 @@ dialog,
     }
 
     .lk-search {
+        order: 10;
+        flex: 1 0 100%;
         max-width: none;
         min-width: 0;
+        width: 100%;
         margin: 0;
     }
 
@@ -7273,5 +7282,57 @@ html .lk-landing-body .lk-header.is-guest {
     .lk-main {
         padding-left: 14px;
         padding-right: 14px;
+    }
+}
+
+/* Landing header overrides must come after the light landing layout rules above. */
+html.dark .lk-landing-body .lk-header.is-guest {
+    --lk-text: #f5efe8;
+    --lk-muted: #c8b7ad;
+    --lk-maroon: #eba99d;
+    color: #f5efe8 !important;
+}
+
+html.dark .lk-landing-body .lk-header .lk-guest-search {
+    background: rgba(33, 27, 23, .78) !important;
+    border-color: rgba(235, 169, 157, .32) !important;
+}
+
+html.dark .lk-landing-body .lk-header .lk-guest-search input {
+    color: #f5efe8 !important;
+}
+
+html.dark .lk-landing-body .lk-header .lk-guest-search input::placeholder {
+    color: #c8b7ad !important;
+}
+
+html.dark .lk-landing-body .lk-header .lk-guest-nav a,
+html.dark .lk-landing-body .lk-header .lk-guest-signin {
+    color: #f5efe8 !important;
+}
+
+html.dark .lk-landing-body .lk-header .lk-guest-nav a:hover,
+html.dark .lk-landing-body .lk-header .lk-guest-nav a.is-active,
+html.dark .lk-landing-body .lk-header .lk-guest-signin:hover {
+    color: #eba99d !important;
+}
+
+html.dark .lk-landing-body .lk-header .likhae-logo__image--light {
+    display: none !important;
+}
+
+html.dark .lk-landing-body .lk-header .likhae-logo__image--dark {
+    display: block !important;
+}
+
+html.dark .lk-landing-body .lk-carousel__slide::before {
+    background: linear-gradient(to bottom, rgba(22, 18, 16, .72), transparent) !important;
+}
+
+/* Keep category cards in the requested two-column mobile/tablet layout. */
+@media (max-width: 960px) {
+    .lk-products-main .lk-product-grid:not(.is-list-view) {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
     }
 }

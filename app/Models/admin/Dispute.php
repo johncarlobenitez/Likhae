@@ -3,12 +3,14 @@
 namespace App\Models\Admin;
 
 use App\Models\Buyer\Order;
+use App\Models\Buyer\ReturnRefundRequest;
 use App\Models\Logistics\Shipment;
 use App\Models\Seller\SellerOrder;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Dispute extends Model
 {
@@ -64,5 +66,10 @@ class Dispute extends Model
     public function evidence(): HasMany
     {
         return $this->hasMany(DisputeEvidence::class);
+    }
+
+    public function returnRefundRequest(): HasOne
+    {
+        return $this->hasOne(ReturnRefundRequest::class);
     }
 }

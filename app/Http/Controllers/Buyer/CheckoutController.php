@@ -28,7 +28,7 @@ class CheckoutController extends Controller
         }
 
         $voucherCodes = (array) $request->session()->get('checkout_voucher_codes', []);
-        $preview = $this->checkoutService->preview($items, $voucherCodes);
+        $preview = $this->checkoutService->preview($items, $voucherCodes, $request->user());
 
         return view('Buyer.checkout', [
             'cartItems' => $items,

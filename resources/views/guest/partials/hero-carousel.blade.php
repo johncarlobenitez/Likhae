@@ -10,7 +10,16 @@
     <div class="lk-carousel__slides" aria-live="off">
         @foreach($slides as $slide)
             <article id="hero-slide-{{ $loop->index }}" class="lk-carousel__slide {{ $loop->first ? 'is-active' : '' }}" data-hero-slide role="group" aria-roledescription="slide" aria-label="{{ $loop->iteration }} of {{ count($slides) }}" aria-hidden="{{ $loop->first ? 'false' : 'true' }}" @if(!$loop->first) inert @endif>
-                <img class="lk-carousel__image" src="{{ asset('images/'.$slide['image']) }}" alt="{{ $slide['alt'] }}" width="1822" height="863" @if($loop->first) fetchpriority="high" @endif decoding="async">
+                <img
+                    class="lk-carousel__image"
+                    src="{{ asset('images/'.$slide['image']) }}"
+                    alt="{{ $slide['alt'] }}"
+                    width="1822"
+                    height="863"
+                    loading="{{ $loop->first ? 'eager' : 'lazy' }}"
+                    fetchpriority="{{ $loop->first ? 'high' : 'low' }}"
+                    decoding="async"
+                >
                 <div class="lk-carousel__copy">
                     <span class="lk-carousel__eyebrow">{{ $slide['eyebrow'] }}</span>
                     @if($loop->first)

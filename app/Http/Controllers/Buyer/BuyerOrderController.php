@@ -9,12 +9,19 @@ use App\Models\Buyer\Review;
 use App\Models\Logistics\ShipmentEvent;
 use App\Models\Admin\CommissionTransaction;
 use App\Models\Admin\Dispute;
+use App\Models\Admin\DisputeEvidence;
+use App\Models\Admin\Notification;
 use App\Models\Admin\PlatformSetting;
+use App\Models\Buyer\ReturnRefundRequest;
+use App\Models\Buyer\ReturnRefundRequestItem;
+use App\Models\User;
 use App\Services\RiderRatingService;
 use App\Services\ReviewImageService;
 use App\Services\Fulfillment\ShipmentWorkflowService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Illuminate\Support\Str;
@@ -61,7 +68,7 @@ class BuyerOrderController extends Controller
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
         $workflow->syncParentOrderProgress($order);
-        $selectedOrder = $order->load(['sellerOrders.sellerProfile.user', 'sellerOrders.items.review', 'sellerOrders.items.product.images', 'sellerOrders.shipment.events', 'sellerOrders.shipment.riderAssignments.riderProfile.user', 'address', 'payments', 'disputes']);
+        $selectedOrder = $order->load(['sellerOrders.sellerProfile.user', 'sellerOrders.items.review', 'sellerOrders.items.product.images', 'sellerOrders.shipment.events', 'sellerOrders.shipment.riderAssignments.riderProfile.user', 'address', 'payments', 'disputes.returnRefundRequest']);
         $riderRatingsByShipment = $selectedOrder->sellerOrders->mapWithKeys(function ($sellerOrder): array {
             $shipment = $sellerOrder->shipment;
             $assignment = $shipment?->riderAssignments
@@ -184,7 +191,220 @@ class BuyerOrderController extends Controller
             ->with('buyer_notice', 'Order received. You can now rate the products and write a review.');
     }
 
-    public function returnRefund(Request $request, Order $order): RedirectResponse
+    public function returnRefundForm(Request $request, Order $order): View|RedirectResponse
+    {
+        abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
+        [$deliveredAt, $deadline] = $this->returnRefundEligibility($order);
+        if ($this->activeReturnRefund($order, $request->user()->id)) {
+            return redirect()->route('buyer.returns')->with('buyer_notice', 'Your return/refund request is already under review.');
+        }
+
+        return view('Buyer.return-refund', [
+            'order' => $order->load(['sellerOrders.items.product.images', 'sellerOrders.items.productVariant', 'sellerOrders.shipment.events', 'payments']),
+            'issues' => $this->returnRefundIssues(),
+            'refundMethods' => $this->refundMethods($order),
+            'deliveredAt' => $deliveredAt,
+            'deadline' => $deadline,
+        ]);
+    }
+
+    public function returnRefund(Request $request, Order $order): View|RedirectResponse|JsonResponse
+    {
+        abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
+        [$deliveredAt] = $this->returnRefundEligibility($order);
+        abort_if($this->activeReturnRefund($order, $request->user()->id), 409, 'Your return/refund request is already under review.');
+
+        $issues = $this->returnRefundIssues();
+        $data = $request->validate([
+            'issue_category' => ['required', 'string', Rule::in(array_keys($issues))],
+            'issue_reason' => ['required', 'string', 'max:150'],
+            'item_ids' => ['required', 'array', 'min:1'],
+            'item_ids.*' => ['integer'],
+            'quantities' => ['required', 'array'],
+            'description' => ['required', 'string', 'min:1', 'max:2000'],
+            'images' => ['nullable', 'array', 'max:6'],
+            'images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:20480'],
+            'video' => ['nullable', 'file', 'mimes:mp4,mov,webm', 'max:204800'],
+            'buyer_email' => ['required', 'email', 'max:255'],
+            'refund_method' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $issue = $issues[$data['issue_category']];
+        abort_unless(in_array($data['issue_reason'], $issue['reasons'], true), 422, 'Choose a valid reason for the selected issue.');
+
+        $order->loadMissing(['sellerOrders.items', 'payments']);
+        $itemIds = collect($data['item_ids'])->map(fn ($id): int => (int) $id)->unique()->values();
+        $items = $order->items()->whereIn('order_items.id', $itemIds)->get()->keyBy('id');
+        abort_unless($items->count() === $itemIds->count(), 422, 'One or more selected items do not belong to this order.');
+
+        $selectedItems = [];
+        $totalRefund = 0.0;
+        foreach ($itemIds as $itemId) {
+            $item = $items->get($itemId);
+            $quantity = (int) ($data['quantities'][$itemId] ?? 0);
+            abort_unless($quantity > 0 && $quantity <= (int) $item->quantity, 422, 'Choose a valid quantity for each selected item.');
+            $amount = round(((float) $item->line_total / max((int) $item->quantity, 1)) * $quantity, 2);
+            $selectedItems[] = ['item' => $item, 'quantity' => $quantity, 'amount' => $amount];
+            $totalRefund += $amount;
+        }
+
+        $refundMethods = $this->refundMethods($order);
+        $refundMethod = count($refundMethods) === 1 ? array_key_first($refundMethods) : ($data['refund_method'] ?? null);
+        abort_unless($refundMethod === null || array_key_exists($refundMethod, $refundMethods), 422, 'Choose a valid refund method.');
+
+        $requestRecord = DB::transaction(function () use ($request, $order, $data, $issue, $refundMethod, $totalRefund, $selectedItems): ReturnRefundRequest {
+            $requestNumber = 'RR-'.now()->format('Ymd').'-'.Str::upper(Str::random(8));
+            $description = trim($data['description']);
+            $dispute = Dispute::create([
+                'dispute_number' => $requestNumber,
+                'opened_by_user_id' => $request->user()->id,
+                'order_id' => $order->id,
+                'type' => 'RETURN_REFUND',
+                'subject' => 'Return / Refund Request — '.$order->order_number,
+                'description' => "Issue: {$issue['label']}\nReason: {$data['issue_reason']}\nSolution: {$issue['solution']}\n\n{$description}",
+                'status' => 'OPEN',
+                'opened_at' => now(),
+            ]);
+            User::query()->where('account_type', User::TYPE_ADMIN)->where('status', User::STATUS_ACTIVE)->get()->each(function (User $admin) use ($order, $dispute): void {
+                Notification::create([
+                    'user_id' => $admin->id,
+                    'type' => 'RETURN_REFUND',
+                    'title' => 'Return / refund request received',
+                    'message' => 'A buyer opened request '.$dispute->dispute_number.' for order '.$order->order_number.'.',
+                    'reference_type' => Dispute::class,
+                    'reference_id' => $dispute->id,
+                    'action_url' => route('admin.complaints'),
+                ]);
+            });
+
+            $returnRequest = ReturnRefundRequest::create([
+                'request_number' => $requestNumber,
+                'dispute_id' => $dispute->id,
+                'order_id' => $order->id,
+                'buyer_user_id' => $request->user()->id,
+                'issue_category' => $data['issue_category'],
+                'issue_reason' => $data['issue_reason'],
+                'solution' => $issue['solution'],
+                'description' => $description,
+                'refund_method' => $refundMethod,
+                'refundable_amount' => round($totalRefund, 2),
+                'requested_amount' => round($totalRefund, 2),
+                'buyer_email' => $data['buyer_email'],
+                'status' => 'REQUEST_SUBMITTED',
+                'submitted_at' => now(),
+            ]);
+
+            foreach ($selectedItems as $selected) {
+                ReturnRefundRequestItem::create([
+                    'return_refund_request_id' => $returnRequest->id,
+                    'order_item_id' => $selected['item']->id,
+                    'quantity' => $selected['quantity'],
+                    'refundable_amount' => $selected['amount'],
+                ]);
+            }
+
+            foreach ((array) $request->file('images', []) as $image) {
+                $this->storeDisputeEvidence($dispute, $image, $request->user()->id, 'Buyer photo evidence.');
+            }
+            if ($request->hasFile('video')) {
+                $this->storeDisputeEvidence($dispute, $request->file('video'), $request->user()->id, 'Buyer video evidence.');
+            }
+
+            return $returnRequest->load('items.orderItem');
+        });
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Return/refund request submitted.',
+                'request_id' => $requestRecord->request_number,
+                'status' => $requestRecord->status,
+                'solution' => $requestRecord->solution,
+                'requested_amount' => $requestRecord->requested_amount,
+            ], 201);
+        }
+
+        return view('Buyer.return-refund-success', ['requestRecord' => $requestRecord, 'order' => $order]);
+    }
+
+    public function returns(Request $request): View
+    {
+        $requests = ReturnRefundRequest::query()
+            ->with(['order', 'items.orderItem'])
+            ->where('buyer_user_id', $request->user()->id)
+            ->latest('submitted_at')
+            ->paginate(10);
+
+        return view('Buyer.returns', compact('requests'));
+    }
+
+    private function returnRefundEligibility(Order $order): array
+    {
+        $order->loadMissing('sellerOrders.shipment.events');
+        abort_unless(in_array($order->status, ['PROCESSING', 'COMPLETED'], true), 409, 'This order is no longer eligible for return or refund.');
+        abort_unless(
+            $order->sellerOrders->isNotEmpty()
+                && $order->sellerOrders->every(fn ($sellerOrder): bool => $sellerOrder->shipment
+                    && in_array($sellerOrder->shipment->current_status, ['DELIVERED', 'COMPLETED'], true)),
+            409,
+            'Return or refund can only be requested after delivery.'
+        );
+
+        $deliveredAt = $order->sellerOrders
+            ->flatMap(fn ($sellerOrder) => $sellerOrder->shipment->events)
+            ->where('status', 'DELIVERED')
+            ->max('occurred_at');
+        $deadline = $deliveredAt?->copy()->addDays(5);
+        abort_unless($deadline && now()->lte($deadline), 409, 'The five-day return and refund window has expired.');
+
+        return [$deliveredAt, $deadline];
+    }
+
+    private function activeReturnRefund(Order $order, int $buyerId): ?Dispute
+    {
+        return $order->disputes()
+            ->where('opened_by_user_id', $buyerId)
+            ->where('type', 'RETURN_REFUND')
+            ->whereIn('status', ['OPEN', 'UNDER_REVIEW'])
+            ->with('returnRefundRequest')
+            ->latest()
+            ->first();
+    }
+
+    private function returnRefundIssues(): array
+    {
+        return [
+            'DAMAGED' => ['label' => 'Received damaged item(s)', 'reasons' => ['Scratched item', 'Bent item', 'Shattered item', 'Cracked item', 'Dented item', 'Torn or ripped item', 'Other physical damage'], 'solution' => 'Return & Refund'],
+            'DEFECTIVE' => ['label' => 'Product is defective / does not work', 'reasons' => ['Product does not turn on', 'Product is not functioning properly', 'Product stopped working', 'Some functions/features do not work', 'Product is defective upon arrival', 'Other product defect'], 'solution' => 'Return & Refund'],
+            'INCORRECT' => ['label' => 'Received incorrect item(s)', 'reasons' => ['Wrong product', 'Wrong variation', 'Wrong color', 'Wrong size', 'Wrong model', 'Wrong quantity/item sent'], 'solution' => 'Return & Refund'],
+            'MISSING' => ['label' => 'Did not receive some/all of the item(s)', 'reasons' => ['Parcel was not delivered', 'Missing part of the order', 'Missing item(s) from the parcel', 'Empty parcel received'], 'solution' => 'Refund Only'],
+            'OTHER' => ['label' => 'Others', 'reasons' => ['I want to return the item in its original/sealed condition.'], 'solution' => 'Return & Refund'],
+        ];
+    }
+
+    private function refundMethods(Order $order): array
+    {
+        $payment = $order->payments()->whereIn('status', ['PAID', 'PENDING'])->latest()->first()
+            ?? $order->payments()->latest()->first();
+        if (! $payment) {
+            return [];
+        }
+
+        return [$payment->method => $payment->method === 'COD' ? 'Original payment method (Cash on Delivery)' : 'Original payment method (Online payment)'];
+    }
+
+    private function storeDisputeEvidence(Dispute $dispute, mixed $file, int $userId, string $notes): void
+    {
+        DisputeEvidence::create([
+            'dispute_id' => $dispute->id,
+            'uploaded_by_user_id' => $userId,
+            'file_path' => $file->store('return-refund-evidence'),
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $file->getClientMimeType(),
+            'notes' => $notes,
+        ]);
+    }
+
+    private function returnRefundLegacy(Request $request, Order $order): RedirectResponse
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
         $order->loadMissing('sellerOrders.shipment.events');

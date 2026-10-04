@@ -52,3 +52,58 @@
 @media (prefers-reduced-motion: reduce) {
     .lk-carousel *, .lk-carousel *::after { transition: none !important; transform: none !important; }
 }
+
+/* Landing-page dark mode. Keep the carousel readable without changing the image. */
+html.dark .lk-carousel {
+    background: #211b17;
+    color: #f5efe8;
+}
+
+html.dark .lk-carousel__slide::after {
+    background: linear-gradient(90deg, rgba(22, 18, 16, .96), rgba(22, 18, 16, .82) 30%, rgba(22, 18, 16, .2) 62%, transparent 82%);
+}
+
+html.dark .lk-carousel__eyebrow,
+html.dark .lk-carousel__count {
+    color: #c8b7ad;
+}
+
+html.dark .lk-carousel__title {
+    color: #f5efe8;
+}
+
+html.dark .lk-carousel__title em {
+    color: #eba99d;
+}
+
+html.dark .lk-carousel__description {
+    color: #c8b7ad;
+}
+
+html.dark .lk-carousel__explore {
+    color: #f0c0b6;
+}
+
+html.dark .lk-carousel__dots span {
+    background: #806f66;
+}
+
+html.dark .lk-carousel__dots button[aria-current="true"] span {
+    background: #eba99d;
+}
+
+html.dark .lk-carousel__buttons button {
+    background: rgba(33, 27, 23, .92);
+    border-color: #514037;
+    color: #f5efe8;
+}
+
+html.dark .lk-carousel__buttons button:hover {
+    background: #3b2e27;
+}
+
+@media (max-width: 600px) {
+    html.dark .lk-carousel__slide::after {
+        background: linear-gradient(180deg, rgba(22, 18, 16, .96) 0%, rgba(22, 18, 16, .9) 38%, rgba(22, 18, 16, .3) 70%, rgba(22, 18, 16, .8) 100%);
+    }
+}

@@ -15,6 +15,10 @@ Route::prefix('buyer')
         Route::get('/home', [BuyerController::class, 'home'])->name('home');
         Route::get('/products', [BuyerController::class, 'products'])->name('products');
         Route::get('/products/{slug}', [BuyerController::class, 'product'])->name('product-details');
+        Route::get('/wishlist', [BuyerController::class, 'wishlist'])->name('wishlist');
+        Route::post('/wishlist/{product}', [BuyerController::class, 'toggleWishlist'])->name('wishlist.toggle');
+        Route::delete('/wishlist/clear', [BuyerController::class, 'clearWishlist'])->name('wishlist.clear');
+        Route::delete('/wishlist', [BuyerController::class, 'removeWishlistItems'])->name('wishlist.remove');
         Route::get('/shop/{seller}', [BuyerController::class, 'shop'])->name('shop');
 
         Route::get('/flash-deals', fn () => redirect()->route('buyer.products', ['focus' => 'deals']))->name('flash-deals');
@@ -31,9 +35,11 @@ Route::prefix('buyer')
 
         Route::get('/orders/success', [BuyerOrderController::class, 'success'])->name('orders.success');
         Route::get('/orders', [BuyerOrderController::class, 'index'])->name('orders');
+        Route::get('/returns', [BuyerOrderController::class, 'returns'])->name('returns');
         Route::get('/orders/{order}', [BuyerOrderController::class, 'show'])->name('orders.show');
         Route::post('/orders/{order}/cancel', [BuyerOrderController::class, 'cancel'])->name('orders.cancel');
         Route::post('/orders/{order}/received', [BuyerOrderController::class, 'received'])->name('orders.received');
+        Route::get('/orders/{order}/return-refund', [BuyerOrderController::class, 'returnRefundForm'])->name('orders.return-refund.form');
         Route::post('/orders/{order}/return-refund', [BuyerOrderController::class, 'returnRefund'])->name('orders.return-refund');
         Route::post('/orders/items/{item}/review', [BuyerOrderController::class, 'review'])->name('orders.review.store');
 

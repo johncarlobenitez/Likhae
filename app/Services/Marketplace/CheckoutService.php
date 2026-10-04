@@ -50,7 +50,7 @@ class CheckoutService
             });
     }
 
-    public function preview(Collection $items, array $voucherCodes = []): array
+    public function preview(Collection $items, array $voucherCodes = [], ?User $buyer = null): array
     {
         $groups = [];
         $subtotal = 0.0;
@@ -83,7 +83,14 @@ class CheckoutService
 
         foreach ($groups as $sellerId => &$group) {
             $code = trim((string) ($voucherCodes[$sellerId] ?? ''));
-            $voucher = $code !== '' ? $this->usableVoucher((int) $sellerId, $code, (float) $group['item_subtotal']) : null;
+            $voucher = $code !== ''
+                ? $this->usableVoucher((int) $sellerId, $code, (float) $group['item_subtotal'], $buyer)
+                : null;
+            if ($code !== '' && $voucher === null) {
+                throw ValidationException::withMessages([
+                    'voucher_codes.'.$sellerId => 'This voucher is invalid or no longer available for this seller.',
+                ]);
+            }
             $discount = $voucher ? $this->discountAmount($voucher, (float) $group['item_subtotal']) : 0.0;
 
             $group['voucher'] = $voucher;
@@ -93,6 +100,14 @@ class CheckoutService
             $shippingTotal += (float) $group['shipping_fee'];
         }
         unset($group);
+
+        foreach (array_keys($voucherCodes) as $sellerId) {
+            if (! array_key_exists((int) $sellerId, $groups)) {
+                throw ValidationException::withMessages([
+                    'voucher_codes.'.$sellerId => 'This voucher does not apply to the selected cart items.',
+                ]);
+            }
+        }
 
         return [
             'groups' => collect($groups),
@@ -108,6 +123,18 @@ class CheckoutService
         if ($items->isEmpty()) {
             throw ValidationException::withMessages([
                 'cart' => 'Select at least one cart item before checkout.',
+            ]);
+        }
+
+        $serviceable = ServiceAreaLocation::query()
+            ->where('province_code', $address->province_code)
+            ->where('municipality_code', $address->municipality_code)
+            ->where('barangay_code', $address->barangay_code)
+            ->whereHas('serviceArea', fn ($query) => $query->where('is_active', true))
+            ->exists();
+        if (! $serviceable) {
+            throw ValidationException::withMessages([
+                'address_id' => 'Delivery is not currently available to this address.',
             ]);
         }
 
@@ -128,7 +155,7 @@ class CheckoutService
                 }
             }
 
-            $preview = $this->preview($items, $voucherCodes);
+            $preview = $this->preview($items, $voucherCodes, $buyer);
 
             $order = Order::query()->create([
                 'order_number' => $this->uniqueNumber('orders', 'order_number', 'LK'),
@@ -260,9 +287,9 @@ class CheckoutService
         return $shipment;
     }
 
-    private function usableVoucher(int $sellerId, string $code, float $subtotal): ?Voucher
+    private function usableVoucher(int $sellerId, string $code, float $subtotal, ?User $buyer = null): ?Voucher
     {
-        return Voucher::query()
+        $voucher = Voucher::query()
             ->where('seller_profile_id', $sellerId)
             ->where('code', mb_strtoupper($code))
             ->where('is_active', true)
@@ -273,7 +300,20 @@ class CheckoutService
             ->where(function ($query): void {
                 $query->whereNull('ends_at')->orWhere('ends_at', '>=', now());
             })
+            ->withCount([
+                'sellerOrders',
+                'sellerOrders as buyer_uses_count' => fn ($query) => $buyer
+                    ? $query->whereHas('order', fn ($order) => $order->where('buyer_user_id', $buyer->id))
+                    : $query->whereRaw('1 = 0'),
+            ])
             ->first();
+        if (! $voucher
+            || ($voucher->usage_limit !== null && $voucher->seller_orders_count >= $voucher->usage_limit)
+            || ($buyer && $voucher->per_user_limit !== null && $voucher->buyer_uses_count >= $voucher->per_user_limit)) {
+            return null;
+        }
+
+        return $voucher;
     }
 
     private function discountAmount(Voucher $voucher, float $subtotal): float

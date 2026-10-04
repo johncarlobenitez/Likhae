@@ -216,7 +216,13 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(`${quantity} item${Number(quantity) === 1 ? '' : 's'} added to your cart.`);
     }));
 
-    all('[data-wishlist]').forEach((button) => button.addEventListener('click', () => {
+    all('[data-wishlist]').forEach((button) => {
+        if (document.querySelector('[data-wishlist-grid]')) {
+            button.setAttribute('aria-pressed', 'true');
+            button.classList.add('is-active');
+            button.setAttribute('aria-label', 'Remove product from wishlist');
+        }
+        button.addEventListener('click', () => {
         const productId = button.dataset.productId;
         if (!productId) return;
 
@@ -241,6 +247,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.body.appendChild(form);
         form.submit();
+        });
+    });
+
+    const wishlistForm = one('[data-wishlist-selection-form]');
+    all('[data-remove-wishlist-item]').forEach((button) => button.addEventListener('click', () => {
+        const productId = button.dataset.removeWishlistItem;
+        if (!productId) return;
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/buyer/wishlist/${encodeURIComponent(productId)}`;
+        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (token) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = '_token';
+            input.value = token;
+            form.appendChild(input);
+        }
+        document.body.appendChild(form);
+        form.submit();
     }));
+
+    if (wishlistForm) {
+        const checkboxes = all('[data-wishlist-select]', wishlistForm);
+        const removeButton = one('[data-remove-selected]', wishlistForm);
+        const count = one('[data-wishlist-selection-count]', wishlistForm);
+        const selectAll = one('[data-select-all-wishlist]', wishlistForm);
+        const syncSelection = () => {
+            const selected = checkboxes.filter((checkbox) => checkbox.checked).length;
+            if (removeButton) removeButton.disabled = selected === 0;
+            if (count) count.textContent = `${selected} selected`;
+            if (selectAll) selectAll.textContent = selected === checkboxes.length ? 'Deselect All' : 'Select All';
+        };
+        checkboxes.forEach((checkbox) => checkbox.addEventListener('change', syncSelection));
+        selectAll?.addEventListener('click', () => {
+            const shouldSelect = checkboxes.some((checkbox) => !checkbox.checked);
+            checkboxes.forEach((checkbox) => { checkbox.checked = shouldSelect; });
+            syncSelection();
+        });
+        wishlistForm.addEventListener('submit', (event) => {
+            if (!checkboxes.some((checkbox) => checkbox.checked)) event.preventDefault();
+        });
+        syncSelection();
+    }
 
 });

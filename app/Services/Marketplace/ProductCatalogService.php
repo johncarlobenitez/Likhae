@@ -174,6 +174,7 @@ class ProductCatalogService
             ] : null,
             'seller' => $product->sellerProfile ? [
                 'id' => $product->sellerProfile->id,
+                'user_id' => $product->sellerProfile->user_id,
                 'business_name' => $product->sellerProfile->business_name,
                 'status' => $product->sellerProfile->status,
             ] : null,
