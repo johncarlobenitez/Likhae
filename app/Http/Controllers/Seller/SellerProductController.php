@@ -85,6 +85,32 @@ class SellerProductController extends Controller
         return back()->with('status', $updated->status === 'ARCHIVED' ? 'Product archived.' : 'Product restored.');
     }
 
+    public function destroy(Request $request, Product $product): RedirectResponse
+    {
+        $seller = $this->seller($request);
+        abort_unless((int) $product->seller_profile_id === (int) $seller->id, 403);
+        $product->delete();
+
+        return redirect()->route('seller.products')->with('status', 'Product moved to Recently Deleted. It will be permanently removed after 30 days.');
+    }
+
+    public function trash(Request $request): View
+    {
+        $seller = $this->seller($request);
+        $products = Product::onlyTrashed()->where('seller_profile_id', $seller->id)->latest('deleted_at')->paginate(20);
+
+        return view('Seller.products-trash', compact('products'));
+    }
+
+    public function restore(Request $request, int $productId): RedirectResponse
+    {
+        $seller = $this->seller($request);
+        $product = Product::onlyTrashed()->where('seller_profile_id', $seller->id)->findOrFail($productId);
+        $product->restore();
+
+        return back()->with('status', 'Product restored.');
+    }
+
     public function deleteImage(Request $request, Product $product, ProductImage $image): RedirectResponse
     {
         $this->sellerCatalog->deleteImage($this->seller($request), $product, $image);

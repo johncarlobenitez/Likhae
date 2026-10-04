@@ -145,9 +145,9 @@ class AppServiceProvider extends ServiceProvider
                 if (Schema::hasTable('carts') && Schema::hasTable('cart_items')) {
                     $counts['cart'] = (int) ($buyer->carts()
                         ->where('status', 'ACTIVE')
-                        ->withCount('items')
+                        ->with('items:id,cart_id,quantity')
                         ->latest('id')
-                        ->value('items_count') ?? 0);
+                        ->first()?->items?->sum('quantity') ?? 0);
                 }
 
                 $counts['messages'] = $unreadMessageCount($buyer);

@@ -39,6 +39,19 @@
         color: var(--lk-text) !important;
     }
 
+    .lk-buyer-body .likhae-logo--buyer-home {
+        padding: 0 !important;
+        background: transparent !important;
+    }
+
+    .lk-buyer-body .likhae-logo--buyer-home .likhae-logo__image--light {
+        display: block !important;
+    }
+
+    .lk-buyer-body .likhae-logo--buyer-home .likhae-logo__image--dark {
+        display: none !important;
+    }
+
     .lk-page {
         min-height: 100vh !important;
         padding: 40px 0 56px !important;

@@ -86,7 +86,9 @@ class Shipment extends Model
 
     public function events(): HasMany
     {
-        return $this->hasMany(ShipmentEvent::class)->orderBy('occurred_at');
+        return $this->hasMany(ShipmentEvent::class)
+            ->orderBy('occurred_at')
+            ->orderBy('id');
     }
 
     public function deliveryAttempts(): HasMany

@@ -54,6 +54,29 @@ class SellerOrderController extends Controller
         return back()->with('status', 'Seller order updated successfully.');
     }
 
+    public function handover(Request $request, SellerOrder $sellerOrder, ShipmentWorkflowService $workflow): RedirectResponse
+    {
+        $seller = $request->user()->sellerProfile;
+        abort_unless($seller && (int) $sellerOrder->seller_profile_id === (int) $seller->id, 403);
+        $data = $request->validate([
+            'handover_method' => ['required', 'string', 'in:logistics_pickup,seller_dropoff'],
+            'pickup_date' => ['nullable', 'date', 'after_or_equal:today'],
+            'pickup_window' => ['nullable', 'string', 'max:80'],
+            'pickup_note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $workflow->requestSellerHandover(
+            $sellerOrder,
+            $request->user(),
+            $data['handover_method'] === 'seller_dropoff',
+            collect([$data['pickup_note'] ?? null, $data['pickup_date'] ?? null, $data['pickup_window'] ?? null])->filter()->implode(' · '),
+        );
+
+        return redirect()->route('seller.orders')->with('status', $data['handover_method'] === 'seller_dropoff'
+            ? 'Drop-off registered. Bring the parcel and tracking number to your assigned logistics center.'
+            : 'Logistics pickup requested.');
+    }
+
     private function viewOrder(SellerOrder $order): array
     {
         $address = $order->order?->address;

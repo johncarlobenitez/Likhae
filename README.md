@@ -35,6 +35,8 @@ MAIL_FROM_NAME="LIKHAE"
 
 Keep the password out of source control and use a newly generated app password if one has been exposed. Clear cached Laravel configuration after changing mail settings with `php artisan config:clear`.
 
+Password recovery uses Laravel's `password_reset_tokens` table and expires reset links after 60 minutes. When `MAIL_MAILER=log` is used locally, reset emails are written to `storage/logs/laravel.log` instead of being delivered to an inbox; configure SMTP for real delivery.
+
 For production or hosting uploads, always run:
 
 ```sh
@@ -42,6 +44,8 @@ composer run deploy
 ```
 
 This rebuilds the Vite assets, removes the local Vite hot marker, clears stale Laravel caches, and refreshes the production caches. Do not upload `public/hot`; it is only for local Vite development and will make the live site try to load assets from `127.0.0.1`.
+
+The app schedules announcement publishing and the 30-day soft-delete cleanup in `routes/console.php`. Production hosts must run Laravel's scheduler every minute (`php artisan schedule:run`) so expired deleted products and messages are permanently removed on schedule. Sellers can restore deleted products from **Recently Deleted** during the 30-day recovery window.
 
 The admin command privately prompts for a password and never overwrites an existing account. `db:seed` provides demo accounts only in local/testing environments and preserves existing credentials. Registration does not create administrator accounts.
 

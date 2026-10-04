@@ -154,6 +154,7 @@ class BuyerController extends Controller
     public function messages(Request $request): View
     {
         $conversations = $this->conversations->listFor($request->user());
+        $conversations->each(fn ($conversation) => $this->conversations->markRead($conversation, $request->user()));
         $rows = $conversations->map(function ($conversation) use ($request): array {
             $other = $conversation->participants->first(fn ($participant) => (int) $participant->id !== (int) $request->user()->id);
             $seller = $other?->sellerProfile;

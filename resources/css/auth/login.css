@@ -224,6 +224,28 @@ html.dark .likhae-logo {
     max-width: min(300px, 68vw);
 }
 
+.auth-hero .likhae-logo--logistics {
+    position: relative;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.auth-hero .likhae-logo--logistics img {
+    filter: drop-shadow(0 3px 8px rgba(34, 10, 9, 0.24));
+}
+
+.auth-hero .likhae-logo--logistics::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+    background: #151515;
+    clip-path: inset(0 0 0 37.5%);
+    mask: url("/images/likhae-logo-dark.png") center / contain no-repeat;
+    -webkit-mask: url("/images/likhae-logo-dark.png") center / contain no-repeat;
+    pointer-events: none;
+}
+
 .auth-panel-brand {
     display: flex;
     justify-content: center;
@@ -410,6 +432,68 @@ html.dark .likhae-logo {
     text-align: center;
 }
 
+/* Logistics login hero: warm paper and the Likhae burgundy palette. */
+.auth-workspace-logistics .auth-hero {
+    border-color: #e4d2bd;
+    background:
+        linear-gradient(180deg, rgba(248, 240, 228, 0.92), rgba(248, 240, 228, 0.88)),
+        var(--lk-auth-bg-image) center / cover no-repeat,
+        #f8f0e4;
+}
+
+.auth-workspace-logistics .auth-hero::before {
+    border-color: rgba(105, 24, 27, 0.2);
+}
+
+.auth-workspace-logistics .auth-hero .likhae-logo--logistics img {
+    filter: none;
+}
+
+.auth-workspace-logistics .auth-hero .likhae-logo--logistics::after {
+    display: none;
+}
+
+.auth-workspace-logistics .auth-eyebrow {
+    border-color: rgba(75, 13, 16, 0.2);
+    background: rgba(255, 250, 243, 0.78);
+    color: #681217;
+}
+
+.auth-workspace-logistics .auth-hero__copy h1 {
+    color: #421316;
+}
+
+.auth-workspace-logistics .auth-hero__copy h1 em {
+    color: #7c171c;
+}
+
+.auth-workspace-logistics .auth-hero__copy p {
+    color: #634b43;
+}
+
+.auth-workspace-logistics .auth-hero__benefits {
+    border-color: rgba(105, 24, 27, 0.12);
+    background: rgba(255, 250, 243, 0.94);
+    box-shadow: 0 8px 32px rgba(75, 13, 16, 0.08);
+}
+
+.auth-workspace-logistics .auth-hero__benefits li {
+    color: #7c171c;
+}
+
+.auth-workspace-logistics .auth-hero__benefits li + li {
+    border-color: rgba(75, 13, 16, 0.16);
+}
+
+.auth-workspace-logistics .auth-hero__benefits strong,
+.auth-workspace-logistics .auth-hero__tagline {
+    color: #421316;
+}
+
+.auth-workspace-logistics .auth-hero__benefits span {
+    color: #72574e;
+}
+
 @supports (backdrop-filter: blur(16px)) {
     .auth-hero__benefits {
         background: rgba(255, 250, 241, 0.84);
@@ -455,6 +539,10 @@ html.dark .likhae-logo {
     display: none;
 
     margin-bottom: 32px;
+}
+
+.auth-workspace-logistics .auth-logistics-card-brand {
+    display: flex;
 }
 
 

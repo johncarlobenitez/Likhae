@@ -435,7 +435,7 @@ class BuyerOrderController extends Controller
             ->first();
 
         if (! $existing) {
-            Dispute::create([
+            $dispute = Dispute::create([
                 'dispute_number' => 'RR-'.now()->format('Ymd').'-'.Str::upper(Str::random(8)),
                 'opened_by_user_id' => $request->user()->id,
                 'order_id' => $order->id,
@@ -445,6 +445,18 @@ class BuyerOrderController extends Controller
                 'status' => 'OPEN',
                 'opened_at' => now(),
             ]);
+
+            User::query()->where('account_type', User::TYPE_ADMIN)->where('status', User::STATUS_ACTIVE)->get()->each(function (User $admin) use ($order, $dispute): void {
+                Notification::create([
+                    'user_id' => $admin->id,
+                    'type' => 'RETURN_REFUND',
+                    'title' => 'Return / refund request received',
+                    'message' => 'A buyer opened request '.$dispute->dispute_number.' for order '.$order->order_number.'.',
+                    'reference_type' => Dispute::class,
+                    'reference_id' => $dispute->id,
+                    'action_url' => route('admin.complaints'),
+                ]);
+            });
         }
 
         return back()->with('buyer_notice', $existing ? 'Your return/refund request is already under review.' : 'Your return/refund request was submitted for review.');

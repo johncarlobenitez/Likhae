@@ -18,7 +18,9 @@
                 <td class="p-4 font-semibold">{{ str($pickup->status)->headline() }}</td>
                 <td class="p-4">
                     @php($activeAssignment = $shipment->riderAssignments->where('assignment_type','PICKUP')->whereIn('status',['ASSIGNED','ACCEPTED','IN_PROGRESS'])->sortByDesc('id')->first())
-                    @if($activeAssignment)<span class="font-semibold">{{ $activeAssignment->riderProfile?->user?->name }}</span><small class="block text-muted">{{ str($activeAssignment->status)->headline() }}</small>
+                    @if(str_starts_with((string) $pickup->notes, 'SELLER_DROPOFF:'))
+                        <form method="POST" action="{{ route('logistics.parcels.receive.confirm', $shipment) }}" class="flex min-w-72 gap-2">@csrf<input name="scanned_code" required class="min-w-0 flex-1 border border-line px-3 py-2" placeholder="Scan tracking number"><input type="hidden" name="scan_method" value="MANUAL"><button class="bg-primary px-4 py-2 font-semibold text-white">Confirm Drop-off</button></form>
+                    @elseif($activeAssignment)<span class="font-semibold">{{ $activeAssignment->riderProfile?->user?->name }}</span><small class="block text-muted">{{ str($activeAssignment->status)->headline() }}</small>
                     @else
                     @php($pickupAreaId = $pickupAreaIds[$shipment->id] ?? null)
                     @php($eligibleRiders = $pickupAreaId ? $riders->filter(fn ($rider) => $rider->areaAssignments->contains(fn ($assignment) => $assignment->is_active && (int) $assignment->service_area_id === (int) $pickupAreaId)) : $riders)

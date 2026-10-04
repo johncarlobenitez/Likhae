@@ -1106,7 +1106,7 @@
         >
             <x-likhae-logo
                 :context="$roleDetail['workspace']"
-                class="likhae-logo--sidebar"
+                class="likhae-logo--sidebar {{ $role === 'buyer' && request()->routeIs('buyer.home') ? 'likhae-logo--buyer-home' : '' }}"
             />
         </a>
     </div>

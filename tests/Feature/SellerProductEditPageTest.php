@@ -83,4 +83,21 @@ class SellerProductEditPageTest extends TestCase
         $this->assertSame(2, $product->variants()->where('is_active', true)->count());
         $this->assertSame(2, $product->options()->firstOrFail()->values()->count());
     }
+
+    public function test_seller_can_soft_delete_and_restore_a_product_within_the_recovery_window(): void
+    {
+        $this->withoutVite();
+        $this->seed(DatabaseSeeder::class);
+        $seller = User::query()->where('email', 'seller@likhae.com')->sole();
+        $product = Product::query()->whereBelongsTo($seller->sellerProfile)->sole();
+
+        $this->actingAs($seller)
+            ->delete(route('seller.products.destroy', $product))
+            ->assertRedirect(route('seller.products'));
+
+        $this->assertSoftDeleted('products', ['id' => $product->id]);
+        $this->actingAs($seller)->get(route('seller.products.trash'))->assertOk()->assertSee($product->name);
+        $this->post(route('seller.products.restore', $product->id))->assertRedirect();
+        $this->assertNotSoftDeleted('products', ['id' => $product->id]);
+    }
 }

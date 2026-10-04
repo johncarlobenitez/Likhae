@@ -20,7 +20,7 @@
 
     <style>
         :root {
-            --lk-register-bg-image: url("{{ asset('images/login-page-bg.jpg') }}");
+            --lk-register-bg-image: url("{{ asset(in_array($preselectedRole ?? 'buyer', ['logistics', 'rider'], true) ? 'images/logistics-login-hero.png' : 'images/login-page-bg.jpg') }}");
         }
     </style>
 
@@ -46,6 +46,24 @@
 
                 <div class="register-side__content">
 
+                    @if (in_array($preselectedRole ?? 'buyer', ['logistics', 'rider'], true))
+                    <span class="register-eyebrow">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M3 10 12 3l9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z" />
+                            <path d="M9 21v-7h6v7M3 10h18" />
+                        </svg>
+                        Join LIKHAE Logistics
+                    </span>
+
+                    <h1 id="register-hero-title">
+                        Move every parcel.
+                        <em>Make every delivery count.</em>
+                    </h1>
+
+                    <p>
+                        Help local orders move safely from seller handover through sorting and delivery.
+                    </p>
+                    @else
                     <span class="register-eyebrow">
                         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                             <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
@@ -62,10 +80,35 @@
                         Find something you love, or build a store others will.
                         Your LIKHAE journey starts here.
                     </p>
+                    @endif
 
                 </div>
 
                 <div class="register-side__footer">
+                    @if (in_array($preselectedRole ?? 'buyer', ['logistics', 'rider'], true))
+                    <ul class="register-side__features" aria-label="Logistics and rider opportunities">
+                        <li class="register-feature">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+                                <path d="m3 12 9 5 9-5M3 16l9 5 9-5M12 13v8" />
+                            </svg>
+                            <span class="register-feature__label">Logistics teams</span>
+                            <strong>Coordinate parcels</strong>
+                            <span>Keep each handover moving.</span>
+                        </li>
+                        <li class="register-feature">
+                            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M3 6h11v12H3zM14 10h4l3 4v4h-7" />
+                                <circle cx="7" cy="18" r="2" />
+                                <circle cx="18" cy="18" r="2" />
+                            </svg>
+                            <span class="register-feature__label">Riders</span>
+                            <strong>Deliver with care</strong>
+                            <span>Bring local orders to their door.</span>
+                        </li>
+                    </ul>
+                    <p class="register-side__tagline">A dependable delivery, from pickup to doorstep.</p>
+                    @else
                     <ul class="register-side__features" aria-label="Two ways to join LIKHAE">
                         <li class="register-feature">
                             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -87,6 +130,7 @@
                         </li>
                     </ul>
                     <p class="register-side__tagline">A place for buyers. A home for sellers.</p>
+                    @endif
                 </div>
 
             </div>
@@ -97,7 +141,7 @@
             <header class="register-prep__head">
                 <span class="register-prep__eyebrow">A smooth start</span>
                 <h2 id="register-prep-title">Before you begin</h2>
-                <p>Keep these handy as you create your account.</p>
+                <p>{{ in_array($preselectedRole ?? 'buyer', ['logistics', 'rider'], true) ? 'Keep these handy for your logistics or rider application.' : 'Keep these handy as you create your account.' }}</p>
             </header>
 
             <ul class="register-prep__list">
@@ -128,8 +172,13 @@
                         <path d="M5 13v8h14v-8M9 21v-6h6v6M3 7h18" />
                     </svg>
                     <div>
-                        <strong>Planning to sell?</strong>
-                        <span>Have your business details and permit ready.</span>
+                        @if (in_array($preselectedRole ?? 'buyer', ['logistics', 'rider'], true))
+                            <strong>Application documents</strong>
+                            <span>Have any relevant vehicle or service details ready.</span>
+                        @else
+                            <strong>Planning to sell?</strong>
+                            <span>Have your business details and permit ready.</span>
+                        @endif
                     </div>
                 </li>
             </ul>

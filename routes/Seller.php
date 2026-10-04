@@ -19,10 +19,13 @@ Route::prefix('seller')
         Route::get('/dashboard', [SellerOperationsController::class, 'dashboard'])->name('dashboard');
 
         Route::get('/products', [SellerProductController::class, 'index'])->name('products');
+        Route::get('/products/trash', [SellerProductController::class, 'trash'])->name('products.trash');
+        Route::post('/products/trash/{productId}/restore', [SellerProductController::class, 'restore'])->name('products.restore');
         Route::post('/products', [SellerProductController::class, 'store'])->name('products.store');
         Route::put('/products/{product}', [SellerProductController::class, 'update'])->name('products.update');
         Route::patch('/products/{product}/stock', [SellerProductController::class, 'stock'])->name('products.stock');
         Route::patch('/products/{product}/toggle', [SellerProductController::class, 'toggle'])->name('products.toggle');
+        Route::delete('/products/{product}', [SellerProductController::class, 'destroy'])->name('products.destroy');
         Route::delete('/products/{product}/images/{image}', [SellerProductController::class, 'deleteImage'])->name('products.images.destroy');
         Route::get('/products-export', [SellerProductController::class, 'export'])->name('products.export');
 
@@ -32,9 +35,7 @@ Route::prefix('seller')
         Route::get('/orders-export', [SellerOperationsController::class, 'exportOrders'])->name('orders.export');
 
         Route::get('/logistics', [SellerOperationsController::class, 'logistics'])->name('logistics');
-        Route::post('/logistics/{sellerOrder}/pickup', function () {
-            return redirect()->route('seller.orders')->with('status', 'Use the order action: Mark Ready for Pickup.');
-        })->name('logistics.pickup');
+        Route::post('/logistics/{sellerOrder}/pickup', [SellerOrderController::class, 'handover'])->name('logistics.pickup');
 
         Route::get('/messages', [SellerEngagementController::class, 'messages'])->name('messages');
         Route::get('/messages/stream', [SellerEngagementController::class, 'stream'])->name('messages.stream');
