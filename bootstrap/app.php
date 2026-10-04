@@ -5,6 +5,7 @@ use App\Http\Middleware\EnsureActiveAccount;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -46,5 +47,17 @@ return Application::configure(basePath: dirname(__DIR__))
                 $request->is('api/*') ||
                 $request->expectsJson(),
         );
+
+        $exceptions->render(function (PostTooLargeException $exception, Request $request) {
+            $message = 'The selected upload is too large. Images must be 20 MB or less each, and videos must be 200 MB or less.';
+
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json(['message' => $message], 413);
+            }
+
+            return redirect()->back()
+                ->with('upload_error', $message)
+                ->with('show_error_modal', true);
+        });
     })
     ->create();
