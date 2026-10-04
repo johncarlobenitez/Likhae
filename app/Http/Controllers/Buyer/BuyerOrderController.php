@@ -21,7 +21,9 @@ use App\Services\Fulfillment\ShipmentWorkflowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Illuminate\Support\Str;
@@ -68,7 +70,11 @@ class BuyerOrderController extends Controller
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
         $workflow->syncParentOrderProgress($order);
-        $selectedOrder = $order->load(['sellerOrders.sellerProfile.user', 'sellerOrders.items.review', 'sellerOrders.items.product.images', 'sellerOrders.shipment.events', 'sellerOrders.shipment.riderAssignments.riderProfile.user', 'address', 'payments', 'disputes.returnRefundRequest']);
+        $orderRelations = ['sellerOrders.sellerProfile.user', 'sellerOrders.items.review', 'sellerOrders.items.product.images', 'sellerOrders.shipment.events', 'sellerOrders.shipment.riderAssignments.riderProfile.user', 'address', 'payments', 'disputes'];
+        if ($this->returnRefundStorageReady()) {
+            $orderRelations[] = 'disputes.returnRefundRequest';
+        }
+        $selectedOrder = $order->load($orderRelations);
         $riderRatingsByShipment = $selectedOrder->sellerOrders->mapWithKeys(function ($sellerOrder): array {
             $shipment = $sellerOrder->shipment;
             $assignment = $shipment?->riderAssignments
@@ -194,6 +200,9 @@ class BuyerOrderController extends Controller
     public function returnRefundForm(Request $request, Order $order): View|RedirectResponse
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
+        if (! $this->returnRefundStorageReady()) {
+            return redirect()->route('buyer.orders.show', $order)->with('buyer_error', 'Return & Refund is still being set up. Please try again after the latest deployment finishes.');
+        }
         [$deliveredAt, $deadline] = $this->returnRefundEligibility($order);
         if ($this->activeReturnRefund($order, $request->user()->id)) {
             return redirect()->route('buyer.returns')->with('buyer_notice', 'Your return/refund request is already under review.');
@@ -211,6 +220,12 @@ class BuyerOrderController extends Controller
     public function returnRefund(Request $request, Order $order): View|RedirectResponse|JsonResponse
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
+        if (! $this->returnRefundStorageReady()) {
+            $message = 'Return & Refund is still being set up. Please try again after the latest deployment finishes.';
+            return $request->expectsJson()
+                ? response()->json(['message' => $message], 503)
+                : back()->with('buyer_error', $message);
+        }
         [$deliveredAt] = $this->returnRefundEligibility($order);
         abort_if($this->activeReturnRefund($order, $request->user()->id), 409, 'Your return/refund request is already under review.');
 
@@ -328,6 +343,10 @@ class BuyerOrderController extends Controller
 
     public function returns(Request $request): View
     {
+        if (! $this->returnRefundStorageReady()) {
+            return view('Buyer.returns', ['requests' => new LengthAwarePaginator([], 0, 10)]);
+        }
+
         $requests = ReturnRefundRequest::query()
             ->with(['order', 'items.orderItem'])
             ->where('buyer_user_id', $request->user()->id)
@@ -359,8 +378,17 @@ class BuyerOrderController extends Controller
         return [$deliveredAt, $deadline];
     }
 
+    private function returnRefundStorageReady(): bool
+    {
+        return Schema::hasTable('return_refund_requests') && Schema::hasTable('return_refund_request_items');
+    }
+
     private function activeReturnRefund(Order $order, int $buyerId): ?Dispute
     {
+        if (! $this->returnRefundStorageReady()) {
+            return null;
+        }
+
         return $order->disputes()
             ->where('opened_by_user_id', $buyerId)
             ->where('type', 'RETURN_REFUND')
