@@ -44,6 +44,7 @@
             "npm run build"
         ],
         "deploy": [
+            "@php artisan migrate --force",
             "npm run build",
             "@php artisan storage:link",
             "@php artisan optimize:clear",
