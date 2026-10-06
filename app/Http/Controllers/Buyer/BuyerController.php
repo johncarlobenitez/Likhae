@@ -20,6 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -412,6 +413,80 @@ class BuyerController extends Controller
             'addresses' => $request->user()->addresses()->latest()->get(),
             'reviews' => $request->user()->orders()->with('items.review')->latest()->get()->flatMap->items->pluck('review')->filter(),
         ]);
+    }
+
+    public function settings(Request $request): View
+    {
+        return view('Buyer.settings', [
+            'preferences' => $this->buyerPreferences($request->user()),
+        ]);
+    }
+
+    public function updateSettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'theme' => ['required', Rule::in(['light', 'dark', 'system'])],
+            'language' => ['required', Rule::in(['en'])],
+        ]);
+
+        $preferences = array_merge($this->buyerPreferences($request->user()), [
+            'order_updates' => $request->boolean('order_updates'),
+            'delivery_updates' => $request->boolean('delivery_updates'),
+            'chat_updates' => $request->boolean('chat_updates'),
+            'promotion_updates' => $request->boolean('promotion_updates'),
+            'ai_assistant_enabled' => $request->boolean('ai_assistant_enabled'),
+            'ai_response_sound' => $request->boolean('ai_response_sound'),
+            'theme' => $data['theme'],
+            'language' => $data['language'],
+            'notification_sounds' => $request->boolean('notification_sounds'),
+        ]);
+
+        $request->user()->forceFill(['notification_preferences' => $preferences])->save();
+
+        return back()->with('buyer_notice', 'System settings updated.');
+    }
+
+    public function destroyAccount(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'delete_confirmation' => ['required', 'string', 'in:DELETE'],
+        ]);
+
+        $buyer = $request->user();
+        $hasActiveOrders = $buyer->orders()
+            ->whereNotIn('status', ['COMPLETED', 'CANCELLED', 'RETURNED'])
+            ->exists();
+
+        if ($hasActiveOrders) {
+            return back()->withErrors(['delete_confirmation' => 'Complete or cancel your active orders before closing this account.']);
+        }
+
+        // Orders use restrictive user foreign keys, so deactivation protects
+        // historical fulfilment, payments, and reports without deleting them.
+        $buyer->forceFill(['status' => User::STATUS_DEACTIVATED])->save();
+
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('login')->with('status', 'Your Buyer account has been closed.');
+    }
+
+    /** @return array<string, bool|string> */
+    private function buyerPreferences(User $user): array
+    {
+        return array_merge([
+            'order_updates' => true,
+            'delivery_updates' => true,
+            'chat_updates' => true,
+            'promotion_updates' => true,
+            'ai_assistant_enabled' => true,
+            'ai_response_sound' => false,
+            'theme' => 'system',
+            'language' => 'en',
+            'notification_sounds' => true,
+        ], (array) $user->notification_preferences);
     }
 
     public function saveProfile(Request $request, ProfilePhotoService $profilePhotos): RedirectResponse

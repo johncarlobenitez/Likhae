@@ -332,6 +332,7 @@
             ['label' => 'Account', 'items' => [
                 ['key' => 'rewards', 'label' => 'Rewards', 'route' => 'buyer.rewards', 'icon' => 'finance', 'active' => ['buyer.rewards']],
                 ['key' => 'account', 'label' => 'My Account', 'route' => 'buyer.account', 'icon' => 'account', 'active' => ['buyer.account', 'buyer.account.*', 'buyer.notifications']],
+                ['key' => 'settings', 'label' => 'System Settings', 'route' => 'buyer.settings', 'icon' => 'settings', 'active' => ['buyer.settings']],
             ]],
         ];
     } elseif ($role === 'seller') {

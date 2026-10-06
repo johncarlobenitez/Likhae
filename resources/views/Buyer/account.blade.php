@@ -32,6 +32,7 @@
         'profile',
         'addresses',
         'password',
+        'danger',
     ];
 
     $requestedTab = request('tab', 'profile');
@@ -52,6 +53,10 @@
         'password' => [
             'label' => 'Change Password',
             'description' => 'Account security',
+        ],
+        'danger' => [
+            'label' => 'Danger Zone',
+            'description' => 'Close account',
         ],
     ];
 
@@ -92,6 +97,13 @@
                     <path d="M9 7V4h6v3"/>
                     <path d="m6 7 1 14h10l1-14"/>
                     <path d="M10 11v6M14 11v6"/>
+                </svg>
+            ',
+
+            'danger' => '
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3 2.5 20h19L12 3Z"/>
+                    <path d="M12 9v5M12 17h.01"/>
                 </svg>
             ',
 
@@ -497,7 +509,7 @@
                 </section>
             @endif
 
-            @if ($activeTab === 'deletion')
+            @if ($activeTab === 'danger')
                 <section aria-labelledby="deletion-heading">
                     <div class="border-b border-stone-100 px-5 py-4 sm:px-6">
                         <h2 id="deletion-heading" class="text-base font-semibold text-stone-900">
@@ -505,7 +517,7 @@
                         </h2>
 
                         <p class="mt-1 text-xs text-stone-500">
-                            Permanently close your LIKHAE buyer account.
+                            Close your LIKHAE Buyer account.
                         </p>
                     </div>
 
@@ -516,31 +528,15 @@
                             </h3>
 
                             <p class="mt-2 text-xs leading-5 text-red-700">
-                                Your account, saved addresses, wishlist, rewards, and
-                                account preferences will be permanently removed. Existing
-                                orders and active return requests must be completed first.
+                                This securely deactivates your account and signs you out.
+                                Historical orders are retained to protect fulfilment and payment records.
+                                Active orders must be completed or cancelled first.
                             </p>
                         </div>
 
-                        <form class="mt-6 max-w-xl space-y-5">
-                            <div>
-                                <label for="deletion-reason" class="mb-1.5 block text-xs font-semibold text-stone-700">
-                                    Reason for leaving
-                                </label>
-
-                                <select
-                                    id="deletion-reason"
-                                    name="reason"
-                                    class="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
-                                >
-                                    <option value="">Select a reason</option>
-                                    <option>I no longer use LIKHAE</option>
-                                    <option>I created another account</option>
-                                    <option>I have privacy concerns</option>
-                                    <option>I had a poor shopping experience</option>
-                                    <option>Other reason</option>
-                                </select>
-                            </div>
+                        <form method="POST" action="{{ route('buyer.account.destroy') }}" class="mt-6 max-w-xl space-y-5" data-buyer-delete-form>
+                            @csrf
+                            @method('DELETE')
 
                             <div>
                                 <label for="deletion-password" class="mb-1.5 block text-xs font-semibold text-stone-700">
@@ -550,30 +546,21 @@
                                 <input
                                     id="deletion-password"
                                     type="password"
-                                    name="password"
+                                    name="current_password"
                                     autocomplete="current-password"
                                     class="w-full rounded-xl border border-stone-300 px-3.5 py-2.5 text-sm outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100"
                                 >
                             </div>
 
-                            <label class="flex cursor-pointer items-start gap-3">
-                                <input
-                                    type="checkbox"
-                                    name="confirm_deletion"
-                                    class="mt-0.5 h-4 w-4 rounded border-stone-300 text-red-600 focus:ring-red-500"
-                                >
-
-                                <span class="text-xs leading-5 text-stone-600">
-                                    I understand that deleting my account is permanent
-                                    and cannot be reversed.
-                                </span>
-                            </label>
+                            <div><label for="delete-confirmation" class="mb-1.5 block text-xs font-semibold text-stone-700">Type DELETE to confirm</label><input id="delete-confirmation" type="text" name="delete_confirmation" autocomplete="off" class="w-full rounded-xl border border-stone-300 px-3.5 py-2.5 text-sm uppercase outline-none transition focus:border-red-500 focus:ring-4 focus:ring-red-100" data-buyer-delete-confirmation></div>
 
                             <button
-                                type="button"
-                                class="rounded-xl bg-red-600 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-red-700"
+                                type="submit"
+                                disabled
+                                class="rounded-xl bg-red-600 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                data-buyer-delete-submit
                             >
-                                Request Account Deletion
+                                Close My Account
                             </button>
                         </form>
                     </div>
@@ -663,4 +650,17 @@
         </main>
     </div>
 </div>
+@if($activeTab === 'danger')
+<script>
+(() => {
+    const form = document.querySelector('[data-buyer-delete-form]');
+    const password = document.getElementById('deletion-password');
+    const confirmation = document.querySelector('[data-buyer-delete-confirmation]');
+    const submit = document.querySelector('[data-buyer-delete-submit]');
+    if (!form || !password || !confirmation || !submit) return;
+    const sync = () => { submit.disabled = !password.value || confirmation.value.trim() !== 'DELETE'; };
+    password.addEventListener('input', sync); confirmation.addEventListener('input', sync);
+})();
+</script>
+@endif
 @endsection

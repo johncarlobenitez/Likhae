@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Buyer\BuyerController;
+use App\Http\Controllers\Buyer\BuyerAiController;
 use App\Http\Controllers\Buyer\BuyerOrderController;
 use App\Http\Controllers\Buyer\CheckoutController;
 use App\Http\Middleware\EnsureWorkspaceRole;
@@ -11,6 +12,11 @@ Route::prefix('buyer')
     ->middleware(['auth', 'verified', EnsureWorkspaceRole::class.':buyer'])
     ->group(function () {
         Route::get('/pending', fn () => redirect()->route('buyer.home'))->name('pending');
+
+        // This is deliberately separate from buyer Messages and its endpoints.
+        Route::post('/ai/chat', [BuyerAiController::class, 'chat'])
+            ->middleware('throttle:20,1')
+            ->name('ai.chat');
 
         Route::get('/home', [BuyerController::class, 'home'])->name('home');
         Route::get('/products', [BuyerController::class, 'products'])->name('products');
@@ -54,6 +60,8 @@ Route::prefix('buyer')
         Route::get('/rewards', [BuyerController::class, 'rewards'])->name('rewards');
 
         Route::get('/account', [BuyerController::class, 'account'])->name('account');
+        Route::get('/settings', [BuyerController::class, 'settings'])->name('settings');
+        Route::put('/settings', [BuyerController::class, 'updateSettings'])->name('settings.update');
         Route::get('/account/profile', fn () => redirect()->route('buyer.account', ['tab' => 'profile']))->name('account.profile');
         Route::get('/account/addresses', fn () => redirect()->route('buyer.account', ['tab' => 'addresses']))->name('account.addresses');
         Route::get('/account/security', fn () => redirect()->route('buyer.account', ['tab' => 'password']))->name('account.security');
@@ -62,4 +70,5 @@ Route::prefix('buyer')
         Route::put('/account/password', [BuyerController::class, 'savePassword'])->name('account.password.update');
         Route::post('/account/addresses', [BuyerController::class, 'saveAddress'])->name('account.addresses.store');
         Route::delete('/account/addresses/{address}', [BuyerController::class, 'deleteAddress'])->name('account.addresses.destroy');
+        Route::delete('/account', [BuyerController::class, 'destroyAccount'])->name('account.destroy');
     });

@@ -48,4 +48,11 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
     ],
 
+    /* The key is intentionally server-only. Do not expose this value to Vite. */
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        // The account-visible Flash Lite alias is verified for generateContent.
+        'model' => env('GEMINI_MODEL', 'gemini-flash-lite-latest'),
+    ],
+
 ];
