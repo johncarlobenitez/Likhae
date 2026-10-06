@@ -304,6 +304,7 @@ html.dark .likhae-logo__image--dark {
 .lk-side-toggle,
 .lk-mobile-menu,
 .lk-icon-btn {
+    position: relative;
     display: grid;
     width: 38px;
     height: 38px;
