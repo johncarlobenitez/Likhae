@@ -14,14 +14,17 @@ use App\Models\Admin\Notification;
 use App\Models\Admin\PlatformSetting;
 use App\Models\Buyer\ReturnRefundRequest;
 use App\Models\Buyer\ReturnRefundRequestItem;
+use App\Models\Seller\SellerOrder;
 use App\Models\User;
+use App\Services\Communication\ConversationService;
 use App\Services\RiderRatingService;
 use App\Services\ReviewImageService;
 use App\Services\Fulfillment\ShipmentWorkflowService;
+use App\Services\Media\ImageOptimizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -30,6 +33,8 @@ use Illuminate\Support\Str;
 
 class BuyerOrderController extends Controller
 {
+    public function __construct(private readonly ImageOptimizationService $images) {}
+
     public function success(Request $request): View
     {
         $order = null;
@@ -50,9 +55,38 @@ class BuyerOrderController extends Controller
 
     public function index(Request $request, ShipmentWorkflowService $workflow): View
     {
-        $orders = $request->user()
+        $filter = strtoupper((string) $request->query('status', ''));
+        $returnRefundReady = $this->returnRefundStorageReady();
+        $buyerOrders = $request->user()->orders();
+        $orderStatusCounts = (clone $buyerOrders)
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status')
+            ->map(fn ($count): int => (int) $count);
+
+        $orderStatusCounts->put('ALL', $orderStatusCounts->sum());
+        $orderStatusCounts->put(
+            'RETURNS',
+            $returnRefundReady ? (clone $buyerOrders)->whereHas('returnRefundRequests')->count() : 0
+        );
+
+        $orderQuery = $request->user()
             ->orders()
-            ->with(['sellerOrders.items.product.images', 'sellerOrders.shipment', 'payments'])
+            ->with(['sellerOrders.items.product.images', 'sellerOrders.shipment', 'payments']);
+
+        if ($returnRefundReady) {
+            $orderQuery->with('returnRefundRequests');
+        }
+
+        if ($filter === 'RETURNS') {
+            $returnRefundReady
+                ? $orderQuery->whereHas('returnRefundRequests')
+                : $orderQuery->whereRaw('1 = 0');
+        } elseif (in_array($filter, ['PLACED', 'PROCESSING', 'COMPLETED', 'CANCELLED'], true)) {
+            $orderQuery->where('status', $filter);
+        }
+
+        $orders = $orderQuery
             ->latest()
             ->paginate(10)
             ->withQueryString();
@@ -63,6 +97,8 @@ class BuyerOrderController extends Controller
             'mode' => 'index',
             'orders' => $orders,
             'selectedOrder' => null,
+            'returnRefundReady' => $returnRefundReady,
+            'orderStatusCounts' => $orderStatusCounts,
         ]);
     }
 
@@ -100,7 +136,46 @@ class BuyerOrderController extends Controller
         ]);
     }
 
-    public function cancel(Request $request, Order $order): RedirectResponse
+    public function sellerConversation(Request $request, Order $order, SellerOrder $sellerOrder, ConversationService $conversations): RedirectResponse
+    {
+        abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
+        abort_unless((int) $sellerOrder->order_id === (int) $order->id, 404);
+
+        $seller = $sellerOrder->loadMissing('sellerProfile.user')->sellerProfile?->user;
+        abort_unless($seller?->isActive(), 404);
+
+        $conversation = $conversations->start($request->user(), $seller->id, [
+            'type' => 'ORDER_SELLER',
+            'order_id' => $order->id,
+            'seller_order_id' => $sellerOrder->id,
+        ]);
+
+        return redirect()->route('buyer.messages', ['seller' => 'conversation-'.$conversation->id]);
+    }
+
+    public function supportConversation(Request $request, Order $order, ConversationService $conversations): RedirectResponse
+    {
+        abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
+
+        $supportUser = User::query()
+            ->where('account_type', User::TYPE_ADMIN)
+            ->where('status', User::STATUS_ACTIVE)
+            ->orderBy('id')
+            ->first();
+
+        if (! $supportUser) {
+            return back()->with('buyer_notice', 'Support is temporarily unavailable. Please try again shortly.');
+        }
+
+        $conversation = $conversations->start($request->user(), $supportUser->id, [
+            'type' => 'ORDER_SUPPORT',
+            'order_id' => $order->id,
+        ]);
+
+        return redirect()->route('buyer.messages', ['seller' => 'conversation-'.$conversation->id]);
+    }
+
+    public function cancel(Request $request, Order $order): RedirectResponse|JsonResponse
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
         abort_unless(in_array($order->status, ['PLACED', 'PROCESSING'], true), 409, 'This order can no longer be cancelled.');
@@ -144,10 +219,18 @@ class BuyerOrderController extends Controller
             }
         }
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'order_number' => $order->order_number,
+                'status' => 'CANCELLED',
+            ]);
+        }
+
         return back()->with('buyer_notice', 'Order cancelled.');
     }
 
-    public function received(Request $request, Order $order): RedirectResponse
+    public function received(Request $request, Order $order): RedirectResponse|JsonResponse
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
         $order->loadMissing('sellerOrders.shipment');
@@ -193,6 +276,14 @@ class BuyerOrderController extends Controller
             }
         }
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'order_number' => $order->order_number,
+                'status' => 'COMPLETED',
+            ]);
+        }
+
         return redirect(route('buyer.orders.show', $order).'#reviews')
             ->with('buyer_notice', 'Order received. You can now rate the products and write a review.');
     }
@@ -205,7 +296,7 @@ class BuyerOrderController extends Controller
         }
         [$deliveredAt, $deadline] = $this->returnRefundEligibility($order);
         if ($this->activeReturnRefund($order, $request->user()->id)) {
-            return redirect()->route('buyer.returns')->with('buyer_notice', 'Your return/refund request is already under review.');
+            return redirect()->route('buyer.orders', ['status' => 'RETURNS'])->with('buyer_notice', 'Your return/refund request is already under review.');
         }
 
         return view('Buyer.return-refund', [
@@ -220,6 +311,11 @@ class BuyerOrderController extends Controller
     public function returnRefund(Request $request, Order $order): View|RedirectResponse|JsonResponse
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
+
+        if (! $request->filled('issue_category')) {
+            return $this->returnRefundLegacy($request, $order);
+        }
+
         if (! $this->returnRefundStorageReady()) {
             $message = 'Return & Refund is still being set up. Please try again after the latest deployment finishes.';
             return $request->expectsJson()
@@ -341,19 +437,9 @@ class BuyerOrderController extends Controller
         return view('Buyer.return-refund-success', ['requestRecord' => $requestRecord, 'order' => $order]);
     }
 
-    public function returns(Request $request): View
+    public function returns(): RedirectResponse
     {
-        if (! $this->returnRefundStorageReady()) {
-            return view('Buyer.returns', ['requests' => new LengthAwarePaginator([], 0, 10)]);
-        }
-
-        $requests = ReturnRefundRequest::query()
-            ->with(['order', 'items.orderItem'])
-            ->where('buyer_user_id', $request->user()->id)
-            ->latest('submitted_at')
-            ->paginate(10);
-
-        return view('Buyer.returns', compact('requests'));
+        return redirect()->route('buyer.orders', ['status' => 'RETURNS']);
     }
 
     private function returnRefundEligibility(Order $order): array
@@ -422,17 +508,21 @@ class BuyerOrderController extends Controller
 
     private function storeDisputeEvidence(Dispute $dispute, mixed $file, int $userId, string $notes): void
     {
+        $isImage = $file instanceof UploadedFile && str_starts_with((string) $file->getMimeType(), 'image/');
+
         DisputeEvidence::create([
             'dispute_id' => $dispute->id,
             'uploaded_by_user_id' => $userId,
-            'file_path' => $file->store('return-refund-evidence'),
+            'file_path' => $isImage
+                ? $this->images->store($file, 'return-refund-evidence', 'local')
+                : $file->store('return-refund-evidence'),
             'original_name' => $file->getClientOriginalName(),
             'mime_type' => $file->getClientMimeType(),
             'notes' => $notes,
         ]);
     }
 
-    private function returnRefundLegacy(Request $request, Order $order): RedirectResponse
+    private function returnRefundLegacy(Request $request, Order $order): RedirectResponse|JsonResponse
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
         $order->loadMissing('sellerOrders.shipment.events');
@@ -452,7 +542,23 @@ class BuyerOrderController extends Controller
         abort_unless($deliveredAt && now()->lte($deliveredAt->copy()->addDays(5)), 409, 'The five-day return and refund window has expired.');
 
         $data = $request->validate([
-            'reason' => ['required', 'string', 'min:10', 'max:2000'],
+            'request_type' => ['sometimes', 'required', Rule::in(['Return and refund', 'Refund only'])],
+            'reason_category' => [
+                'required_with:request_type',
+                'nullable',
+                Rule::in([
+                    'Damaged item',
+                    'Defective item',
+                    'Wrong product',
+                    'Wrong variation',
+                    'Missing item',
+                    'Missing parts',
+                    'Significantly different from description',
+                    'Other',
+                ]),
+            ],
+            'details' => ['required_with:request_type', 'nullable', 'string', 'min:20', 'max:3000'],
+            'reason' => ['required_without:request_type', 'nullable', 'string', 'min:10', 'max:2000'],
         ]);
 
         $existing = Dispute::query()
@@ -462,17 +568,31 @@ class BuyerOrderController extends Controller
             ->whereIn('status', ['OPEN', 'UNDER_REVIEW'])
             ->first();
 
+        $created = false;
+        $dispute = null;
+
         if (! $existing) {
+            $requestType = $data['request_type'] ?? 'Return and refund';
+            $description = isset($data['request_type'])
+                ? "Request type: {$requestType}\nReason: {$data['reason_category']}\nDetails: ".trim($data['details'])
+                : trim($data['reason']);
+
             $dispute = Dispute::create([
                 'dispute_number' => 'RR-'.now()->format('Ymd').'-'.Str::upper(Str::random(8)),
                 'opened_by_user_id' => $request->user()->id,
                 'order_id' => $order->id,
                 'type' => 'RETURN_REFUND',
                 'subject' => 'Return / Refund Request — '.$order->order_number,
-                'description' => trim($data['reason']),
+                'description' => $description,
                 'status' => 'OPEN',
                 'opened_at' => now(),
             ]);
+
+            $dispute->update([
+                'subject' => $requestType."\u{2014} Return / Refund \u{2014} ".$order->order_number,
+            ]);
+
+            $created = true;
 
             User::query()->where('account_type', User::TYPE_ADMIN)->where('status', User::STATUS_ACTIVE)->get()->each(function (User $admin) use ($order, $dispute): void {
                 Notification::create([
@@ -487,10 +607,24 @@ class BuyerOrderController extends Controller
             });
         }
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'dispute_id' => $existing?->id ?? $dispute?->id,
+                    'status' => $existing?->status ?? $dispute?->status,
+                    'already_submitted' => ! $created,
+                ],
+                'message' => ! $created
+                    ? 'Your return/refund request is already under review.'
+                    : 'Your return/refund request was submitted for review.',
+            ], $created ? 201 : 200);
+        }
+
         return back()->with('buyer_notice', $existing ? 'Your return/refund request is already under review.' : 'Your return/refund request was submitted for review.');
     }
 
-    public function review(Request $request, OrderItem $item, RiderRatingService $riderRatings, ReviewImageService $reviewImages): RedirectResponse
+    public function review(Request $request, OrderItem $item, RiderRatingService $riderRatings, ReviewImageService $reviewImages): RedirectResponse|JsonResponse
     {
         $item->loadMissing('review', 'sellerOrder.order', 'sellerOrder.shipment.riderAssignments.riderProfile');
         abort_unless((int) $item->sellerOrder->order->buyer_user_id === (int) $request->user()->id, 403);
@@ -505,14 +639,26 @@ class BuyerOrderController extends Controller
         ]);
 
         if ($item->review && (filled($data['rating'] ?? null) || filled($data['rider_rating'] ?? null) || $request->hasFile('image'))) {
+            if ($request->expectsJson()) {
+                abort(409, 'Submitted ratings and photos are locked. You can still edit the review text.');
+            }
+
             return back()->withErrors(['rating' => 'Submitted ratings and photos are locked. You can still edit the review text.'])->withInput();
         }
 
         if ($request->hasFile('image') && ! filled($data['rating'] ?? null)) {
+            if ($request->expectsJson()) {
+                abort(422, 'Choose a product rating to attach a photo.');
+            }
+
             return back()->withErrors(['rating' => 'Choose a product rating to attach a photo.'])->withInput();
         }
 
         if (! $item->review && ! filled($data['rating'] ?? null) && ! filled($data['rider_rating'] ?? null)) {
+            if ($request->expectsJson()) {
+                abort(422, 'Choose a product rating or a rider rating.');
+            }
+
             return back()->withErrors(['rating' => 'Choose a product rating or a rider rating.'])->withInput();
         }
 
@@ -549,6 +695,13 @@ class BuyerOrderController extends Controller
 
         if ($request->hasFile('image')) {
             $reviewImages->store($review, $request->file('image'), $request->user(), $request);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'review_id' => $review->id,
+            ]);
         }
 
         return back()->with('buyer_notice', 'Your ratings were saved.');

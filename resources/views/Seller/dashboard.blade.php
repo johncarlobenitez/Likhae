@@ -38,7 +38,7 @@
         <section class="sl-card sl-sales-panel">
             <header class="sl-card-head">
                 <div><span class="sl-eyebrow">Performance</span><h2>Sales Overview</h2><p>Revenue collected over the last 7 days.</p></div>
-                <a href="{{ route('seller.finance', ['tab' => 'sales']) }}" class="sl-text-link">Finance details</a>
+                <a href="{{ route('seller.reports') }}" class="sl-text-link">View reports</a>
             </header>
             <div class="sl-chart-summary">
                 <div><span>Total revenue</span><strong>₱{{ number_format($stats['revenue'], 2) }}</strong></div>

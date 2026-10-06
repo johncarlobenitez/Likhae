@@ -117,15 +117,9 @@
         </div>
 
         <div class="sl-nav-section">
-            <span class="sl-nav-label">Finance</span>
-            <a href="{{ route('seller.finance', ['tab' => 'sales']) }}" class="sl-nav-link {{ $active === 'finance' && request('tab', 'sales') === 'sales' ? 'is-active' : '' }}" data-title="Sales">
-                <span class="sl-nav-icon">{!! $icon('finance') !!}</span><span class="sl-nav-text">Sales</span>
-            </a>
-            <a href="{{ route('seller.reports') }}" class="sl-nav-link {{ $active === 'reports' ? 'is-active' : '' }}" data-title="Profit Reports">
-                <span class="sl-nav-icon">{!! $icon('reports') !!}</span><span class="sl-nav-text">Profit Reports</span>
-            </a>
-            <a href="{{ route('seller.finance', ['tab' => 'transactions']) }}" class="sl-nav-link {{ $active === 'finance' && request('tab') === 'transactions' ? 'is-active' : '' }}" data-title="Transactions">
-                <span class="sl-nav-icon">{!! $icon('finance') !!}</span><span class="sl-nav-text">Transactions</span>
+            <span class="sl-nav-label">Growth &amp; Finance</span>
+            <a href="{{ route('seller.reports') }}" class="sl-nav-link {{ $active === 'reports' ? 'is-active' : '' }}" data-title="Reports">
+                <span class="sl-nav-icon">{!! $icon('reports') !!}</span><span class="sl-nav-text">Reports</span>
             </a>
         </div>
 

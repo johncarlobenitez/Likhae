@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Seller;
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Notification;
 use App\Models\Buyer\Review;
+use App\Models\Communication\Conversation;
 use App\Models\Seller\Voucher;
 use App\Services\Communication\ConversationService;
 use Illuminate\Http\JsonResponse;
@@ -41,10 +42,21 @@ class SellerEngagementController extends Controller
     {
         $data = $request->validate([
             'recipient_user_id' => ['required', 'integer', 'exists:users,id'],
+            'conversation_id' => ['nullable', 'integer', 'exists:conversations,id'],
             'body' => ['required', 'string', 'max:5000'],
         ]);
 
-        $conversationService->send($request->user(), (int) $data['recipient_user_id'], $data['body']);
+        $context = [];
+        if (! empty($data['conversation_id'])) {
+            $conversation = Conversation::query()
+                ->whereKey((int) $data['conversation_id'])
+                ->whereHas('participants', fn ($query) => $query->where('users.id', $request->user()->id))
+                ->whereHas('participants', fn ($query) => $query->where('users.id', (int) $data['recipient_user_id']))
+                ->firstOrFail();
+            $context = $conversationService->contextFor($conversation);
+        }
+
+        $conversationService->send($request->user(), (int) $data['recipient_user_id'], $data['body'], $context);
 
         return back()->with('status', 'Message sent.');
     }

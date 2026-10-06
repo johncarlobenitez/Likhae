@@ -147,6 +147,7 @@ class ProductCatalogService
                 'is_primary' => (bool) $image->is_primary,
                 'sort_order' => (int) $image->sort_order,
             ])
+            ->sortByDesc('is_primary')
             ->values();
 
         $primaryImage = $images->firstWhere('is_primary', true) ?: $images->first();
@@ -185,7 +186,7 @@ class ProductCatalogService
         ];
 
         if ($includeDetails) {
-            $product->loadMissing('reviews.buyer');
+            $product->loadMissing(['reviews.buyer', 'reviews.orderItem']);
             $reviewImageUrls = $this->reviewImages->urlsFor($product->reviews);
             $payload['customer_reviews'] = $product->reviews
                 ->sortByDesc('created_at')
@@ -195,6 +196,7 @@ class ProductCatalogService
                     'comment' => $review->comment,
                     'image_url' => $reviewImageUrls[$review->id] ?? null,
                     'date' => $review->created_at?->format('M j, Y') ?? 'Recently',
+                    'variant' => $review->orderItem?->variant_description ?: 'Standard',
                 ])
                 ->values()
                 ->all();
@@ -315,6 +317,6 @@ class ProductCatalogService
             return $path;
         }
 
-        return Storage::url($path);
+        return '/storage/'.ltrim($path, '/');
     }
 }

@@ -6,9 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\Buyer\Address;
 use App\Models\Buyer\CartItem;
 use App\Models\Buyer\WishlistItem;
+use App\Models\Communication\Conversation;
 use App\Models\Seller\Product;
 use App\Models\Seller\SellerProfile;
 use App\Models\Seller\Voucher;
+use App\Models\User;
+use App\Services\Account\ProfilePhotoService;
 use App\Services\Communication\ConversationService;
 use App\Services\Marketplace\CartService;
 use App\Services\Marketplace\CheckoutService;
@@ -17,6 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -151,21 +155,46 @@ class BuyerController extends Controller
         return back()->with('buyer_notice', 'Item removed from cart.');
     }
 
-    public function messages(Request $request): View
+    public function messages(Request $request): View|RedirectResponse
     {
+        $sellerId = $request->integer('seller_id');
+
+        if ($sellerId > 0) {
+            $seller = User::query()
+                ->with('sellerProfile')
+                ->whereKey($sellerId)
+                ->where('status', User::STATUS_ACTIVE)
+                ->firstOrFail();
+
+            abort_unless($seller->sellerProfile?->status === 'ACTIVE', 404);
+
+            $conversation = $this->conversations->start($request->user(), $seller->id, [
+                'type' => 'PRODUCT_SELLER',
+            ]);
+
+            return redirect()->route('buyer.messages', array_filter([
+                'seller' => 'conversation-'.$conversation->id,
+                'product' => $request->query('product'),
+            ], static fn ($value) => filled($value)));
+        }
+
         $conversations = $this->conversations->listFor($request->user());
         $conversations->each(fn ($conversation) => $this->conversations->markRead($conversation, $request->user()));
         $rows = $conversations->map(function ($conversation) use ($request): array {
             $other = $conversation->participants->first(fn ($participant) => (int) $participant->id !== (int) $request->user()->id);
             $seller = $other?->sellerProfile;
-            $name = $seller?->business_name ?: $other?->name ?: 'LIKHAE User';
+            $isSeller = $seller?->status === 'ACTIVE';
+            $isSupport = $other?->isAccountType(User::TYPE_ADMIN) ?? false;
+            $name = $isSupport ? 'LIKHAE Support' : ($isSeller ? $seller->business_name : ($other?->name ?: 'LIKHAE User'));
 
             return [
                 'id' => $other?->id,
                 'conversation_id' => $conversation->id,
                 'name' => $name,
                 'slug' => 'conversation-'.$conversation->id,
-                'store_key' => $seller?->id,
+                'store_key' => $isSeller ? $seller->id : null,
+                'is_seller' => $isSeller,
+                'is_support' => $isSupport,
                 'avatar' => 'https://ui-avatars.com/api/?name='.urlencode($name).'&background=561C17&color=fff',
                 'last_message' => $conversation->latestMessage?->body ?: 'Start a conversation.',
                 'time' => $conversation->latestMessage?->sent_at?->diffForHumans() ?? '',
@@ -202,19 +231,50 @@ class BuyerController extends Controller
         ]);
     }
 
-    public function sendMessage(Request $request): RedirectResponse
+    public function sendMessage(Request $request): JsonResponse|RedirectResponse
     {
         $data = $request->validate([
             'recipient_id' => ['required', 'integer', Rule::exists('users', 'id')],
+            'conversation_id' => ['nullable', 'integer', Rule::exists('conversations', 'id')],
             'body' => ['required', 'string', 'max:2000'],
         ]);
 
-        $recipient = SellerProfile::query()
-            ->where('status', 'ACTIVE')
-            ->whereHas('user', fn ($query) => $query->whereKey((int) $data['recipient_id'])->where('status', 'ACTIVE'))
+        $recipient = User::query()
+            ->whereKey((int) $data['recipient_id'])
+            ->where('status', User::STATUS_ACTIVE)
             ->firstOrFail();
 
-        $this->conversations->send($request->user(), $recipient->user_id, trim($data['body']));
+        $isActiveSeller = $recipient->sellerProfile?->status === 'ACTIVE';
+        abort_unless($isActiveSeller || $recipient->isAccountType(User::TYPE_ADMIN), 404);
+
+        $context = [];
+        if (! empty($data['conversation_id'])) {
+            $conversation = Conversation::query()
+                ->whereKey((int) $data['conversation_id'])
+                ->whereHas('participants', fn ($query) => $query->where('users.id', $request->user()->id))
+                ->whereHas('participants', fn ($query) => $query->where('users.id', $recipient->id))
+                ->firstOrFail();
+
+            $context = $this->conversations->contextFor($conversation);
+        }
+
+        $message = $this->conversations->send($request->user(), $recipient->id, trim($data['body']), $context);
+
+        if ($request->expectsJson()) {
+            $sentAt = $message->sent_at ?? $message->created_at;
+
+            return response()->json([
+                'success' => true,
+                'message' => [
+                    'id' => (string) $message->id,
+                    'conversation_id' => (string) $message->conversation_id,
+                    'sender_id' => (string) $message->sender_user_id,
+                    'body' => $message->body,
+                    'from_me' => true,
+                    'time' => $sentAt?->diffForHumans() ?? 'Just now',
+                ],
+            ]);
+        }
 
         return back()->with('buyer_notice', 'Message sent.');
     }
@@ -354,16 +414,33 @@ class BuyerController extends Controller
         ]);
     }
 
-    public function saveProfile(Request $request): RedirectResponse
+    public function saveProfile(Request $request, ProfilePhotoService $profilePhotos): RedirectResponse
     {
         $data = $request->validate([
-            'first_name' => ['required', 'string', 'max:100'],
-            'middle_initial' => ['nullable', 'string', 'max:10'],
-            'last_name' => ['required', 'string', 'max:100'],
-            'contact_number' => ['required', 'string', 'max:30', Rule::unique('users', 'contact_number')->ignore($request->user()->id)],
+            'name' => ['required', 'string', 'max:201'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($request->user()->id)],
+            'phone' => ['required', 'string', 'max:30', Rule::unique('users', 'contact_number')->ignore($request->user()->id)],
+            'birthday' => ['nullable', 'date', 'before_or_equal:today'],
+            'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
+            'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
-        $request->user()->update($data);
+        $user = $request->user();
+        $nameParts = preg_split('/\s+/', trim($data['name']), 2);
+        $changes = [
+            'first_name' => $nameParts[0],
+            'last_name' => $nameParts[1] ?? $user->last_name,
+            'email' => $data['email'],
+            'contact_number' => $data['phone'],
+            'birthday' => $data['birthday'] ?? $user->birthday,
+            'sex' => filled($data['gender'] ?? null) ? strtoupper($data['gender']) : null,
+        ];
+
+        $user->update($changes);
+
+        if ($request->hasFile('profile_photo')) {
+            $profilePhotos->replace($user, $request->file('profile_photo'));
+        }
 
         return back()->with('buyer_notice', 'Profile updated.');
     }

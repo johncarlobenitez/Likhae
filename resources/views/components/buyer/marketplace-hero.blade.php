@@ -11,10 +11,11 @@
         display: grid !important;
         grid-template-columns: minmax(0, 46%) minmax(0, 54%) !important;
         align-items: center !important;
-        min-height: clamp(620px, 52vw, 700px) !important;
+        aspect-ratio: auto !important;
+        min-height: clamp(560px, calc(100svh - 124px), 720px) !important;
         padding: 48px clamp(28px, 4.2vw, 64px) 62px !important;
         overflow: hidden !important;
-        border: 0 !important;
+        border: 1px solid rgba(193, 151, 113, .32) !important;
         border-radius: 28px !important;
         background-color: #fbf8f4 !important;
         background-image: url('{{ asset('images/home-buyer.png') }}') !important;
@@ -38,11 +39,6 @@
     .lk-buyer-hero__button--primary { background: linear-gradient(135deg, #b33824, #c64b34); color: #fff !important; box-shadow: 0 12px 22px rgba(177, 52, 34, .2); }
     .lk-buyer-hero__button--secondary { background: rgba(255,255,255,.7); color: #aa2f21 !important; }
     .lk-buyer-hero__button svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
-    .lk-buyer-hero__benefits { display: grid; grid-template-columns: repeat(4, 1fr); max-width: 570px; margin-top: 34px; }
-    .lk-buyer-hero__benefit { display: flex; align-items: center; gap: 10px; min-width: 0; padding-right: 12px; color: #252122; font-size: 11px; font-weight: 700; line-height: 1.15; }
-    .lk-buyer-hero__benefit + .lk-buyer-hero__benefit { padding-left: 14px; border-left: 1px solid rgba(106, 83, 72, .2); }
-    .lk-buyer-hero__benefit-icon { display: grid; flex: 0 0 44px; width: 44px; height: 44px; place-items: center; border-radius: 50%; background: rgba(250,232,225,.88); color: #b43123; }
-    .lk-buyer-hero__benefit-icon svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.75; }
     .lk-buyer-hero__products { position: relative; z-index: 2; display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, .96fr); align-items: start; gap: 14px; min-width: 0; padding-top: 22px; }
     .lk-buyer-hero__card { position: relative; display: block; overflow: hidden; border: 1px solid rgba(255,255,255,.9); border-radius: 20px; background: #f8f0e8; color: #1f1814 !important; box-shadow: 0 20px 38px rgba(82,49,32,.17); text-decoration: none; transition: transform .2s ease, box-shadow .2s ease; }
     .lk-buyer-hero__card:first-child { transform: rotate(-1.2deg); }
@@ -50,11 +46,10 @@
     .lk-buyer-hero__card:hover { box-shadow: 0 25px 46px rgba(82,49,32,.24); }
     .lk-buyer-hero__card:first-child:hover { transform: translateY(-4px) rotate(-1.2deg); }
     .lk-buyer-hero__card:nth-child(2):hover { transform: translateY(-4px) rotate(1deg); }
-    .lk-buyer-hero__image { position: relative; aspect-ratio: 4 / 5.05; overflow: hidden; background: #e8dbce; }
-    .lk-buyer-hero__card:nth-child(2) .lk-buyer-hero__image { aspect-ratio: 3 / 4.25; }
-    .lk-buyer-hero__image img { width: 100%; height: 100%; object-fit: cover; transition: transform .3s ease; }
+    .lk-buyer-hero__image { position: relative; overflow: hidden; background: #e8dbce; }
+    .lk-buyer-hero__image img { display: block; box-sizing: border-box; width: 100%; height: auto; padding: 12px; object-fit: contain; object-position: center; transition: transform .3s ease; }
     .lk-buyer-hero__card:hover img { transform: scale(1.035); }
-    .lk-buyer-hero__placeholder { display: grid; width: 100%; height: 100%; place-items: center; padding: 20px; color: #96604e; background: linear-gradient(145deg,#f5e9df,#ddc8b6); text-align: center; }
+    .lk-buyer-hero__placeholder { display: grid; width: 100%; min-height: 240px; place-items: center; padding: 20px; color: #96604e; background: linear-gradient(145deg,#f5e9df,#ddc8b6); text-align: center; }
     .lk-buyer-hero__badge { position: absolute; top: 16px; left: 16px; display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border-radius: 999px; background: #fff0d7; color: #692b1f; font-size: 10px; font-weight: 900; letter-spacing: .02em; text-transform: uppercase; box-shadow: 0 4px 12px rgba(61,35,20,.08); }
     .lk-buyer-hero__badge i { color: #f4a31e; font-size: 16px; font-style: normal; line-height: 1; }
     .lk-buyer-hero__info { position: relative; min-height: 108px; padding: 17px 68px 17px 20px; background: rgba(249,241,232,.98); }
@@ -85,9 +80,6 @@
         color: #f0c0b6 !important;
     }
     html.dark .lk-buyer-hero__button--secondary:hover { background: #3b2e27; }
-    html.dark .lk-buyer-hero__benefit { color: #f5efe8; }
-    html.dark .lk-buyer-hero__benefit + .lk-buyer-hero__benefit { border-left-color: #514037; }
-    html.dark .lk-buyer-hero__benefit-icon { background: #2d1414; color: #eba99d; }
     html.dark .lk-buyer-hero__card {
         background: #211b17;
         border-color: #514037;
@@ -104,9 +96,9 @@
     html.dark .lk-buyer-hero__price { color: #eba99d; }
     html.dark .lk-buyer-hero__arrow { background: #3b2e27; color: #f0c0b6; box-shadow: none; }
 
-    @media (max-width: 1100px) { .lk-buyer-hero { grid-template-columns: 1fr !important; padding-bottom: 72px !important; background-position: center !important; background-size: auto calc(100% + 8px) !important; } .lk-buyer-hero__copy { padding-right: 0; } .lk-buyer-hero__products { width: min(760px, 100%); margin: 16px auto 0; } }
+    @media (max-width: 1100px) { .lk-buyer-hero { min-height: clamp(620px, calc(100svh - 96px), 760px) !important; grid-template-columns: 1fr !important; padding-bottom: 72px !important; background-position: center !important; background-size: auto calc(100% + 8px) !important; } .lk-buyer-hero__copy { padding-right: 0; } .lk-buyer-hero__products { width: min(760px, 100%); margin: 16px auto 0; } }
     @media (max-width: 900px) { .lk-buyer-hero { width: 100% !important; margin: 0 !important; } }
-    @media (max-width: 640px) { .lk-buyer-hero { min-height: 0 !important; padding: 34px 18px 46px !important; border-radius: 20px !important; background-position: 38% center !important; } .lk-buyer-hero h1 { font-size: clamp(45px, 13vw, 60px) !important; } .lk-buyer-hero__actions { flex-direction: column; } .lk-buyer-hero__button { width: 100%; } .lk-buyer-hero__benefits { grid-template-columns: 1fr 1fr; gap: 16px 8px; } .lk-buyer-hero__benefit + .lk-buyer-hero__benefit { padding-left: 0; border-left: 0; } .lk-buyer-hero__products { grid-template-columns: 1fr; gap: 18px; padding-top: 12px; } .lk-buyer-hero__card:first-child, .lk-buyer-hero__card:nth-child(2) { margin-top: 0; transform: none; } .lk-buyer-hero__image, .lk-buyer-hero__card:nth-child(2) .lk-buyer-hero__image { aspect-ratio: 4 / 4.25; } }
+    @media (max-width: 640px) { .lk-buyer-hero { min-height: 0 !important; padding: 34px 18px 46px !important; border-radius: 20px !important; background-position: 38% center !important; } .lk-buyer-hero h1 { font-size: clamp(45px, 13vw, 60px) !important; } .lk-buyer-hero__actions { flex-direction: column; } .lk-buyer-hero__button { width: 100%; } .lk-buyer-hero__products { grid-template-columns: 1fr; gap: 18px; padding-top: 12px; } .lk-buyer-hero__card:first-child, .lk-buyer-hero__card:nth-child(2) { margin-top: 0; transform: none; } }
     @media (max-width: 560px) { .lk-buyer-hero { width: 100% !important; margin: 0 !important; } }
 </style>
 @endonce
@@ -119,11 +111,6 @@
         <div class="lk-buyer-hero__actions">
             <a href="{{ $browseUrl }}" class="lk-buyer-hero__button lk-buyer-hero__button--primary"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l1 12H4L5 8Z"/><path d="M8 8a4 4 0 0 1 8 0"/></svg>Browse Products</a>
             <a href="{{ $categoriesUrl }}" class="lk-buyer-hero__button lk-buyer-hero__button--secondary"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Explore Categories</a>
-        </div>
-        <div class="lk-buyer-hero__benefits" aria-label="Marketplace benefits">
-            @foreach([['Wide Selection','box'],['Trusted Sellers','shield'],['Secure Checkout','lock'],['Fast Shopping','truck']] as [$label,$icon])
-                <div class="lk-buyer-hero__benefit"><span class="lk-buyer-hero__benefit-icon"><svg viewBox="0 0 24 24" aria-hidden="true">@if($icon === 'box')<path d="m3 7 9-4 9 4v10l-9 4-9-4V7Z"/><path d="m3 7 9 5 9-5M12 12v9"/>@elseif($icon === 'shield')<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>@elseif($icon === 'lock')<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>@else<path d="M3 6h11v10H3zM14 9h4l3 4v3h-7z"/><circle cx="7" cy="19" r="2"/><circle cx="18" cy="19" r="2"/>@endif</svg></span><span>{{ $label }}</span></div>
-            @endforeach
         </div>
     </div>
     <div class="lk-buyer-hero__products" aria-label="Best-selling products">

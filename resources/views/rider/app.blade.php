@@ -29,7 +29,7 @@
 
     @vite([
         'resources/css/logistic/app.css',
-        'resources/js/rider.js'
+        'resources/js/rider/app.js'
     ])
 
     <style>
@@ -446,6 +446,28 @@
             cursor: pointer;
         }
 
+        .rider-notification-trigger {
+            position: relative;
+        }
+
+        .rider-notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            display: grid;
+            min-width: 16px;
+            height: 16px;
+            place-items: center;
+            padding: 0 3px;
+            border: 2px solid var(--ra-card);
+            border-radius: 999px;
+            background: #b42318;
+            color: #fff;
+            font-size: 8px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
         .rider-mobile-menu-btn svg {
             width: 18px;
             height: 18px;
@@ -664,6 +686,11 @@
                         <path d="M4 17h16"></path>
                     </svg>
                 </button>
+                <button type="button" class="rider-mobile-menu-btn rider-notification-trigger" aria-label="Notifications" aria-controls="notificationPopover" aria-expanded="false" data-notification-toggle>
+                    <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
+                    @if(($workspaceNotificationCount ?? 0) > 0)<span class="rider-notification-badge">{{ $workspaceNotificationCount }}</span>@endif
+                </button>
+                <x-workspace-account-menu label="Rider Account" profile-route="rider.profile" compact />
             </div>
 
             <header class="rider-topbar">
@@ -677,9 +704,7 @@
                     </span>
                 </div>
 
-                <span class="rider-topbar-status">
-                    Rider Online
-                </span>
+                <div style="display:flex;align-items:center;gap:10px"><button type="button" class="rider-mobile-menu-btn rider-notification-trigger" aria-label="Notifications" aria-controls="notificationPopover" aria-expanded="false" data-notification-toggle><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>@if(($workspaceNotificationCount ?? 0) > 0)<span class="rider-notification-badge">{{ $workspaceNotificationCount }}</span>@endif</button><span class="rider-topbar-status">Rider Online</span><x-workspace-account-menu label="Rider Account" profile-route="rider.profile" /></div>
             </header>
 
             <div class="rider-content">
@@ -690,6 +715,7 @@
 
     </div>
 
+    <x-notification-popover />
     @stack('scripts')
 </body>
 

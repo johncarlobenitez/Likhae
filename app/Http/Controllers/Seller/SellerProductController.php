@@ -57,14 +57,20 @@ class SellerProductController extends Controller
 
         return redirect()
             ->route('seller.products', ['mode' => 'edit', 'product' => $product->id])
-            ->with('status', 'Product saved to the final 57-table catalog.');
+            ->with('product_saved', [
+                'name' => $product->name,
+                'status' => $product->status,
+            ]);
     }
 
     public function update(SaveSellerProductRequest $request, Product $product): RedirectResponse
     {
-        $this->sellerCatalog->save($this->seller($request), $request, $product);
+        $product = $this->sellerCatalog->save($this->seller($request), $request, $product);
 
-        return back()->with('status', 'Product updated.');
+        return back()->with('product_saved', [
+            'name' => $product->name,
+            'status' => $product->status,
+        ]);
     }
 
     public function stock(Request $request, Product $product): RedirectResponse

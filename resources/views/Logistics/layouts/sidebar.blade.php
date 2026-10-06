@@ -664,26 +664,6 @@
         </button>
     </div>
 
-    <div class="logi-user-wrap">
-        <div class="logi-user-card">
-            <span class="logi-user-avatar">
-                LC
-            </span>
-
-            <div class="logi-user-copy">
-                <strong>
-                    Logistics Center
-                </strong>
-
-                <span>
-                    Operations Staff
-                </span>
-            </div>
-
-            <span class="logi-online-dot" title="Online"></span>
-        </div>
-    </div>
-
     <nav class="logi-nav" aria-label="Logistics navigation">
         <a
             href="{{ route('logistics.dashboard') }}"

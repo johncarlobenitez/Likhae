@@ -9,6 +9,7 @@
         "php": "^8.3",
         "endroid/qr-code": "5.1",
         "laravel/framework": "^13.17",
+        "laravel/reverb": "^1.12",
         "laravel/socialite": "^5.31",
         "laravel/tinker": "^3.0",
         "picqer/php-barcode-generator": "3.2"
@@ -45,6 +46,7 @@
         ],
         "deploy": [
             "@php artisan migrate --force",
+            "@php -r \"array_map('unlink', array_filter(['public/hot', 'storage/framework/vite.hot'], 'file_exists'));\"",
             "npm run build",
             "@php artisan storage:link",
             "@php artisan optimize:clear",

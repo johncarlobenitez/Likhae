@@ -123,7 +123,7 @@
                             id="email"
                             name="email"
                             type="email"
-                            value="{{ old('email') }}"
+                            value="{{ old('email', request('email')) }}"
                             placeholder="you@example.com"
                             autocomplete="email"
                             required

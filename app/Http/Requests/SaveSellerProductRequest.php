@@ -34,7 +34,7 @@ class SaveSellerProductRequest extends FormRequest
             'single_variant_id' => ['nullable', 'integer'],
 
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
-            'images' => ['nullable', 'array', 'max:8'],
+            'images' => ['nullable', 'array', 'max:9'],
             'images.*' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
 
             'options' => ['required_if:product_type,variations', 'nullable', 'array', 'max:5'],

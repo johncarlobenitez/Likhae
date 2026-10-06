@@ -46,7 +46,7 @@ class AdminAccountPersistenceTest extends TestCase
             ])
             ->assertRedirect();
 
-        $this->patch(route('admin.account.preferences'), [
+        $this->actingAs($admin)->patch(route('admin.account.preferences'), [
             'registrations' => '1',
             'risk' => '1',
             'finance' => '0',
@@ -54,11 +54,15 @@ class AdminAccountPersistenceTest extends TestCase
         ])->assertRedirect();
 
         $this->assertSame('ada.admin@example.test', $admin->fresh()->email);
-        $this->assertSame([
+        $preferences = $admin->fresh()->notification_preferences;
+        ksort($preferences);
+        $expectedPreferences = [
             'registrations' => true,
             'risk' => true,
             'finance' => false,
             'messages' => true,
-        ], $admin->fresh()->notification_preferences);
+        ];
+        ksort($expectedPreferences);
+        $this->assertSame($expectedPreferences, $preferences);
     }
 }

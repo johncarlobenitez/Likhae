@@ -1,0 +1,204 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Admin\Notification;
+use App\Models\Buyer\Order;
+use App\Models\Buyer\Review;
+use App\Models\Logistics\Shipment;
+use App\Models\Rider\RiderAssignment;
+use App\Models\Rider\RiderEarning;
+use App\Models\Seller\SellerOrder;
+use App\Models\User;
+
+class AccountNotificationService
+{
+    public function orderPlaced(Order $order): void
+    {
+        $order->loadMissing('buyer');
+        $this->record(
+            $order->buyer,
+            'ORDER_PLACED',
+            'Order placed',
+            'Your order '.$order->order_number.' was placed successfully.',
+            'ORDER',
+            $order->id,
+            '/buyer/orders/'.$order->id,
+        );
+    }
+
+    public function orderStatusChanged(Order $order): void
+    {
+        $order->loadMissing('buyer');
+        $status = $this->label($order->status);
+
+        $this->record(
+            $order->buyer,
+            'ORDER_'.strtoupper((string) $order->status),
+            'Order '.$status,
+            'Your order '.$order->order_number.' is now '.$status.'.',
+            'ORDER_STATUS',
+            $order->id,
+            '/buyer/orders/'.$order->id,
+        );
+
+        if ($order->status === 'COMPLETED') {
+            $this->record(
+                $order->buyer,
+                'REWARD_ORDER_COMPLETED',
+                'Rewards added',
+                'You earned 50 reward points for completing order '.$order->order_number.'.',
+                'ORDER_REWARD',
+                $order->id,
+                '/buyer/rewards',
+            );
+        }
+    }
+
+    public function sellerOrderCreated(SellerOrder $sellerOrder): void
+    {
+        $sellerOrder->loadMissing('sellerProfile.user', 'order');
+        $this->record(
+            $sellerOrder->sellerProfile?->user,
+            'SELLER_ORDER_PLACED',
+            'New order received',
+            'Order '.$sellerOrder->seller_order_number.' is ready to process.',
+            'SELLER_ORDER',
+            $sellerOrder->id,
+            '/seller/orders',
+        );
+    }
+
+    public function sellerOrderStatusChanged(SellerOrder $sellerOrder): void
+    {
+        $sellerOrder->loadMissing('sellerProfile.user', 'order.buyer');
+        $status = $this->label($sellerOrder->status);
+
+        $this->record(
+            $sellerOrder->order?->buyer,
+            'SELLER_ORDER_'.strtoupper((string) $sellerOrder->status),
+            'Order update: '.$status,
+            'Seller order '.$sellerOrder->seller_order_number.' is now '.$status.'.',
+            'SELLER_ORDER_STATUS',
+            $sellerOrder->id,
+            '/buyer/orders/'.$sellerOrder->order_id,
+        );
+
+        $this->record(
+            $sellerOrder->sellerProfile?->user,
+            'SELLER_ORDER_STATUS_'.strtoupper((string) $sellerOrder->status),
+            'Order status: '.$status,
+            'Order '.$sellerOrder->seller_order_number.' is now '.$status.'.',
+            'SELLER_ORDER_STATUS_SELLER',
+            $sellerOrder->id,
+            '/seller/orders',
+        );
+    }
+
+    public function shipmentStatusChanged(Shipment $shipment): void
+    {
+        $shipment->loadMissing('sellerOrder.order.buyer', 'sellerOrder.sellerProfile.user', 'logisticsCenter.owner');
+        $status = $this->label($shipment->current_status);
+        $message = 'Parcel '.$shipment->tracking_number.' is now '.$status.'.';
+
+        $this->record($shipment->sellerOrder?->order?->buyer, 'SHIPMENT_'.strtoupper((string) $shipment->current_status), 'Delivery update: '.$status, $message, 'SHIPMENT_STATUS', $shipment->id, '/buyer/orders/'.$shipment->sellerOrder?->order_id);
+        $this->record($shipment->sellerOrder?->sellerProfile?->user, 'SELLER_SHIPMENT_'.strtoupper((string) $shipment->current_status), 'Delivery update: '.$status, $message, 'SELLER_SHIPMENT_STATUS', $shipment->id, '/seller/orders');
+        $this->record($shipment->logisticsCenter?->owner, 'LOGISTICS_SHIPMENT_'.strtoupper((string) $shipment->current_status), 'Parcel status: '.$status, $message, 'LOGISTICS_SHIPMENT_STATUS', $shipment->id, '/logistics/parcels/'.$shipment->id);
+    }
+
+    public function riderAssignmentCreated(RiderAssignment $assignment): void
+    {
+        $assignment->loadMissing('riderProfile.user', 'shipment');
+        $type = $this->label($assignment->assignment_type);
+        $this->record(
+            $assignment->riderProfile?->user,
+            'RIDER_ASSIGNMENT',
+            'New '.$type.' assignment',
+            'You have been assigned parcel '.$assignment->shipment?->tracking_number.'.',
+            'RIDER_ASSIGNMENT',
+            $assignment->id,
+            '/rider/dashboard',
+        );
+    }
+
+    public function riderAssignmentStatusChanged(RiderAssignment $assignment): void
+    {
+        $assignment->loadMissing('riderProfile.user', 'shipment');
+        $status = $this->label($assignment->status);
+        $this->record(
+            $assignment->riderProfile?->user,
+            'RIDER_ASSIGNMENT_'.strtoupper((string) $assignment->status),
+            'Assignment '.$status,
+            'Your '.$this->label($assignment->assignment_type).' assignment for '.$assignment->shipment?->tracking_number.' is '.$status.'.',
+            'RIDER_ASSIGNMENT_STATUS',
+            $assignment->id,
+            '/rider/dashboard',
+        );
+    }
+
+    public function reviewSubmitted(Review $review): void
+    {
+        $review->loadMissing('buyer', 'orderItem.sellerOrder.sellerProfile.user');
+        $sellerOrder = $review->orderItem?->sellerOrder;
+
+        $this->record(
+            $review->buyer,
+            'REWARD_REVIEW_SUBMITTED',
+            'Rewards added',
+            'You earned 20 reward points for submitting a product review.',
+            'REVIEW_REWARD',
+            $review->id,
+            '/buyer/rewards',
+        );
+
+        $this->record(
+            $sellerOrder?->sellerProfile?->user,
+            'SELLER_REVIEW_SUBMITTED',
+            'New product review',
+            'A buyer left a '.$review->rating.'-star review for order '.$sellerOrder?->seller_order_number.'.',
+            'SELLER_REVIEW',
+            $review->id,
+            '/seller/reviews',
+        );
+    }
+
+    public function riderEarningCreated(RiderEarning $earning): void
+    {
+        $earning->loadMissing('riderProfile.user');
+        $this->record(
+            $earning->riderProfile?->user,
+            'RIDER_EARNING',
+            'Delivery earnings added',
+            '₱'.number_format((float) $earning->amount, 2).' was added to your pending earnings.',
+            'RIDER_EARNING',
+            $earning->id,
+            '/rider/earnings',
+        );
+    }
+
+    private function record(?User $user, string $type, string $title, string $message, string $referenceType, int $referenceId, string $actionUrl): void
+    {
+        if (! $user || ! $user->isActive()) {
+            return;
+        }
+
+        Notification::query()->firstOrCreate(
+            [
+                'user_id' => $user->id,
+                'type' => $type,
+                'reference_type' => $referenceType,
+                'reference_id' => $referenceId,
+            ],
+            [
+                'title' => $title,
+                'message' => $message,
+                'action_url' => $actionUrl,
+            ],
+        );
+    }
+
+    private function label(?string $value): string
+    {
+        return str((string) $value)->replace('_', ' ')->headline()->toString();
+    }
+}

@@ -32,6 +32,7 @@
 @endphp
 
 @push('head')
+@vite('resources/js/shared/messages.js')
 <style>
     :root {
         --lk-bg: #FBF7F2;
@@ -658,23 +659,26 @@
 
                             <span class="lk-chat-status">
                                 <span class="lk-chat-status-dot"></span>
-                                Verified Seller · Online
+                                {{ ($activeSeller['is_support'] ?? false) ? 'LIKHAE Support' : 'Verified Seller · Online' }}
                             </span>
                         </div>
                     </div>
 
-                    <a
-                        href="{{ route('buyer.shop', ['seller' => $activeSeller['store_key'] ?? $activeSeller['slug']]) }}"
-                        class="lk-btn lk-btn-light lk-chat-store-btn"
-                    >
-                        View Store
-                    </a>
+                    @if($activeSeller['is_seller'] ?? false)
+                        <a
+                            href="{{ route('buyer.shop', ['seller' => $activeSeller['store_key']]) }}"
+                            class="lk-btn lk-btn-light lk-chat-store-btn"
+                        >
+                            View Store
+                        </a>
+                    @endif
                 </div>
 
                 <div
                     id="chatMessages"
                     class="lk-chat-stream"
-                    data-stream-url="{{ route('buyer.messages.stream', ['seller_id' => $activeSeller['id']]) }}"
+                    data-conversation-id="{{ $activeSeller['conversation_id'] ?? '' }}"
+                    data-current-user-id="{{ auth()->id() }}"
                     data-seller-avatar="{{ $activeSeller['avatar'] }}"
                     data-seller-name="{{ $activeSeller['name'] }}"
                 >
@@ -691,7 +695,7 @@
                             </div>
                         </div>
                     @empty
-                        <div class="lk-messages-empty">No messages yet. Send the first message to this seller.</div>
+                        <div class="lk-messages-empty">No messages yet. Send the first message to {{ $activeSeller['name'] }}.</div>
                     @endforelse
                     @if($refProduct)
                         <div class="lk-product-inquiry-card">
@@ -709,6 +713,7 @@
                 >
                     @csrf
                     <input type="hidden" name="recipient_id" value="{{ $activeSeller['id'] }}">
+                    <input type="hidden" name="conversation_id" value="{{ $activeSeller['conversation_id'] ?? '' }}">
                     <input
                         type="text"
                         name="body"
@@ -814,13 +819,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     scrollBottom();
 
-    if (window.EventSource && list.dataset.streamUrl) {
-        const streamUrl = new URL(list.dataset.streamUrl, window.location.origin);
-        streamUrl.searchParams.set('after', String(lastId));
-        const source = new EventSource(streamUrl.toString());
-        source.addEventListener('message', (event) => appendMessage(JSON.parse(event.data)));
-    }
-
     form?.addEventListener('submit', async (event) => {
         event.preventDefault();
         const body = input?.value.trim();
@@ -840,6 +838,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Message failed');
             const data = await response.json();
             appendMessage(data.message);
+            window.lkSubscribeMessageThread?.(list, data.message);
             input.value = '';
         } catch (error) {
             window.lkBuyerToast?.('Message could not be sent. Please try again.');

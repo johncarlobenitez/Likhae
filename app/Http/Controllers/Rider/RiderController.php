@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Rider;
 use App\Http\Controllers\Controller;
 use App\Models\Rider\RiderAssignment;
 use App\Models\User;
+use App\Services\Account\ProfilePhotoService;
 use App\Services\Communication\ConversationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -247,7 +248,7 @@ class RiderController extends Controller
         return view('Rider.profile.index', compact('rider'));
     }
 
-    public function updateAccount(Request $request): RedirectResponse
+    public function updateAccount(Request $request, ProfilePhotoService $profilePhotos): RedirectResponse
     {
         $user = $this->rider($request)->user;
         $data = $request->validate([
@@ -255,9 +256,16 @@ class RiderController extends Controller
             'last_name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'contact_number' => ['required', 'string', 'max:30', Rule::unique('users', 'contact_number')->ignore($user->id)],
+            'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
+        $hasNewPhoto = $request->hasFile('profile_photo');
+        unset($data['profile_photo']);
         $user->update($data);
+
+        if ($hasNewPhoto) {
+            $profilePhotos->replace($user, $request->file('profile_photo'));
+        }
 
         return back()->with('status', 'Account profile updated.');
     }

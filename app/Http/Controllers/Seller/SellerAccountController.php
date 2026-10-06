@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Seller;
 use App\Http\Controllers\Controller;
 use App\Models\Buyer\Address;
 use App\Models\Seller\SellerProfile;
+use App\Services\Account\ProfilePhotoService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -29,7 +30,6 @@ class SellerAccountController extends Controller
         $shop = $this->shop($request);
 
         $data = $request->validate([
-            'shop_name' => ['nullable', 'string', 'max:200'],
             'tagline' => ['nullable', 'string', 'max:180'],
             'description' => ['nullable', 'string', 'max:2000'],
             'location' => ['nullable', 'string', 'max:255'],
@@ -43,10 +43,6 @@ class SellerAccountController extends Controller
             'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'banner' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
         ]);
-
-        if (filled($data['shop_name'] ?? null)) {
-            $shop->update(['business_name' => $data['shop_name']]);
-        }
 
         return back()->with('status', 'Store profile saved. Extended branding fields are display-only until a future schema revision adds storefront branding columns.');
     }
@@ -62,7 +58,7 @@ class SellerAccountController extends Controller
         ]);
     }
 
-    public function updateProfile(Request $request): RedirectResponse
+    public function updateProfile(Request $request, ProfilePhotoService $profilePhotos): RedirectResponse
     {
         $owner = $this->shop($request)->user;
 
@@ -71,9 +67,16 @@ class SellerAccountController extends Controller
             'last_name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($owner->id)],
             'contact_number' => ['nullable', 'string', 'max:30', Rule::unique('users', 'contact_number')->ignore($owner->id)],
+            'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
+        $hasNewPhoto = $request->hasFile('profile_photo');
+        unset($data['profile_photo']);
         $owner->update($data);
+
+        if ($hasNewPhoto) {
+            $profilePhotos->replace($owner, $request->file('profile_photo'));
+        }
 
         return back()->with('status', 'Profile updated.');
     }
@@ -83,7 +86,6 @@ class SellerAccountController extends Controller
         $shop = $this->shop($request);
 
         $data = $request->validate([
-            'business_name' => ['nullable', 'string', 'max:200'],
             'business_type' => ['nullable', 'string', 'max:80'],
             'dti_sec_number' => ['nullable', 'string', 'max:100'],
             'tin' => ['nullable', 'string', 'max:80'],
@@ -100,10 +102,6 @@ class SellerAccountController extends Controller
         }
 
         $profileChanges = [];
-
-        if (filled($data['business_name'] ?? null)) {
-            $profileChanges['business_name'] = $data['business_name'];
-        }
 
         if (filled($data['dti_sec_number'] ?? null)) {
             $profileChanges['business_registration_number'] = $data['dti_sec_number'];

@@ -865,6 +865,34 @@ body.lk-sidebar-is-collapsed .lk-nav-toggle {
     transition: background 160ms ease, border-color 160ms ease;
 }
 
+.lk-account-menu { position: relative; }
+
+.lk-profile-container {
+    border: 1px solid transparent;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+}
+
+.lk-profile-chevron { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: var(--lk-muted); stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; transition: transform 160ms ease; }
+.lk-profile-container[aria-expanded="true"] .lk-profile-chevron { transform: rotate(180deg); }
+.lk-account-dropdown { position: absolute; z-index: 220; top: calc(100% + 10px); right: 0; width: min(330px, calc(100vw - 24px)); overflow: hidden; border: 1px solid var(--lk-border); border-radius: 14px; background: var(--lk-surface); background: color-mix(in srgb, var(--lk-surface) 92%, transparent); box-shadow: 0 18px 42px rgba(65, 35, 25, .18); backdrop-filter: blur(16px); }
+.lk-account-dropdown[hidden] { display: none; }
+.lk-account-dropdown__current, .lk-account-dropdown__account { display: flex; width: 100%; align-items: center; gap: 10px; border: 0; padding: 12px 13px; background: transparent; color: var(--lk-text); font: inherit; text-align: left; text-decoration: none; cursor: pointer; }
+.lk-account-dropdown__current:hover, .lk-account-dropdown__account:hover { background: var(--lk-bg-soft); }
+.lk-account-dropdown__avatar { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; border-radius: 50%; background: var(--lk-maroon); color: #fff; font-size: 10px; font-weight: 800; }
+.lk-account-dropdown strong, .lk-account-dropdown small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lk-account-dropdown strong { font-size: 12px; }
+.lk-account-dropdown small, .lk-account-dropdown__empty { margin-top: 2px; color: var(--lk-muted); font-size: 10px; }
+.lk-account-dropdown__label { margin: 0; padding: 9px 13px 5px; color: var(--lk-muted); font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.lk-account-dropdown__empty { margin: 0; padding: 5px 13px 12px; line-height: 1.45; }
+.lk-account-dropdown__divider { height: 1px; margin: 2px 0; background: var(--lk-border); }
+.lk-account-dropdown__switch { display: flex; width: 100%; align-items: center; gap: 8px; border: 0; padding: 12px 13px; background: transparent; color: var(--lk-maroon); font: inherit; font-size: 12px; font-weight: 700; text-align: left; cursor: pointer; }
+.lk-account-dropdown__switch:hover { background: var(--lk-bg-soft); }
+.lk-account-dropdown__switch svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+
 .lk-profile-container:hover {
     background: var(--lk-bg-soft);
     border-color: var(--lk-border-strong);

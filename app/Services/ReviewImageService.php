@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Admin\AuditLog;
 use App\Models\Buyer\Review;
 use App\Models\User;
+use App\Services\Media\ImageOptimizationService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -16,6 +17,8 @@ use Throwable;
 class ReviewImageService
 {
     private const EVENT = 'buyer.review.image.updated';
+
+    public function __construct(private readonly ImageOptimizationService $images) {}
 
     public function urlsFor(Collection|EloquentCollection $reviews): array
     {
@@ -43,7 +46,7 @@ class ReviewImageService
     {
         $previousUrl = $this->urlsFor(collect([$review]))[$review->id] ?? null;
         $previousPath = $previousUrl ? $this->pathFor($review) : null;
-        $path = $image->storePublicly('reviews/'.$review->id, 'public');
+        $path = $this->images->store($image, 'reviews/'.$review->id);
         if (! is_string($path)) {
             throw new RuntimeException('The review image could not be saved.');
         }

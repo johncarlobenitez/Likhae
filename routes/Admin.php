@@ -68,7 +68,7 @@ Route::prefix('admin')
         Route::post('/notifications/{notification}/read', [AdminOperationsController::class, 'markNotificationRead'])->name('notifications.read');
 
         // Compatibility aliases retained for the original Admin frontend.
-        Route::get('/riders', fn () => redirect()->route('admin.users', ['role' => 'riders']))->name('riders');
+        Route::get('/riders', fn () => redirect()->route('admin.users'))->name('riders');
         Route::get('/categories', fn () => redirect()->route('admin.products', ['view' => 'categories']))->name('categories');
         Route::get('/payments', fn () => redirect()->route('admin.finance', ['tab' => 'payments']))->name('payments');
         Route::get('/refunds', fn () => redirect()->route('admin.complaints', ['tab' => 'returns']))->name('refunds');

@@ -28,8 +28,14 @@ class LogisticsBarcodeScannerTest extends TestCase
         ]);
 
         $tracking = 'LK-WAYBILL-TEST-001';
+        $this->actingAs($user)
+            ->get(route('logistics.pickups').'?tracking='.$tracking)
+            ->assertOk()
+            ->assertDontSee('data-parcel-scanner', false)
+            ->assertDontSee('Start Camera')
+            ->assertSee('value="'.$tracking.'"', false);
+
         $pages = [
-            route('logistics.pickups'),
             route('logistics.parcels.receive'),
             route('logistics.sorting'),
             route('logistics.dispatch'),

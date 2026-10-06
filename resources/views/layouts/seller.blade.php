@@ -34,10 +34,10 @@
     </div>
 
     <div class="sl-toast" data-sl-toast data-flash="{{ session('status') }}" data-error="{{ $errors->first() }}" role="status" aria-live="polite"></div>
+    <x-notification-popover />
 
     @include('partials.darkmode')
     @stack('scripts')
 </body>
 </html>
-
 

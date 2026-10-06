@@ -14,9 +14,12 @@ require __DIR__.'/vendor/autoload.php';
 $app = require_once __DIR__.'/bootstrap/app.php';
 
 $argv = $_SERVER['argv'] ?? [];
+$isInternalServe = ($argv[1] ?? null) === 'serve'
+    && in_array('--likhae-internal', array_slice($argv, 2), true);
 
 if (
     ($argv[1] ?? null) === 'serve'
+    && ! $isInternalServe
     && getenv('LIKHAE_ARTISAN_DEV_SUPERVISED') !== '1'
     && ! array_intersect(['--help', '-h'], array_slice($argv, 2))
 ) {
@@ -40,11 +43,18 @@ if (
         $serveCommand .= ' '.implode(' ', array_map('escapeshellarg', $serveArguments));
     }
 
-    \Illuminate\Foundation\DevCommands::register($serveCommand, 'server');
-    \Illuminate\Foundation\DevCommands::only('server', 'vite');
+    $supervisedServeCommand = $serveCommand.' --likhae-internal';
+
+    \Illuminate\Foundation\DevCommands::register($supervisedServeCommand, 'server');
+    \Illuminate\Foundation\DevCommands::artisan('reverb:start', 'reverb');
+    \Illuminate\Foundation\DevCommands::only('server', 'vite', 'reverb');
     putenv('LIKHAE_ARTISAN_DEV_SUPERVISED=1');
     $argv = array_slice($argv, 0, 2);
     $argv[1] = 'dev';
+}
+
+if ($isInternalServe) {
+    $argv = array_values(array_filter($argv, fn ($argument) => $argument !== '--likhae-internal'));
 }
 
 $status = $app->handleCommand(new ArgvInput($argv));

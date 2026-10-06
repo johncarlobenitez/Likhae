@@ -32,10 +32,10 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v12H8l-4 3z"/><path d="M8 9h8M8 13h5"/></svg>
             @if(($adminUiCounts['messages'] ?? 0) > 0)<span class="ad-badge">{{ $adminUiCounts['messages'] }}</span>@endif
         </a>
-        <a class="ad-icon-btn" href="{{ route('admin.notifications') }}" aria-label="Notifications">
+        <button type="button" class="ad-icon-btn" aria-label="Notifications" aria-controls="notificationPopover" aria-expanded="false" data-notification-toggle>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
             @if(($adminUiCounts['notifications'] ?? 0) > 0)<span class="ad-badge">{{ $adminUiCounts['notifications'] }}</span>@endif
-        </a>
+        </button>
         <a class="ad-profile" href="{{ route('admin.account') }}">
             <span class="ad-avatar">{{ $initials }}</span>
             <span><strong>{{ $adminName }}</strong><small>Platform Administrator</small></span>

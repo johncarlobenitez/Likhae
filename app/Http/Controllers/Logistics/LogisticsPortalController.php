@@ -10,6 +10,7 @@ use App\Models\Logistics\Shipment;
 use App\Models\Rider\RiderAreaAssignment;
 use App\Models\Rider\RiderProfile;
 use App\Models\User;
+use App\Services\Account\ProfilePhotoService;
 use App\Services\Communication\ConversationService;
 use App\Services\RegistrationWorkflowService;
 use App\Services\RiderRatingService;
@@ -113,13 +114,27 @@ class LogisticsPortalController extends Controller
         $center = $request->user()->logisticsCenter;
         abort_unless($center, 403);
 
-        $riders = RiderProfile::query()
+        $riderQuery = RiderProfile::query()
             ->where('logistics_center_id', $center->id)
+            ->whereHas('user', fn ($query) => $query->where('account_type', User::TYPE_RIDER));
+
+        $riders = (clone $riderQuery)
             ->with(['user', 'areaAssignments.serviceArea'])
+            ->withCount([
+                'assignments as active_assignments_count' => fn ($query) => $query->whereIn('status', ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS']),
+            ])
             ->latest()
+            ->orderByDesc('id')
             ->paginate(15);
 
-        return view('Logistics.riders.index', compact('riders', 'center'));
+        $stats = [
+            ['label' => 'Total Riders', 'value' => (clone $riderQuery)->count()],
+            ['label' => 'Active', 'value' => (clone $riderQuery)->where('status', 'ACTIVE')->count()],
+            ['label' => 'Pending', 'value' => (clone $riderQuery)->where('status', 'PENDING')->count()],
+            ['label' => 'Inactive', 'value' => (clone $riderQuery)->whereIn('status', ['SUSPENDED', 'DEACTIVATED'])->count()],
+        ];
+
+        return view('Logistics.riders.index', compact('riders', 'center', 'stats'));
     }
 
     public function riderShow(Request $request, RiderProfile $rider, RiderRatingService $riderRatings): View
@@ -272,7 +287,7 @@ class LogisticsPortalController extends Controller
         return view('Logistics.profile.index', ['center' => $center, 'user' => $request->user()]);
     }
 
-    public function updateAccount(Request $request): RedirectResponse
+    public function updateAccount(Request $request, ProfilePhotoService $profilePhotos): RedirectResponse
     {
         abort_unless($request->user()->logisticsCenter, 403);
         $user = $request->user();
@@ -281,9 +296,16 @@ class LogisticsPortalController extends Controller
             'last_name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'contact_number' => ['required', 'string', 'max:30', Rule::unique('users', 'contact_number')->ignore($user->id)],
+            'profile_photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ]);
 
+        $hasNewPhoto = $request->hasFile('profile_photo');
+        unset($data['profile_photo']);
         $user->update($data);
+
+        if ($hasNewPhoto) {
+            $profilePhotos->replace($user, $request->file('profile_photo'));
+        }
 
         return back()->with('status', 'Account profile updated.');
     }

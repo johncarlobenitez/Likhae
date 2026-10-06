@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const toast = one('#lkBuyerToast');
     const desktop = window.matchMedia('(min-width: 1024px)');
     const storageKey = 'likhae-buyer-sidebar-collapsed';
+    const accountMenu = one('[data-account-menu]');
+    const accountMenuToggle = one('[data-account-menu-toggle]', accountMenu || document);
+    const accountMenuPanel = one('[data-account-menu-panel]', accountMenu || document);
 
     all('[data-postal-address]').forEach(initPostalAddressForm);
 
@@ -23,6 +26,17 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast.timer = window.setTimeout(() => toast.classList.remove('is-visible'), 2800);
     };
     window.lkBuyerToast = showToast;
+
+    const setAccountMenu = (open) => {
+        if (!accountMenuToggle || !accountMenuPanel) return;
+        accountMenuToggle.setAttribute('aria-expanded', String(open));
+        accountMenuPanel.hidden = !open;
+    };
+
+    accountMenuToggle?.addEventListener('click', () => setAccountMenu(accountMenuPanel?.hidden));
+    document.addEventListener('click', (event) => {
+        if (accountMenu && !accountMenu.contains(event.target)) setAccountMenu(false);
+    });
 
     const storedCollapsed = () => {
         try { return localStorage.getItem(storageKey) === 'true'; } catch (_) { return false; }
@@ -98,6 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') setMobileOpen(false);
+        if (event.key === 'Escape') setAccountMenu(false);
     });
 
     const authDialog = one('[data-auth-dialog]');

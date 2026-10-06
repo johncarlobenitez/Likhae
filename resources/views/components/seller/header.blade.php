@@ -4,10 +4,6 @@
 ])
 
 @php
-    $seller = auth()->user();
-    $sellerName = $seller?->name ?? 'Seller';
-    $shopName = $seller?->sellerProfile?->business_name ?? 'LIKHAE Studio';
-    $initial = mb_strtoupper(mb_substr($sellerName, 0, 1));
 @endphp
 
 <header class="sl-header">
@@ -32,14 +28,10 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v12H8l-4 4z"/><path d="M8 9h8M8 13h5"/></svg>
             @if(($sellerUiCounts['messages'] ?? 0) > 0)<span class="sl-action-badge">{{ $sellerUiCounts['messages'] }}</span>@endif
         </a>
-        <a href="{{ route('seller.notifications') }}" class="sl-icon-btn sl-header-action" aria-label="Notifications">
+        <button type="button" class="sl-icon-btn sl-header-action" aria-label="Notifications" aria-controls="notificationPopover" aria-expanded="false" data-notification-toggle>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
             @if(($sellerUiCounts['notifications'] ?? 0) > 0)<span class="sl-action-badge">{{ $sellerUiCounts['notifications'] }}</span>@endif
-        </a>
-        <a href="{{ route('seller.account') }}" class="sl-header-profile">
-            <span class="sl-avatar">{{ $initial }}</span>
-            <span><strong>{{ $sellerName }}</strong><small>{{ $shopName }}</small></span>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
-        </a>
+        </button>
+        <x-workspace-account-menu label="Seller Account" profile-route="seller.account" />
     </div>
 </header>

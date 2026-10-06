@@ -14,21 +14,20 @@
         'buyers' => 'Buyers',
         'sellers' => 'Sellers',
         'logistics' => 'Logistics centers',
-        'riders' => 'Riders / Couriers',
         'admins' => 'Administrators',
     ];
     $statuses = $statuses ?? [
         'all' => 'All statuses',
         'pending' => 'Pending approval',
         'active' => 'Active',
-        'rejected' => 'Rejected',
         'suspended' => 'Suspended',
+        'deactivated' => 'Deactivated',
     ];
     $statusClasses = [
         'pending' => 'under-review',
         'active' => 'active',
-        'rejected' => 'banned',
         'suspended' => 'banned',
+        'deactivated' => 'banned',
     ];
 @endphp
 
@@ -678,9 +677,9 @@
 
     <section class="ad-summary-grid" aria-label="User summary">
         <div class="ad-mini-stat">
-            <span>Total users</span>
+            <span>Total accounts</span>
             <strong>{{ number_format($stats['total']) }}</strong>
-            <small>Includes administrators</small>
+            <small>Buyers, sellers, administrators, and logistics</small>
         </div>
 
         <div class="ad-mini-stat">
@@ -696,9 +695,9 @@
         </div>
 
         <div class="ad-mini-stat">
-            <span>Logistics & riders</span>
+            <span>Logistics</span>
             <strong>{{ number_format($stats['delivery']) }}</strong>
-            <small>Delivery partner accounts</small>
+            <small>Registered logistics accounts</small>
         </div>
     </section>
 
@@ -776,9 +775,9 @@
                 <tbody>
                     @forelse($users as $user)
                         @php
-                            $roleLabel = in_array($user->primary_role, ['rider', 'courier'], true) ? 'Rider' : ucfirst($user->primary_role);
-                            $statusLabel = $statuses[$user->status] ?? ucfirst($user->status);
-                            $statusClass = $statusClasses[$user->status] ?? strtolower(str_replace(' ', '-', $user->status));
+                            $roleLabel = ucfirst(strtolower($user->account_type));
+                            $statusLabel = $statuses[strtolower($user->status)] ?? ucfirst(strtolower($user->status));
+                            $statusClass = $statusClasses[strtolower($user->status)] ?? strtolower(str_replace(' ', '-', $user->status));
                             $searchText = strtolower('USR-'.$user->id.' '.$user->name.' '.$user->email.' '.$roleLabel.' '.$statusLabel);
                         @endphp
 

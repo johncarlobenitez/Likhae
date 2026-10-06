@@ -5,7 +5,7 @@
     $image = $images->firstWhere('is_primary', true) ?: $images->first();
     $path = $image?->file_path;
     $url = $path
-        ? (\Illuminate\Support\Str::startsWith($path, ['http://', 'https://']) ? $path : \Illuminate\Support\Facades\Storage::url($path))
+        ? (\Illuminate\Support\Str::startsWith($path, ['http://', 'https://']) ? $path : '/storage/'.ltrim($path, '/'))
         : asset('images/product-placeholder.svg');
 @endphp
 

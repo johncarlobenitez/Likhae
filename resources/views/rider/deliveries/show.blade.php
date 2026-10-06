@@ -37,15 +37,16 @@
                 @elseif($parcel['status'] === 'ACCEPTED')
                     <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}">@csrf @method('PATCH')<input type="hidden" name="action" value="start"><button class="w-full rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-white">Start Delivery</button></form>
                 @elseif($parcel['status'] === 'IN_PROGRESS')
-                    <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}" enctype="multipart/form-data" class="grid gap-3">
+                    <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}" enctype="multipart/form-data" class="grid gap-3" data-delivery-proof-form>
                         @csrf @method('PATCH')
                         <input type="hidden" name="action" value="delivery_success">
                         <label class="grid gap-2 text-sm font-semibold text-ink">
                             Proof of delivery photo
-                            <input type="file" name="proof_file" accept="image/jpeg,image/png,image/webp" capture="environment" required class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm">
-                            <small class="font-normal text-muted">Take a clear photo of the delivered parcel. JPG, PNG, or WebP up to 10 MB.</small>
+                            <input type="file" name="proof_file" accept="image/jpeg,image/png,image/webp" capture="environment" required class="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm" data-delivery-proof-input>
+                            <small class="font-normal text-muted">Take a clear photo of the delivered parcel. Large photos are optimized automatically before upload.</small>
+                            <span class="hidden rounded-lg border border-line bg-page-secondary px-3 py-2 text-xs font-medium text-muted" aria-live="polite" data-delivery-proof-status></span>
                         </label>
-                        <button type="submit" class="w-full rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white">Upload Proof &amp; Mark Delivered</button>
+                        <button type="submit" class="w-full rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white" data-delivery-proof-submit>Upload Proof &amp; Mark Delivered</button>
                     </form>
                     <form method="POST" action="{{ route('rider.shipments.transition', $delivery) }}" class="grid gap-3">
                         @csrf @method('PATCH')<input type="hidden" name="action" value="delivery_failed">
@@ -59,4 +60,100 @@
     </section>
 
 </div>
+<script>
+    (() => {
+        const form = document.querySelector('[data-delivery-proof-form]');
+        const input = form?.querySelector('[data-delivery-proof-input]');
+        const status = form?.querySelector('[data-delivery-proof-status]');
+        const submit = form?.querySelector('[data-delivery-proof-submit]');
+        const targetBytes = 1536 * 1024;
+        let optimizing = false;
+
+        if (!form || !input || !status || !submit) return;
+
+        const setStatus = (message, isError = false) => {
+            status.textContent = message;
+            status.classList.remove('hidden', 'border-red-200', 'bg-red-50', 'text-red-700', 'border-line', 'bg-page-secondary', 'text-muted');
+            status.classList.add(isError ? 'border-red-200' : 'border-line', isError ? 'bg-red-50' : 'bg-page-secondary', isError ? 'text-red-700' : 'text-muted');
+        };
+
+        const loadImage = (file) => new Promise((resolve, reject) => {
+            const image = new Image();
+            const url = URL.createObjectURL(file);
+            image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+            image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('unsupported image')); };
+            image.src = url;
+        });
+
+        const optimize = async (file) => {
+            if (file.size <= targetBytes) return file;
+
+            const image = await loadImage(file);
+            let width = image.naturalWidth;
+            let height = image.naturalHeight;
+            const longestEdge = 1920;
+            if (Math.max(width, height) > longestEdge) {
+                const scale = longestEdge / Math.max(width, height);
+                width = Math.round(width * scale);
+                height = Math.round(height * scale);
+            }
+
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            if (!context) throw new Error('canvas unavailable');
+
+            for (let attempt = 0; attempt < 5; attempt++) {
+                canvas.width = width;
+                canvas.height = height;
+                context.drawImage(image, 0, 0, width, height);
+                const quality = Math.max(0.5, 0.82 - (attempt * 0.08));
+                const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+                if (blob && blob.size <= targetBytes) {
+                    return new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+                }
+                width = Math.round(width * 0.78);
+                height = Math.round(height * 0.78);
+            }
+
+            throw new Error('photo remains too large');
+        };
+
+        input.addEventListener('change', async () => {
+            const [file] = input.files;
+            if (!file) return;
+
+            if (file.size <= targetBytes) {
+                setStatus(`Photo ready to upload (${(file.size / 1024 / 1024).toFixed(1)} MB).`);
+                return;
+            }
+
+            optimizing = true;
+            submit.disabled = true;
+            submit.classList.add('cursor-wait', 'opacity-70');
+            setStatus('Optimizing photo for upload…');
+
+            try {
+                const optimized = await optimize(file);
+                const files = new DataTransfer();
+                files.items.add(optimized);
+                input.files = files.files;
+                setStatus(`Photo optimized and ready to upload (${(optimized.size / 1024 / 1024).toFixed(1)} MB).`);
+            } catch (error) {
+                input.value = '';
+                setStatus('This photo could not be optimized. Please choose a JPG, PNG, or WebP photo smaller than 1.5 MB.', true);
+            } finally {
+                optimizing = false;
+                submit.disabled = false;
+                submit.classList.remove('cursor-wait', 'opacity-70');
+            }
+        });
+
+        form.addEventListener('submit', (event) => {
+            if (optimizing) {
+                event.preventDefault();
+                setStatus('Please wait for photo optimization to finish.');
+            }
+        });
+    })();
+</script>
 @endsection

@@ -1,4 +1,4 @@
-import { initializeParcelScanners } from './parcel-scanner';
+import { initializeParcelScanners } from '../shared/parcel-scanner';
 
 /*
 |--------------------------------------------------------------------------

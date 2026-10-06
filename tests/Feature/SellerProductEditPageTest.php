@@ -23,7 +23,9 @@ class SellerProductEditPageTest extends TestCase
         $this->actingAs($seller)
             ->get(route('seller.products', ['mode' => 'edit', 'product' => $product->id]))
             ->assertOk()
-            ->assertSee(route('seller.products.update', $product), escape: false);
+            ->assertSee(route('seller.products.update', $product), escape: false)
+            ->assertSee('data-listing-status-field', escape: false)
+            ->assertSee("this.form.elements.listing_status.value='active'", escape: false);
     }
 
     public function test_seller_cannot_edit_a_missing_product(): void
@@ -52,7 +54,7 @@ class SellerProductEditPageTest extends TestCase
             'price' => 599,
             'stock' => 30,
             'listing_status' => 'draft',
-        ])->assertRedirect();
+        ])->assertRedirect()->assertSessionHas('product_saved.status', 'DRAFT');
 
         $product = Product::query()->where('name', 'Single Database Product')->sole();
         $this->assertSame('DRAFT', $product->status);
@@ -76,7 +78,7 @@ class SellerProductEditPageTest extends TestCase
                 ['values' => 'Small', 'price' => 399, 'stock' => 15, 'is_active' => 1],
                 ['values' => 'Large', 'price' => 599, 'stock' => 10, 'is_active' => 1],
             ],
-        ])->assertRedirect();
+        ])->assertRedirect()->assertSessionHas('product_saved.status', 'ACTIVE');
 
         $product = Product::query()->where('name', 'Variant Database Product')->sole();
         $this->assertSame('ACTIVE', $product->status);

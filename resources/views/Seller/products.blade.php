@@ -26,7 +26,33 @@
 
 @section('content')
 <div class="sl-page">
-    @if(session('status'))<div class="sl-alert sl-alert-success" role="status">{{ session('status') }}</div>@endif
+    @if(session('product_saved'))
+        @php
+            $savedProduct = session('product_saved');
+            $wasPublished = data_get($savedProduct, 'status') === 'ACTIVE';
+        @endphp
+        <dialog class="sl-product-save-dialog" data-product-save-dialog aria-labelledby="product-save-title" aria-describedby="product-save-message">
+            <span class="sl-product-save-dialog__icon" aria-hidden="true">✓</span>
+            <h2 id="product-save-title">{{ $wasPublished ? 'Product published' : 'Draft saved' }}</h2>
+            <p id="product-save-message"><strong>{{ data_get($savedProduct, 'name') }}</strong> {{ $wasPublished ? 'is now published and available to buyers.' : 'has been saved as a draft and is not visible to buyers.' }}</p>
+            <form method="dialog"><button class="sl-btn sl-btn-primary" autofocus>Continue editing</button></form>
+        </dialog>
+        <style>
+            .sl-product-save-dialog{width:min(420px,calc(100% - 32px));padding:30px;border:1px solid #eadccc;border-radius:20px;background:#fffdf9;color:#3b211b;text-align:center;box-shadow:0 24px 80px rgba(35,20,17,.25)}
+            .sl-product-save-dialog::backdrop{background:rgba(35,20,17,.58);backdrop-filter:blur(3px)}
+            .sl-product-save-dialog__icon{display:grid;width:52px;height:52px;margin:0 auto 14px;place-items:center;border-radius:50%;background:#eaf7ef;color:#256f4a;font-size:28px;font-weight:800}
+            .sl-product-save-dialog h2{margin:0;font-size:21px;font-weight:800}
+            .sl-product-save-dialog p{margin:10px 0 22px;color:#705c54;font-size:14px;line-height:1.6}
+            .sl-product-save-dialog form{display:flex;justify-content:center}
+            html.dark .sl-product-save-dialog{border-color:#49342b;background:#241a17;color:#fff8f2}
+            html.dark .sl-product-save-dialog p{color:#c8b7ad}
+        </style>
+        <script>
+            document.querySelector('[data-product-save-dialog]')?.showModal();
+        </script>
+    @elseif(session('status'))
+        <div class="sl-alert sl-alert-success" role="status">{{ session('status') }}</div>
+    @endif
     @if (in_array($currentMode, ['add', 'edit'], true))
         <div class="sl-page-toolbar">
             <div><a href="{{ route('seller.products') }}" class="sl-editor-back">&larr; Back to Products</a><h2>{{ $editing ? 'Edit '.data_get($product, 'name') : 'Create New Product' }}</h2><p>Add product information, pricing, images, and availability.</p></div>
@@ -35,6 +61,7 @@
         <form class="sl-editor-layout" method="POST" enctype="multipart/form-data" action="{{ $editing ? route('seller.products.update', data_get($product, 'db_id')) : route('seller.products.store') }}">
             @csrf
             @if($editing) @method('PUT') @endif
+            <input type="hidden" name="listing_status" value="draft" data-listing-status-field>
             <div class="sl-editor-main">
                 <section class="sl-card sl-form-section">
                     <header class="sl-form-section-head"><span>1</span><div><h3>Product Details</h3><p>Core information stored on the product record.</p></div></header>
@@ -44,7 +71,15 @@
                         <label class="sl-field"><span>Subcategory <b>*</b></span><select name="category_id" required><option value="">Select subcategory</option>@foreach($categories as $category)<option value="{{ $category->id }}" @selected((string) old('category_id', data_get($product, 'category_id')) === (string) $category->id)>{{ $category->name }}</option>@endforeach</select></label>
                         <label class="sl-field sl-span-2"><span>Description</span><textarea name="description" rows="7" maxlength="10000" placeholder="Describe the product, materials, dimensions, care instructions, and inclusions.">{{ old('description', data_get($product, 'description')) }}</textarea><small><span data-character-count>0</span>/10000 characters</small></label>
                         <div class="sl-field sl-span-2"><span>Primary image</span><label class="sl-upload-box"><input name="image" type="file" accept="image/*" data-image-input><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 15v5h16v-5"/></svg><strong>Upload product image</strong><small>JPG, PNG, WebP · maximum 5 MB</small></label><div class="sl-image-preview" data-image-preview>@if(data_get($product,'image'))<img src="{{ data_get($product,'image') }}" alt="">@endif</div></div>
-                        <div class="sl-field sl-span-2"><span>Additional images</span><label class="sl-upload-box"><input name="images[]" type="file" accept="image/*" multiple data-images-input><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 15v5h16v-5"/></svg><strong>Upload multiple product images</strong><small>JPG, PNG, WebP · maximum 5 MB each, 8 photos per product including the primary image</small></label><div class="sl-image-preview" data-images-preview></div>
+                        <div class="sl-field sl-span-2"><span>Additional images</span><label class="sl-upload-box"><input name="images[]" type="file" accept="image/*" multiple data-images-input><svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 15v5h16v-5"/></svg><strong>Upload multiple product images</strong><small>JPG, PNG, WebP · maximum 5 MB each, 10 photos per product including the primary image</small></label>
+                            @if($editing && collect(data_get($product, 'images', []))->isNotEmpty())
+                                <div class="sl-image-preview" aria-label="Saved product images">
+                                    @foreach(data_get($product, 'images', []) as $savedImage)
+                                        <img src="{{ data_get($savedImage, 'url') }}" alt="{{ data_get($savedImage, 'alt', data_get($product, 'name')) }}" loading="lazy">
+                                    @endforeach
+                                </div>
+                            @endif
+                            <div class="sl-image-preview" data-images-preview></div>
                             @error('images')<small class="sl-error">{{ $message }}</small>@enderror
                             @if($editing && data_get($product, 'image'))<small>Uploaded images are stored with this product. The primary image is shown in the catalog.</small>@endif
                         </div>
@@ -85,9 +120,9 @@
                     </div>
                 </section>
             </div>
-            @if($errors->any())<div class="sl-form-errors" role="alert"><strong>Product could not be published.</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+            @if($errors->any())<div class="sl-form-errors" role="alert"><strong>Product could not be saved.</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
             <aside class="sl-editor-side">
-                <section class="sl-card sl-publish-card sl-publish-card-current" data-product-status-card><h3>Product Status</h3><p class="sl-sidebar-help">Complete the required information before publishing.</p><div class="sl-completion-list"><p data-check="name"><span></span> Product information</p><p data-check="category"><span></span> Subcategory</p><p data-check="image"><span></span> Primary image</p><p data-check="pricing"><span></span> Pricing</p><p data-check="inventory"><span></span> Inventory</p><p data-check="variations"><span></span> Variations</p></div><button type="submit" name="listing_status" value="draft" class="sl-btn sl-btn-ghost sl-btn-block">Save as Draft</button><button type="submit" name="listing_status" value="active" class="sl-btn sl-btn-primary sl-btn-block" data-publish-product>{{ $editing && $listingStatus === 'active' ? 'Save Changes' : 'Publish Product' }}</button></section>
+                <section class="sl-card sl-publish-card sl-publish-card-current" data-product-status-card><h3>Product Status</h3><p class="sl-sidebar-help">Complete the required information before publishing.</p><div class="sl-completion-list"><p data-check="name"><span></span> Product information</p><p data-check="category"><span></span> Subcategory</p><p data-check="image"><span></span> Primary image</p><p data-check="pricing"><span></span> Pricing</p><p data-check="inventory"><span></span> Inventory</p><p data-check="variations"><span></span> Variations</p></div><button type="submit" data-listing-status="draft" onclick="this.form.elements.listing_status.value='draft'" class="sl-btn sl-btn-ghost sl-btn-block">Save as Draft</button><button type="submit" data-listing-status="active" onclick="this.form.elements.listing_status.value='active'" class="sl-btn sl-btn-primary sl-btn-block" data-publish-product>{{ $editing && $listingStatus === 'active' ? 'Save Changes' : 'Publish Product' }}</button></section>
                 <section class="sl-card sl-buyer-preview" data-seller-buyer-preview><header><h3>Buyer Preview</h3><p>This is how your product may appear to customers.</p><small>Preview only - your product is not published yet.</small></header><img src="{{ data_get($product, 'image', $productImageFallback) }}" alt="Product preview" data-preview-image><div><span data-preview-category>Subcategory</span><h4 data-preview-name>{{ old('name', data_get($product, 'name', 'Your product name')) ?: 'Your product name' }}</h4><strong data-preview-price>&#8369;0.00</strong><p data-preview-stock>0 available</p><div data-preview-options></div><button type="button" disabled>Add to Cart</button><button type="button" disabled>Buy Now</button></div></section>
             </aside>
         </form>

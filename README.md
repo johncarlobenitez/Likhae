@@ -18,7 +18,15 @@ For local development, run:
 php artisan serve
 ```
 
-This starts Laravel and the Vite development server together, so the site loads with CSS and JavaScript and reflects asset changes automatically. To open the development site on a phone, connect the phone and computer to the same Wi-Fi and browse to the computer's LAN address (for example, `http://192.168.1.52:8000`). Laravel and Vite bind to the local network for this development workflow. If Windows Firewall prompts, allow PHP/Node on your private network. `VITE_HMR_HOST` can be set in `.env` to override the automatically detected LAN address when the computer has multiple network interfaces. `composer run dev` remains an alternative.
+This starts Laravel, Vite, and the Reverb WebSocket server together, so the site loads with CSS and JavaScript and all message pages receive new messages in real time. To open the development site on a phone, connect the phone and computer to the same Wi-Fi and browse to the computer's LAN address (for example, `http://192.168.1.52:8000`). Laravel and Vite bind to the local network for this development workflow. If Windows Firewall prompts, allow PHP/Node on your private network. `VITE_HMR_HOST` can be set in `.env` to override the automatically detected LAN address when the computer has multiple network interfaces. `composer run dev` remains an alternative, but `php artisan serve` is the recommended command because it also starts Reverb.
+
+For production, run Reverb as a long-running process alongside Laravel and point the reverse proxy's WebSocket route to it:
+
+```sh
+php artisan reverb:start --host=0.0.0.0 --port=8080
+```
+
+Set `REVERB_HOST`, `REVERB_PORT`, `REVERB_SCHEME`, and the `VITE_REVERB_*` values to the public WebSocket endpoint before running `npm run build`.
 
 Registration sends a six-digit email verification code before an application can be submitted. For Gmail SMTP, configure these values in the local `.env` using a Google App Password (with two-step verification enabled):
 
@@ -43,11 +51,19 @@ For production or hosting uploads, always run:
 composer run deploy
 ```
 
-This rebuilds the Vite assets, removes the local Vite hot marker, clears stale Laravel caches, and refreshes the production caches. Do not upload `public/hot`; it is only for local Vite development and will make the live site try to load assets from `127.0.0.1`.
+This rebuilds the Vite assets, removes both the private Vite development marker and the legacy `public/hot` marker, clears stale Laravel caches, and refreshes the production caches. The development marker is stored at `storage/framework/vite.hot`; it is never part of the web root or a production deployment.
 
 The app schedules announcement publishing and the 30-day soft-delete cleanup in `routes/console.php`. Production hosts must run Laravel's scheduler every minute (`php artisan schedule:run`) so expired deleted products and messages are permanently removed on schedule. Sellers can restore deleted products from **Recently Deleted** during the 30-day recovery window.
 
-The admin command privately prompts for a password and never overwrites an existing account. `db:seed` provides demo accounts only in local/testing environments and preserves existing credentials. Registration does not create administrator accounts.
+The admin command privately prompts for a password and never overwrites an existing account. Registration does not create administrator accounts.
+
+To restore the five complete demo accounts and their sample buyer, seller, logistics, and rider data on an existing installation, run this from the deployed Laravel project directory after migrations:
+
+```sh
+php artisan db:seed --force
+```
+
+This creates missing demo users with active, verified accounts and fills in their sample addresses and role profiles. Re-running the seeder preserves existing passwords. Newly created demo accounts use `Password1`; change the administrator password immediately and replace demo contact and address details before using them for real operations. The seeder also adds or updates the sample marketplace product and delivery area.
 
 For an existing installation, run `php artisan app:secure-registration-documents` after migration to move old public uploads into private storage. New uploads are private automatically and can only be downloaded through an authenticated admin route.
 

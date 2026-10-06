@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const preview = select(previewSelector);
         if (!preview) return;
         preview.innerHTML = '';
-        Array.from(event.target.files || []).slice(0, 8).forEach((file) => {
+        Array.from(event.target.files || []).slice(0, 9).forEach((file) => {
             const image = document.createElement('img');
             image.src = URL.createObjectURL(file);
             image.alt = file.name;
@@ -206,10 +206,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         productForm.addEventListener('submit', (event) => {
             const button = event.submitter;
+            const submittedStatus = select('[data-listing-status-field]', productForm);
+            if (submittedStatus && button?.dataset.listingStatus) {
+                submittedStatus.value = button.dataset.listingStatus;
+            }
             if (!button) return;
             button.disabled = true;
             button.dataset.originalText = button.textContent;
-            button.textContent = button.value === 'draft' ? 'Saving Draft...' : 'Publishing...';
+            button.textContent = button.dataset.listingStatus === 'draft' ? 'Saving Draft...' : 'Publishing...';
         });
         updateEditorPreview();
     }

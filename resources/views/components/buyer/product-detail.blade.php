@@ -28,6 +28,7 @@
         'seller_slug',
         \Illuminate\Support\Str::slug($seller)
     );
+    $sellerUserId = (int) data_get($product, 'seller.user_id', 0);
 
     $sellerAvatar = data_get(
         $product,
@@ -86,6 +87,13 @@
 
     $variants = collect(data_get($product, 'variants', []))->values();
 
+    $reviewPreviewLimit = 5;
+    $reviewVariants = $reviews
+        ->pluck('variant')
+        ->filter()
+        ->unique()
+        ->values();
+
     $defaultVariant = $variants->firstWhere('is_default', true) ?? $variants->first();
 
     $variantStock = $variants
@@ -100,9 +108,9 @@
 
     $hasMessagesRoute = \Illuminate\Support\Facades\Route::has('buyer.messages');
 
-    $messageUrl = $hasMessagesRoute
+    $messageUrl = $hasMessagesRoute && $sellerUserId > 0
         ? route('buyer.messages', [
-            'seller' => $sellerSlug,
+            'seller_id' => $sellerUserId,
             'product' => $slug,
         ])
         : '#';
@@ -202,7 +210,7 @@
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(380px, 0.92fr);
         gap: 24px;
-        align-items: start;
+        align-items: stretch;
     }
 
     .lk-detail-gallery-card,
@@ -217,6 +225,9 @@
     }
 
     .lk-detail-gallery-card {
+        display: flex;
+        height: 100%;
+        flex-direction: column;
         overflow: hidden;
         padding: 18px;
         background:
@@ -227,6 +238,8 @@
     .lk-detail-gallery-main {
         position: relative;
         display: flex;
+        min-height: 0;
+        flex: 1 1 auto;
         aspect-ratio: 1 / 0.92;
         align-items: center;
         justify-content: center;
@@ -323,6 +336,8 @@
 
     .lk-detail-info-card {
         position: relative;
+        height: 100%;
+        box-sizing: border-box;
         overflow: hidden;
         padding: 26px;
     }
@@ -927,6 +942,74 @@
         display: grid;
     }
 
+    .lk-detail-review-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 20px 0 0;
+        padding: 14px;
+        border: 1px solid #EFE1D5;
+        border-radius: 14px;
+        background: #FFF9F5;
+    }
+
+    .lk-detail-review-filter {
+        display: grid;
+        flex: 1 1 180px;
+        gap: 5px;
+        color: var(--lk-muted);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+    }
+
+    .lk-detail-review-filter select {
+        width: 100%;
+        min-height: 38px;
+        border: 1px solid #E4CFC1;
+        border-radius: 9px;
+        background: #fff;
+        color: var(--lk-text);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: normal;
+        text-transform: none;
+    }
+
+    .lk-detail-review-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin-top: 4px;
+        padding-top: 18px;
+    }
+
+    .lk-detail-review-count {
+        color: var(--lk-muted);
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .lk-detail-review-more {
+        border: 1px solid #D5A895;
+        border-radius: 10px;
+        background: #fff;
+        color: var(--lk-maroon);
+        cursor: pointer;
+        padding: 10px 14px;
+        font-size: 11px;
+        font-weight: 900;
+        transition: background 160ms ease, border-color 160ms ease;
+    }
+
+    .lk-detail-review-more:hover {
+        border-color: var(--lk-maroon);
+        background: #FFF1E9;
+    }
+
     .lk-detail-review-item {
         padding: 20px 0;
         border-bottom: 1px solid #EFE1D5;
@@ -1025,6 +1108,15 @@
         .lk-detail-main,
         .lk-detail-panels {
             grid-template-columns: 1fr;
+        }
+
+        .lk-detail-main {
+            align-items: start;
+        }
+
+        .lk-detail-gallery-card,
+        .lk-detail-info-card {
+            height: auto;
         }
 
         .lk-detail-info-card {
@@ -1139,6 +1231,18 @@
         color: #FFF8F2;
     }
 
+    html.dark .lk-detail-review-controls {
+        border-color: #49342B;
+        background: #1E1714;
+    }
+
+    html.dark .lk-detail-review-filter select,
+    html.dark .lk-detail-review-more {
+        border-color: #604238;
+        background: #241A17;
+        color: #FFF8F2;
+    }
+
     html.dark .lk-detail-option-btn:hover,
     html.dark .lk-detail-option-btn.is-selected,
     html.dark .lk-detail-option-btn[aria-pressed="true"] {
@@ -1194,7 +1298,7 @@
 
             @if($images->count() > 1)
                 <div class="lk-detail-thumbs">
-                    @foreach($images->take(5) as $index => $galleryImage)
+                    @foreach($images as $index => $galleryImage)
                         <button
                             type="button"
                             class="lk-detail-thumb {{ $index === 0 ? 'is-active' : '' }}"
@@ -1467,27 +1571,27 @@
             </div>
         </section>
 
-        <section class="lk-detail-panel">
-            <h2>Specifications</h2>
+        @if($specs->isNotEmpty())
+            <section class="lk-detail-panel">
+                <h2>Specifications</h2>
 
-            <dl class="lk-detail-spec-list">
-                @forelse($specs as $label => $value)
+                <dl class="lk-detail-spec-list">
+                    @foreach($specs as $label => $value)
                     <div class="lk-detail-spec-row">
                         <dt>{{ $label }}</dt>
                         <dd>{{ $value }}</dd>
                     </div>
-                @empty
-                    <div class="lk-detail-empty-copy">
-                        Seller has not added specifications yet.
-                    </div>
-                @endforelse
-            </dl>
-        </section>
+                    @endforeach
+                </dl>
+            </section>
+        @endif
     </div>
 
     <section
         id="reviews"
         class="lk-detail-review-card"
+        data-product-reviews
+        data-preview-limit="{{ $reviewPreviewLimit }}"
     >
         <div class="lk-detail-review-head">
             <div>
@@ -1510,9 +1614,45 @@
             </div>
         </div>
 
+        @if($reviews->isNotEmpty())
+            <div class="lk-detail-review-controls" data-review-controls @if($reviews->count() > $reviewPreviewLimit) hidden @endif>
+                <label class="lk-detail-review-filter">
+                    Rating
+                    <select data-review-rating aria-label="Filter reviews by rating">
+                        <option value="">All ratings</option>
+                        @foreach(range(5, 1) as $filterRating)
+                            <option value="{{ $filterRating }}">{{ $filterRating }} star{{ $filterRating === 1 ? '' : 's' }}</option>
+                        @endforeach
+                    </select>
+                </label>
+
+                @if($reviewVariants->isNotEmpty())
+                    <label class="lk-detail-review-filter">
+                        Product variant
+                        <select data-review-variant aria-label="Filter reviews by product variant">
+                            <option value="">All variants</option>
+                            @foreach($reviewVariants as $reviewVariant)
+                                <option value="{{ $reviewVariant }}">{{ $reviewVariant }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                @endif
+            </div>
+        @endif
+
         <div class="lk-detail-review-list">
             @forelse($reviews as $review)
-                <article class="lk-detail-review-item">
+                @php
+                    $reviewRating = (int) data_get($review, 'rating', 5);
+                    $reviewVariant = (string) data_get($review, 'variant', 'Standard');
+                @endphp
+                <article
+                    class="lk-detail-review-item"
+                    data-review-item
+                    data-rating="{{ $reviewRating }}"
+                    data-variant="{{ $reviewVariant }}"
+                    @if($loop->index >= $reviewPreviewLimit) hidden @endif
+                >
                     <div class="lk-detail-review-inner">
                         <img
                             class="lk-detail-review-avatar"
@@ -1528,9 +1668,9 @@
                                     </strong>
 
                                     <div class="lk-detail-review-stars">
-                                        {{ str_repeat('★', (int) data_get($review, 'rating', 5)) }}
+                                        {{ str_repeat('★', $reviewRating) }}
                                         <span>
-                                            {{ str_repeat('★', 5 - (int) data_get($review, 'rating', 5)) }}
+                                            {{ str_repeat('★', 5 - $reviewRating) }}
                                         </span>
                                     </div>
                                 </div>
@@ -1562,7 +1702,79 @@
                 </div>
             @endforelse
         </div>
+
+        @if($reviews->count() > $reviewPreviewLimit)
+            <div class="lk-detail-review-footer">
+                <span class="lk-detail-review-count" data-review-result-count>
+                    Showing {{ $reviewPreviewLimit }} of {{ number_format($reviews->count()) }} reviews
+                </span>
+                <button type="button" class="lk-detail-review-more" data-review-toggle aria-expanded="false">
+                    View all {{ number_format($reviews->count()) }} reviews
+                </button>
+            </div>
+        @endif
     </section>
+
+    <script>
+        (() => {
+            const reviewRoot = document.querySelector('[data-product-reviews]');
+            if (!reviewRoot || reviewRoot.dataset.reviewFiltersReady) return;
+
+            reviewRoot.dataset.reviewFiltersReady = 'true';
+
+            const items = Array.from(reviewRoot.querySelectorAll('[data-review-item]'));
+            const toggle = reviewRoot.querySelector('[data-review-toggle]');
+            const controls = reviewRoot.querySelector('[data-review-controls]');
+            const ratingFilter = reviewRoot.querySelector('[data-review-rating]');
+            const variantFilter = reviewRoot.querySelector('[data-review-variant]');
+            const resultCount = reviewRoot.querySelector('[data-review-result-count]');
+            const previewLimit = Number(reviewRoot.dataset.previewLimit || 5);
+            let expanded = !toggle;
+
+            const applyFilters = () => {
+                const selectedRating = ratingFilter?.value || '';
+                const selectedVariant = variantFilter?.value || '';
+                let visibleIndex = 0;
+                let matches = 0;
+
+                items.forEach((item) => {
+                    const matchesRating = !selectedRating || item.dataset.rating === selectedRating;
+                    const matchesVariant = !selectedVariant || item.dataset.variant === selectedVariant;
+                    const matchesFilters = matchesRating && matchesVariant;
+
+                    if (matchesFilters) {
+                        matches += 1;
+                        visibleIndex += 1;
+                    }
+
+                    item.hidden = !matchesFilters || (!expanded && visibleIndex > previewLimit);
+                });
+
+                if (resultCount) {
+                    resultCount.textContent = expanded
+                        ? `${matches} review${matches === 1 ? '' : 's'} shown`
+                        : `Showing ${Math.min(matches, previewLimit)} of ${matches} reviews`;
+                }
+            };
+
+            toggle?.addEventListener('click', () => {
+                expanded = true;
+                toggle.hidden = true;
+                toggle.setAttribute('aria-expanded', 'true');
+                if (controls) controls.hidden = false;
+                applyFilters();
+            });
+
+            [ratingFilter, variantFilter].forEach((filter) => filter?.addEventListener('change', () => {
+                expanded = true;
+                if (toggle) toggle.hidden = true;
+                if (controls) controls.hidden = false;
+                applyFilters();
+            }));
+
+            applyFilters();
+        })();
+    </script>
 
     @if($related->isNotEmpty())
         <section class="lk-section lk-detail-related">

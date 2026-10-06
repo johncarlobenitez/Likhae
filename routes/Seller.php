@@ -49,9 +49,6 @@ Route::prefix('seller')
         Route::post('/marketing/campaigns', [SellerEngagementController::class, 'storeCampaign'])->name('marketing.campaigns.store');
         Route::patch('/marketing/campaigns/{voucher}/toggle', [SellerEngagementController::class, 'toggleCampaign'])->name('marketing.campaigns.toggle');
 
-        Route::get('/finance', [SellerOperationsController::class, 'finance'])->name('finance');
-        Route::get('/finance/statement', [SellerOperationsController::class, 'exportStatement'])->name('finance.statement');
-
         Route::get('/reports', [SellerOperationsController::class, 'reports'])->name('reports');
         Route::get('/reports/download', [SellerOperationsController::class, 'downloadReport'])->name('reports.download');
 

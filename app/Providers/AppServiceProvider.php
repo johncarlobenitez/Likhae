@@ -8,20 +8,24 @@ use App\Models\Admin\SellerComplianceCase;
 use App\Models\Auth\RegistrationApplication;
 use App\Models\Buyer\Cart;
 use App\Models\Buyer\Order;
+use App\Models\Buyer\Review;
 use App\Models\Communication\Message;
 use App\Models\Logistics\LogisticsCenter;
 use App\Models\Logistics\PickupRequest;
 use App\Models\Logistics\Shipment;
 use App\Models\Rider\RiderAssignment;
+use App\Models\Rider\RiderEarning;
 use App\Models\Rider\RiderProfile;
 use App\Models\Seller\SellerOrder;
 use App\Models\Seller\SellerProfile;
 use App\Models\User;
+use App\Services\AccountNotificationService;
 use App\Policies\LogisticsCenterPolicy;
 use App\Policies\RiderProfilePolicy;
 use App\Policies\SellerProfilePolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
@@ -34,6 +38,47 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // The local development server may use Vite's hot marker. Public
+        // likhae.online requests must ignore it because it can point to a
+        // private LAN address that public visitors cannot reach.
+        $host = strtolower((string) request()->getHost());
+        $isLikhaeOnline = in_array($host, ['likhae.online', 'www.likhae.online'], true);
+
+        Vite::useHotFile(
+            $isLikhaeOnline
+                ? storage_path('framework/vite.public-disabled.hot')
+                : storage_path('framework/vite.hot')
+        );
+
+        // Keep notification records in step with every core workflow change,
+        // regardless of whether it came from a web page or an API endpoint.
+        $accountNotifications = app(AccountNotificationService::class);
+        Order::created(fn (Order $order) => $accountNotifications->orderPlaced($order));
+        Order::updated(function (Order $order) use ($accountNotifications): void {
+            if ($order->wasChanged('status')) {
+                $accountNotifications->orderStatusChanged($order);
+            }
+        });
+        SellerOrder::created(fn (SellerOrder $sellerOrder) => $accountNotifications->sellerOrderCreated($sellerOrder));
+        SellerOrder::updated(function (SellerOrder $sellerOrder) use ($accountNotifications): void {
+            if ($sellerOrder->wasChanged('status')) {
+                $accountNotifications->sellerOrderStatusChanged($sellerOrder);
+            }
+        });
+        Shipment::updated(function (Shipment $shipment) use ($accountNotifications): void {
+            if ($shipment->wasChanged('current_status')) {
+                $accountNotifications->shipmentStatusChanged($shipment);
+            }
+        });
+        RiderAssignment::created(fn (RiderAssignment $assignment) => $accountNotifications->riderAssignmentCreated($assignment));
+        RiderAssignment::updated(function (RiderAssignment $assignment) use ($accountNotifications): void {
+            if ($assignment->wasChanged('status')) {
+                $accountNotifications->riderAssignmentStatusChanged($assignment);
+            }
+        });
+        Review::created(fn (Review $review) => $accountNotifications->reviewSubmitted($review));
+        RiderEarning::created(fn (RiderEarning $earning) => $accountNotifications->riderEarningCreated($earning));
+
         // Force HTTPS URLs when behind Cloudflare or other SSL terminator
         if (config('app.env') === 'production') {
             URL::forceScheme('https');
@@ -157,7 +202,7 @@ class AppServiceProvider extends ServiceProvider
             $view->with('buyerUiCounts', $counts);
         });
 
-        View::composer('components.admin.sidebar', function ($view) use ($unreadMessageCount): void {
+        View::composer(['components.admin.sidebar', 'Logistics.app', 'rider.app'], function ($view) use ($unreadMessageCount, $unreadNotificationCount): void {
             /** @var User|null $user */
             $user = auth()->user();
             $counts = [
@@ -176,6 +221,7 @@ class AppServiceProvider extends ServiceProvider
                 'rider_applications' => 0,
                 'pickup_requests' => 0,
                 'cart' => 0,
+                'notifications' => 0,
             ];
 
             if ($user?->isAccountType(User::TYPE_ADMIN)) {
@@ -276,7 +322,10 @@ class AppServiceProvider extends ServiceProvider
                 $counts['messages'] = $unreadMessageCount($user);
             }
 
+            $counts['notifications'] = $unreadNotificationCount($user);
+
             $view->with('sidebarCounts', $counts);
+            $view->with('workspaceNotificationCount', $counts['notifications']);
         });
     }
 }

@@ -17,6 +17,8 @@ use App\Models\Seller\SellerProfile;
 use App\Models\User;
 use App\Services\Fulfillment\ShipmentWorkflowService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class EndToEndShipmentLifecycleTest extends TestCase
@@ -26,6 +28,7 @@ class EndToEndShipmentLifecycleTest extends TestCase
     public function test_order_completes_from_seller_through_pickup_sorting_delivery_and_buyer_receipt(): void
     {
         $this->withoutVite();
+        Storage::fake('public');
         $workflow = app(ShipmentWorkflowService::class);
 
         $buyer = User::factory()->create(['account_type' => User::TYPE_BUYER]);
@@ -153,9 +156,17 @@ class EndToEndShipmentLifecycleTest extends TestCase
         $deliveryAssignment = $workflow->assignRider($shipment->fresh(), $deliveryRider, 'DELIVERY', $centerUser);
         $workflow->riderTransition($deliveryAssignment, 'accept', $deliveryRiderUser);
         $workflow->riderTransition($deliveryAssignment, 'start', $deliveryRiderUser);
-        $workflow->riderTransition($deliveryAssignment, 'delivery_success', $deliveryRiderUser, [
-            'proof_path' => 'delivery-proofs/e2e-proof.jpg',
-        ]);
+        $this->actingAs($deliveryRiderUser)
+            ->post(route('rider.shipments.transition', $deliveryAssignment), [
+                '_method' => 'PATCH',
+                'action' => 'delivery_success',
+                'proof_file' => UploadedFile::fake()->image('e2e-proof.jpg'),
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'Rider assignment updated.');
+
+        $deliveryProof = $shipment->deliveryAttempts()->where('status', 'DELIVERED')->firstOrFail();
+        Storage::disk('public')->assertExists($deliveryProof->proof_path);
 
         $this->assertSame('PROCESSING', $order->fresh()->status);
 

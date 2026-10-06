@@ -23,7 +23,7 @@
     $profilePhotoUrl = $profilePhoto
         ? (\Illuminate\Support\Str::startsWith($profilePhoto, ['http://', 'https://'])
             ? $profilePhoto
-            : \Illuminate\Support\Facades\Storage::url($profilePhoto))
+            : '/storage/'.ltrim($profilePhoto, '/'))
         : null;
 
     $buyerInitial = strtoupper(mb_substr($buyerName, 0, 1));
@@ -201,63 +201,21 @@
                         </h2>
 
                         <p class="mt-1 text-xs text-stone-500">
-                            Update your personal details and profile photo.
+                            Update your personal details.
                         </p>
                     </div>
 
                     <div class="p-5 sm:p-6">
-                        <div class="mb-6 flex flex-col gap-4 rounded-xl border border-stone-200 bg-stone-50 p-4 sm:flex-row sm:items-center">
-                            <div class="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-red-100 text-xl font-bold text-red-900">
-                                @if ($profilePhotoUrl)
-                                    <img
-                                        src="{{ $profilePhotoUrl }}"
-                                        alt="{{ $buyerName }}"
-                                        class="h-full w-full object-cover"
-                                    >
-                                @else
-                                    {{ $buyerInitial }}
-                                @endif
-                            </div>
-
-                            <div class="min-w-0 flex-1">
-                                <h3 class="text-sm font-semibold text-stone-900">
-                                    Profile photo
-                                </h3>
-
-                                <p class="mt-1 text-xs leading-5 text-stone-500">
-                                    Upload a JPG or PNG image. Maximum file size is 2 MB.
-                                </p>
-
-                                <div class="mt-3 flex flex-wrap gap-2">
-                                    <label class="inline-flex cursor-pointer items-center rounded-lg bg-red-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-red-950">
-                                        Upload photo
-
-                                        <input
-                                            type="file"
-                                            name="profile_photo"
-                                            form="buyerProfileForm"
-                                            accept="image/png,image/jpeg"
-                                            class="sr-only"
-                                        >
-                                    </label>
-
-                                    <button
-                                        type="submit"
-                                        form="buyerProfileForm"
-                                        name="remove_profile_photo"
-                                        value="1"
-                                        class="rounded-lg border border-stone-300 bg-white px-3.5 py-2 text-xs font-semibold text-stone-700 transition hover:bg-stone-100"
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <form id="buyerProfileForm" method="POST" action="{{ route('buyer.account.profile.update') }}" enctype="multipart/form-data">
+                        <form id="buyerProfileForm" method="POST" enctype="multipart/form-data" action="{{ route('buyer.account.profile.update') }}">
                             @csrf
                             @method('PUT')
                             <div class="grid gap-5 sm:grid-cols-2">
+                                <div class="sm:col-span-2 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                                    <x-profile-photo-upload :user="$user" id="buyer-profile-photo">
+                                        Profile photo
+                                    </x-profile-photo-upload>
+                                </div>
+
                                 <div class="sm:col-span-2">
                                     <label for="profile-name" class="mb-1.5 block text-xs font-semibold text-stone-700">
                                         Full name
@@ -267,7 +225,7 @@
                                         id="profile-name"
                                         type="text"
                                         name="name"
-                                        value="{{ $buyerName }}"
+                                        value="{{ old('name', $buyerName) }}"
                                         class="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-red-800 focus:ring-4 focus:ring-red-100"
                                     >
                                 </div>
@@ -281,7 +239,7 @@
                                         id="profile-email"
                                         type="email"
                                         name="email"
-                                        value="{{ $buyerEmail }}"
+                                        value="{{ old('email', $buyerEmail) }}"
                                         class="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 outline-none transition focus:border-red-800 focus:ring-4 focus:ring-red-100"
                                     >
                                 </div>
@@ -295,7 +253,7 @@
                                         id="profile-phone"
                                         type="tel"
                                         name="phone"
-                                        value="{{ $buyerPhone }}"
+                                        value="{{ old('phone', $buyerPhone) }}"
                                         placeholder="09XX XXX XXXX"
                                         class="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-red-800 focus:ring-4 focus:ring-red-100"
                                     >
@@ -310,7 +268,7 @@
                                         id="profile-birthday"
                                         type="date"
                                         name="birthday"
-                                        value="{{ $buyerBirthday }}"
+                                        value="{{ old('birthday', $buyerBirthday) }}"
                                         class="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 outline-none transition focus:border-red-800 focus:ring-4 focus:ring-red-100"
                                     >
                                 </div>
@@ -326,9 +284,9 @@
                                         class="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 outline-none transition focus:border-red-800 focus:ring-4 focus:ring-red-100"
                                     >
                                         <option value="">Prefer not to say</option>
-                                        <option value="male" @selected($buyerGender === 'male')>Male</option>
-                                        <option value="female" @selected($buyerGender === 'female')>Female</option>
-                                        <option value="other" @selected($buyerGender === 'other')>Other</option>
+                                        <option value="male" @selected(old('gender', strtolower($buyerGender)) === 'male')>Male</option>
+                                        <option value="female" @selected(old('gender', strtolower($buyerGender)) === 'female')>Female</option>
+                                        <option value="other" @selected(old('gender', strtolower($buyerGender)) === 'other')>Other</option>
                                     </select>
                                 </div>
                             </div>

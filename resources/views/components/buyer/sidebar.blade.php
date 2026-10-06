@@ -804,8 +804,12 @@
 
     <nav class="lk-sidebar-scroll">
 
-        {{-- Dashboard / Home --}}
+        {{-- Marketplace --}}
         <div class="lk-nav-section">
+            <span class="lk-nav-section-title">
+                Marketplace
+            </span>
+
             <a
                 href="{{ route('buyer.home') }}"
                 class="lk-nav-link {{ $active === 'home' ? 'is-active' : '' }}"
@@ -821,13 +825,6 @@
                     Home
                 </span>
             </a>
-        </div>
-
-        {{-- Shopping --}}
-        <div class="lk-nav-section">
-            <span class="lk-nav-section-title">
-                Shopping
-            </span>
 
             <a
                 href="{{ route('buyer.products') }}"

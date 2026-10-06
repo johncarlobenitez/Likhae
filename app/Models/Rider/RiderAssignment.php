@@ -43,6 +43,15 @@ class RiderAssignment extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::updated(function (RiderAssignment $assignment): void {
+            if ($assignment->wasChanged('status') && $assignment->status !== 'IN_PROGRESS') {
+                $assignment->liveLocation()->delete();
+            }
+        });
+    }
+
     public function shipment(): BelongsTo
     {
         return $this->belongsTo(Shipment::class);
@@ -82,6 +91,11 @@ class RiderAssignment extends Model
     public function earning(): HasOne
     {
         return $this->hasOne(RiderEarning::class);
+    }
+
+    public function liveLocation(): HasOne
+    {
+        return $this->hasOne(RiderAssignmentLocation::class);
     }
 
     public function scopePickup(Builder $query): Builder

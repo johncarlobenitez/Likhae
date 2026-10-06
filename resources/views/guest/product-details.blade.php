@@ -27,7 +27,7 @@
             </div>
             @if($images->count() > 1)
                 <div class="mt-3 grid grid-cols-5 gap-2">
-                    @foreach($images->take(5) as $index => $galleryImage)
+                    @foreach($images as $index => $galleryImage)
                         <button type="button" class="overflow-hidden rounded-lg border-2 {{ $index === 0 ? 'border-red-800' : 'border-transparent' }} bg-stone-50" data-gallery-thumb data-image="{{ $galleryImage }}" aria-label="View image {{ $index + 1 }}">
                             <img class="aspect-square h-full w-full object-cover" src="{{ $galleryImage }}" alt="{{ $name }} view {{ $index + 1 }}">
                         </button>

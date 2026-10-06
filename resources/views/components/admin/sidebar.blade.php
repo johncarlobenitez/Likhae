@@ -25,10 +25,10 @@
 
     $adminUiCounts = $adminUiCounts ?? ['messages' => 0, 'notifications' => 0];
     $sidebarCounts = $sidebarCounts ?? [];
-    $notificationCount = $notificationCount ?? ($adminUiCounts['notifications'] ?? 0);
+    $notificationCount = $notificationCount ?? ($sidebarCounts['notifications'] ?? ($adminUiCounts['notifications'] ?? 0));
     $roleDetails = [
         'admin' => ['workspace' => 'Admin Center', 'profile' => 'LIKHAE Administrator', 'dashboard' => 'admin.dashboard', 'dashboard_label' => 'Dashboard'],
-        'buyer' => ['workspace' => 'Marketplace', 'profile' => 'Buyer Account', 'dashboard' => 'buyer.home', 'dashboard_label' => 'Home / Marketplace'],
+        'buyer' => ['workspace' => 'Marketplace', 'profile' => 'Buyer Account', 'dashboard' => 'buyer.home', 'dashboard_label' => 'Home'],
         'seller' => ['workspace' => 'Seller Center', 'profile' => data_get($user, 'sellerProfile.business_name') ?? 'Seller Account', 'dashboard' => 'seller.dashboard', 'dashboard_label' => 'Dashboard'],
         'rider' => ['workspace' => 'Rider Panel', 'profile' => 'Rider / Courier', 'dashboard' => 'rider.dashboard', 'dashboard_label' => 'Dashboard'],
         'logistics' => ['workspace' => 'Sorting Center', 'profile' => 'Logistics Operator', 'dashboard' => 'logistics.dashboard', 'dashboard_label' => 'Dashboard'],
@@ -280,9 +280,10 @@
                 [
                     'key' => 'notifications',
                     'label' => 'Notifications',
-                    'route' => 'admin.notifications',
+                    'route' => 'notifications.index',
                     'icon' => 'notifications',
                     'active' => [
+                        'notifications.index',
                         'admin.notifications',
                     ],
                     'count' => $notificationCount,
@@ -326,6 +327,7 @@
             ]],
             ['label' => 'Communication', 'items' => [
                 ['key' => 'messages', 'label' => 'Messages', 'route' => 'buyer.messages', 'icon' => 'messages', 'count' => $sidebarCounts['messages'] ?? 0, 'active' => ['buyer.messages', 'buyer.messages.*']],
+                ['key' => 'notifications', 'label' => 'Notifications', 'route' => 'notifications.index', 'icon' => 'notifications', 'count' => $notificationCount, 'active' => ['notifications.index', 'buyer.notifications']],
             ]],
             ['label' => 'Account', 'items' => [
                 ['key' => 'rewards', 'label' => 'Rewards', 'route' => 'buyer.rewards', 'icon' => 'finance', 'active' => ['buyer.rewards']],
@@ -338,15 +340,15 @@
                 ['key' => 'products', 'label' => 'Products', 'route' => 'seller.products', 'parameters' => ['mode' => 'list'], 'icon' => 'products', 'query' => ['key' => 'mode', 'value' => 'list', 'default' => 'list'], 'active' => ['seller.products', 'seller.products.*']],
                 ['key' => 'inventory', 'label' => 'Inventory', 'route' => 'seller.products', 'parameters' => ['mode' => 'inventory'], 'icon' => 'settings', 'query' => ['key' => 'mode', 'value' => 'inventory', 'default' => 'list'], 'active' => ['seller.products']],
                 ['key' => 'orders', 'label' => 'Orders', 'route' => 'seller.orders', 'icon' => 'orders', 'count' => $sidebarCounts['orders'] ?? 0, 'active' => ['seller.orders', 'seller.orders.*']],
-                ['key' => 'reports', 'label' => 'Reports', 'route' => 'seller.reports', 'icon' => 'reports', 'active' => ['seller.reports', 'seller.reports.*']],
             ]],
             ['label' => 'Customer Service', 'items' => [
                 ['key' => 'messages', 'label' => 'Messages', 'route' => 'seller.messages', 'icon' => 'messages', 'count' => $sidebarCounts['messages'] ?? 0, 'active' => ['seller.messages', 'seller.messages.*']],
+                ['key' => 'notifications', 'label' => 'Notifications', 'route' => 'notifications.index', 'icon' => 'notifications', 'count' => $notificationCount, 'active' => ['notifications.index', 'seller.notifications']],
                 ['key' => 'reviews', 'label' => 'Reviews', 'route' => 'seller.reviews', 'icon' => 'complaints', 'active' => ['seller.reviews', 'seller.reviews.*']],
             ]],
             ['label' => 'Growth & Finance', 'items' => [
                 ['key' => 'marketing', 'label' => 'Marketing', 'route' => 'seller.marketing', 'icon' => 'products', 'active' => ['seller.marketing', 'seller.marketing.*']],
-                ['key' => 'finance', 'label' => 'Sales & Finance', 'route' => 'seller.finance', 'icon' => 'finance', 'active' => ['seller.finance', 'seller.finance.*']],
+                ['key' => 'reports', 'label' => 'Reports', 'route' => 'seller.reports', 'icon' => 'reports', 'active' => ['seller.reports', 'seller.reports.*']],
                 ['key' => 'store', 'label' => 'Store Settings', 'route' => 'seller.store', 'icon' => 'settings', 'active' => ['seller.store', 'seller.store.*']],
             ]],
             ['label' => 'Account', 'items' => [
@@ -365,6 +367,7 @@
             ]],
             ['label' => 'Communication', 'items' => [
                 ['key' => 'messages', 'label' => 'Messages', 'route' => 'rider.messages', 'icon' => 'messages', 'count' => $sidebarCounts['messages'] ?? 0, 'active' => ['rider.messages', 'rider.messages.*']],
+                ['key' => 'notifications', 'label' => 'Notifications', 'route' => 'notifications.index', 'icon' => 'notifications', 'count' => $notificationCount, 'active' => ['notifications.index']],
             ]],
             ['label' => 'Account', 'items' => [
                 ['key' => 'account', 'label' => 'My Account', 'route' => 'rider.account', 'icon' => 'account', 'active' => ['rider.account', 'rider.account.*', 'rider.profile']],
@@ -387,6 +390,7 @@
             ['label' => 'Communication & Reports', 'items' => [
                 ['key' => 'reports', 'label' => 'Reports', 'route' => 'logistics.reports', 'icon' => 'reports', 'active' => ['logistics.reports', 'logistics.reports.*']],
                 ['key' => 'messages', 'label' => 'Messages', 'route' => 'logistics.messages', 'icon' => 'messages', 'count' => $sidebarCounts['messages'] ?? 0, 'active' => ['logistics.messages', 'logistics.messages.*']],
+                ['key' => 'notifications', 'label' => 'Notifications', 'route' => 'notifications.index', 'icon' => 'notifications', 'count' => $notificationCount, 'active' => ['notifications.index']],
             ]],
             ['label' => 'Account', 'items' => [
                 ['key' => 'account', 'label' => 'My Account', 'route' => 'logistics.profile', 'icon' => 'account', 'active' => ['logistics.profile', 'logistics.account']],
@@ -1111,6 +1115,7 @@
         </a>
     </div>
 
+    {{--
     <section class="ad-side-profile">
         <span class="ad-side-avatar">
             @if($avatar)
@@ -1140,8 +1145,13 @@
             ✓
         </span>
     </section>
+    --}}
 
     <nav class="ad-side-scroll">
+
+        <p class="ad-side-heading">
+            Navigation
+        </p>
 
         <a
             href="{{ route($roleDetail['dashboard']) }}"

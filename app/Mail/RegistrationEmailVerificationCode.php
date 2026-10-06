@@ -24,6 +24,6 @@ class RegistrationEmailVerificationCode extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'emails.registration-email-verification-code');
+        return new Content(view: 'auth.emails.registration-email-verification-code');
     }
 }

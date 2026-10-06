@@ -14,9 +14,12 @@ use App\Models\Rider\RiderProfile;
 use App\Models\Seller\SellerOrder;
 use App\Models\User;
 use App\Services\Fulfillment\ShipmentWorkflowService;
+use App\Services\Media\ImageOptimizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 class WorkflowApiController extends Controller
 {
@@ -32,7 +35,7 @@ class WorkflowApiController extends Controller
         return response()->json(['success' => true, 'seller_order' => $result->only(['id', 'seller_order_number', 'status'])]);
     }
 
-    public function riderAssignment(Request $request, RiderAssignment $assignment, ShipmentWorkflowService $workflow): JsonResponse
+    public function riderAssignment(Request $request, RiderAssignment $assignment, ShipmentWorkflowService $workflow, ImageOptimizationService $images): JsonResponse
     {
         $user = $request->user();
         abort_unless($user->isAccountType(User::TYPE_RIDER), 403);
@@ -42,15 +45,36 @@ class WorkflowApiController extends Controller
             'action' => ['required', Rule::in(['accept', 'start', 'pickup_complete', 'delivery_success', 'delivery_failed', 'reject'])],
             'scan_method' => ['nullable', Rule::in(['QR', 'BARCODE', 'MANUAL'])],
             'scanned_code' => ['required_if:action,pickup_complete', 'nullable', 'string', 'max:150'],
+            'receiver_name' => ['required_if:action,delivery_success', 'nullable', 'string', 'max:200'],
             'failure_reason' => ['required_if:action,delivery_failed', 'nullable', 'string', 'max:1000'],
             'attempt_status' => ['nullable', Rule::in(['FAILED', 'RESCHEDULED', 'RETURNED'])],
             'next_attempt_at' => ['required_if:attempt_status,RESCHEDULED', 'nullable', 'date', 'after:now'],
             'reason' => ['nullable', 'string', 'max:1000'],
             'proof_path' => ['nullable', 'string', 'max:500'],
+            'proof_file' => ['required_if:action,delivery_success', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
         ]);
-        $result = $workflow->riderTransition($assignment, $data['action'], $user, $data);
+        $proofPath = null;
+        if ($request->hasFile('proof_file')) {
+            $proofPath = $images->store($request->file('proof_file'), 'delivery-proofs');
+            $data['proof_path'] = $proofPath;
+        }
 
-        return response()->json(['success' => true, 'assignment' => $result->only(['id', 'assignment_type', 'status']), 'shipment_status' => $result->shipment->current_status]);
+        try {
+            $result = $workflow->riderTransition($assignment, $data['action'], $user, $data);
+        } catch (Throwable $exception) {
+            if ($proofPath) {
+                Storage::disk('public')->delete($proofPath);
+            }
+
+            throw $exception;
+        }
+
+        return response()->json([
+            'success' => true,
+            'assignment' => $result->only(['id', 'assignment_type', 'status']),
+            'shipment_status' => $result->shipment->current_status,
+            'receiver_name' => $data['receiver_name'] ?? null,
+        ]);
     }
 
     public function receiveParcel(Request $request, Shipment $shipment, ShipmentWorkflowService $workflow): JsonResponse

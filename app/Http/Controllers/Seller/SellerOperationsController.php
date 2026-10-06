@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Seller;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin\CommissionTransaction;
+use App\Models\Seller\Product;
 use App\Models\Seller\SellerOrder;
 use App\Models\Seller\Voucher;
 use App\Services\Fulfillment\ShipmentWorkflowService;
+use App\Services\Reports\SellerReportPdfService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Response;
 use Illuminate\View\View;
 
@@ -175,68 +178,155 @@ class SellerOperationsController extends Controller
         ]);
     }
 
-    public function finance(Request $request): View
-    {
-        $seller = $request->user()->sellerProfile;
-        abort_unless($seller, 403);
-
-        $orders = SellerOrder::query()->where('seller_profile_id', $seller->id);
-        $commissions = CommissionTransaction::query()->whereHas('sellerOrder', fn ($query) => $query->where('seller_profile_id', $seller->id));
-
-        return view('Seller.finance', [
-            'seller' => $seller,
-            'grossSales' => (float) (clone $orders)->where('status', 'COMPLETED')->sum('grand_total'),
-            'pendingSales' => (float) (clone $orders)->whereNotIn('status', ['COMPLETED', 'CANCELLED'])->sum('grand_total'),
-            'commissionDue' => (float) (clone $commissions)->where('status', 'PENDING')->sum('commission_amount'),
-            'commissions' => (clone $commissions)->with('sellerOrder')->latest()->paginate(15),
-        ]);
-    }
-
-
-    public function exportStatement(Request $request)
-    {
-        return $this->exportOrders($request);
-    }
-
     public function reports(Request $request): View
     {
         $seller = $request->user()->sellerProfile;
         abort_unless($seller, 403);
+        $report = $this->buildReport($request, $seller->id);
+
+        return view('Seller.reports', [
+            'report' => $report['report'],
+            'reportFrom' => $report['from'],
+            'reportTo' => $report['to'],
+            'reportSummary' => $report['summary'],
+            'reportPerformance' => $report['performance_counts'],
+            'reportProducts' => $report['products'],
+            'reportInsights' => $report['insights'],
+            'reportScope' => $report['scope'],
+            'sellerProducts' => $report['available_products'],
+            'selectedProductId' => $report['selected_product_id'],
+        ]);
+    }
+
+    public function downloadReport(Request $request, SellerReportPdfService $pdf)
+    {
+        $seller = $request->user()->sellerProfile;
+        abort_unless($seller, 403);
+        $report = $this->buildReport($request, $seller->id);
+        $filename = 'likhae-'.str($report['title'])->slug('-').'-'.$report['range_start'].'.pdf';
+
+        return Response::make($pdf->render($report), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
+    }
+
+    private function buildReport(Request $request, int $sellerId): array
+    {
         $data = $request->validate([
             'report' => ['nullable', 'string', 'in:sales,profit,orders,products'],
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'product_id' => ['nullable', 'integer'],
         ]);
-        $from = \Illuminate\Support\Carbon::parse($data['from'] ?? now()->startOfMonth())->startOfDay();
-        $to = \Illuminate\Support\Carbon::parse($data['to'] ?? now())->endOfDay();
-        $orders = SellerOrder::query()->where('seller_profile_id', $seller->id)->whereBetween('created_at', [$from, $to]);
-        $gross = (float) (clone $orders)->sum('grand_total');
-        $commission = (float) CommissionTransaction::query()->whereHas('sellerOrder', fn ($query) => $query->where('seller_profile_id', $seller->id))->whereBetween('created_at', [$from, $to])->sum('commission_amount');
+        $from = Carbon::parse($data['from'] ?? now()->startOfMonth())->startOfDay();
+        $to = Carbon::parse($data['to'] ?? now())->endOfDay();
+        $availableProducts = Product::query()->where('seller_profile_id', $sellerId)->orderBy('name')->get(['id', 'name']);
+        $selectedProduct = isset($data['product_id']) ? $availableProducts->firstWhere('id', (int) $data['product_id']) : null;
+        abort_if(isset($data['product_id']) && ! $selectedProduct, 404);
 
-        return view('Seller.reports', [
+        $orders = SellerOrder::query()
+            ->where('seller_profile_id', $sellerId)
+            ->whereBetween('created_at', [$from, $to])
+            ->when($selectedProduct, fn ($query) => $query->whereHas('items', fn ($items) => $items->where('product_id', $selectedProduct->id)))
+            ->with('items')
+            ->latest()
+            ->get();
+        $completedOrders = $orders->where('status', 'COMPLETED');
+        $completedItems = $completedOrders->flatMap(function (SellerOrder $order) use ($selectedProduct) {
+            return $order->items->when($selectedProduct, fn ($items) => $items->where('product_id', $selectedProduct->id));
+        });
+        $scopeProducts = $selectedProduct ? collect([$selectedProduct]) : $availableProducts;
+        $products = $scopeProducts->map(function (Product $product) use ($completedItems): array {
+            $items = $completedItems->where('product_id', $product->id);
+
+            return [
+                'id' => $product->id,
+                'name' => $product->name,
+                'units' => (int) $items->sum('quantity'),
+                'orders' => $items->pluck('seller_order_id')->unique()->count(),
+                'revenue' => (float) $items->sum('line_total'),
+            ];
+        })->sortByDesc('revenue')->values();
+        $products = $this->classifyProductPerformance($products);
+        $gross = (float) $orders->sum('grand_total');
+        $commission = (float) CommissionTransaction::query()
+            ->whereHas('sellerOrder', function ($query) use ($sellerId, $selectedProduct): void {
+                $query->where('seller_profile_id', $sellerId)
+                    ->when($selectedProduct, fn ($orders) => $orders->whereHas('items', fn ($items) => $items->where('product_id', $selectedProduct->id)));
+            })
+            ->whereBetween('created_at', [$from, $to])
+            ->sum('commission_amount');
+        $performance = [
+            'high' => $products->where('tier', 'high')->count(),
+            'mid' => $products->where('tier', 'mid')->count(),
+            'low' => $products->where('tier', 'low')->count(),
+            'no_sales' => $products->where('tier', 'no_sales')->count(),
+        ];
+        $summary = [
+            'orders' => $orders->count(),
+            'completed' => $completedOrders->count(),
+            'cancelled' => $orders->where('status', 'CANCELLED')->count(),
+            'gross' => $gross,
+            'commission' => $commission,
+            'net' => $gross - $commission,
+            'completion_rate' => $orders->isEmpty() ? 0 : (int) round(($completedOrders->count() / $orders->count()) * 100),
+            'cancellation_rate' => $orders->isEmpty() ? 0 : (int) round(($orders->where('status', 'CANCELLED')->count() / $orders->count()) * 100),
+            'average_order' => $orders->isEmpty() ? 0 : $gross / $orders->count(),
+        ];
+        $scope = $selectedProduct ? 'Single product: '.$selectedProduct->name : 'All catalog products';
+
+        return [
             'report' => $data['report'] ?? 'sales',
-            'reportFrom' => $from,
-            'reportTo' => $to,
-            'reportSummary' => [
-                'orders' => (clone $orders)->count(),
-                'completed' => (clone $orders)->where('status', 'COMPLETED')->count(),
-                'cancelled' => (clone $orders)->where('status', 'CANCELLED')->count(),
-                'gross' => $gross,
-                'commission' => $commission,
-                'net' => $gross - $commission,
-            ],
-        ]);
+            'title' => str($data['report'] ?? 'sales')->headline().' Report',
+            'scope' => $scope,
+            'from' => $from,
+            'to' => $to,
+            'range_start' => $from->toDateString(),
+            'range_label' => $from->format('M d, Y').' - '.$to->format('M d, Y'),
+            'generated_at' => now()->format('M d, Y g:i A'),
+            'summary' => $summary,
+            'performance_counts' => $performance,
+            'products' => $products->all(),
+            'insights' => $this->reportInsights($products, $summary, $scope),
+            'available_products' => $availableProducts,
+            'selected_product_id' => $selectedProduct?->id,
+        ];
     }
 
-    public function downloadReport(Request $request)
+    private function classifyProductPerformance($products)
     {
-        $seller = $request->user()->sellerProfile;
-        abort_unless($seller, 403);
-        $from = \Illuminate\Support\Carbon::parse($request->query('from', now()->startOfMonth()))->startOfDay();
-        $to = \Illuminate\Support\Carbon::parse($request->query('to', now()))->endOfDay();
-        $rows = SellerOrder::query()->where('seller_profile_id', $seller->id)->whereBetween('created_at', [$from, $to])->latest()->get();
-        $csv = "Order,Status,Gross,Created\n".$rows->map(fn ($order) => implode(',', [$order->seller_order_number, $order->status, $order->grand_total, $order->created_at?->toDateTimeString()]))->implode("\n");
+        $sellingCount = $products->filter(fn (array $product): bool => $product['revenue'] > 0)->count();
+        $topCount = max(1, (int) ceil($sellingCount * 0.25));
+        $bottomCount = max(1, (int) ceil($sellingCount * 0.25));
+        $rank = 0;
 
-        return Response::make($csv, 200, ['Content-Type' => 'text/csv', 'Content-Disposition' => 'attachment; filename="seller-report.csv"']);
+        return $products->map(function (array $product) use (&$rank, $sellingCount, $topCount, $bottomCount): array {
+            if ($product['revenue'] <= 0) {
+                $product['tier'] = 'no_sales';
+                return $product;
+            }
+            ++$rank;
+            $product['tier'] = $rank <= $topCount ? 'high' : ($rank > $sellingCount - $bottomCount ? 'low' : 'mid');
+            return $product;
+        });
+    }
+
+    private function reportInsights($products, array $summary, string $scope): array
+    {
+        if ($products->isEmpty()) {
+            return ['No products are in this report scope. Add catalog products to start measuring performance.'];
+        }
+        $insights = [];
+        if ($top = $products->firstWhere('tier', 'high')) {
+            $insights[] = $top['name'].' is the strongest performer with PHP '.number_format($top['revenue'], 2).' from '.$top['units'].' completed units.';
+        }
+        if ($products->where('tier', 'no_sales')->isNotEmpty()) {
+            $insights[] = $products->where('tier', 'no_sales')->count().' product(s) had no completed sales. Review listing quality, stock, price, or promotion.';
+        } elseif ($low = $products->firstWhere('tier', 'low')) {
+            $insights[] = $low['name'].' is in the low-sales group. Consider a bundle, promotion, or product-page refresh.';
+        }
+        $insights[] = $summary['completion_rate'].'% of orders in '.$scope.' were completed; '.$summary['cancellation_rate'].'% were cancelled.';
+        return $insights;
     }
 }

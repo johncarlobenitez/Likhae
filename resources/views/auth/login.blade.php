@@ -176,7 +176,7 @@
                                 id="email"
                                 name="email"
                                 type="email"
-                                value="{{ old('email') }}"
+                                value="{{ old('email', request('email')) }}"
                                 placeholder="juan@email.com"
                                 autocomplete="email"
                                 required
@@ -197,7 +197,7 @@
                             </label>
 
                             <a
-                                href="#"
+                                href="{{ route('password.request') }}"
                                 class="auth-forgot"
                             >
                                 Forgot password?

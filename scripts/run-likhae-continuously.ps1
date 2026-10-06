@@ -11,7 +11,6 @@ while ($true) {
     $logPath = Join-Path $logDir "artisan-dev-$stamp.log"
 
     "[$(Get-Date -Format s)] Starting Laravel production-style server with built assets." | Add-Content $logPath
-    $env:LIKHAE_ARTISAN_DEV_SUPERVISED = '1'
     & php artisan serve --host=0.0.0.0 --port=8000 *>> $logPath
     $exitCode = $LASTEXITCODE
     "[$(Get-Date -Format s)] Laravel dev services exited with code $exitCode. Restarting in 5 seconds." | Add-Content $logPath

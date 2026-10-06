@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\PhilippineAddressController;
 use App\Http\Controllers\Auth\RegistrationController;
 use App\Http\Controllers\Buyer\GuestMarketplaceController;
 use App\Http\Controllers\Buyer\TrackingController;
+use App\Http\Controllers\NotificationCenterController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +35,11 @@ Route::get('/products/{slug}', [GuestMarketplaceController::class, 'show'])->nam
 Route::get('/track/{trackingCode}', [TrackingController::class, 'show'])->middleware('throttle:30,1')->name('tracking.show');
 Route::get('/delivery-events/{event}/proof', [TrackingController::class, 'proof'])->middleware('auth')->name('delivery-events.proof');
 
+Route::middleware(['auth', 'verified'])->group(function (): void {
+    Route::get('/notifications', [NotificationCenterController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read-all', [NotificationCenterController::class, 'markAllRead'])->name('notifications.read-all');
+});
+
 /*
 |--------------------------------------------------------------------------
 | Marketplace Login
@@ -50,6 +56,10 @@ Route::get('/login', fn () => view('auth.login'))
 Route::post('/login', [AuthenticationController::class, 'store'])
     ->middleware(['guest', 'throttle:30,1'])
     ->name('login.post');
+
+Route::post('/switch-account', [AuthenticationController::class, 'switchAccount'])
+    ->middleware('auth')
+    ->name('account.switch');
 
 Route::get('/forgot-password', [AccountRecoveryController::class, 'request'])->middleware('guest')->name('password.request');
 Route::post('/forgot-password', [AccountRecoveryController::class, 'email'])->middleware(['guest', 'throttle:5,1'])->name('password.email');

@@ -137,6 +137,14 @@
             "
         >
 
+            <header class="hidden h-[62px] items-center justify-end gap-3 border-b border-line bg-page/95 px-6 backdrop-blur-xl lg:flex">
+                <button type="button" aria-label="Notifications" aria-controls="notificationPopover" aria-expanded="false" data-notification-toggle class="relative grid h-9 w-9 place-items-center rounded-full border border-line bg-surface text-ink transition hover:bg-surface-hover">
+                    <svg viewBox="0 0 24 24" class="h-4 w-4 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
+                    @if(($workspaceNotificationCount ?? 0) > 0)<span class="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full border-2 border-white bg-red-600 px-1 text-[8px] font-bold leading-none text-white">{{ $workspaceNotificationCount }}</span>@endif
+                </button>
+                <x-workspace-account-menu label="Logistics Account" profile-route="logistics.profile" />
+            </header>
+
             {{-- =================================================
                 MOBILE HEADER
             ================================================== --}}
@@ -251,33 +259,14 @@
                 </a>
 
 
+                <button type="button" aria-label="Notifications" aria-controls="notificationPopover" aria-expanded="false" data-notification-toggle class="relative grid h-9 w-9 place-items-center rounded-full border border-line bg-surface text-ink transition hover:bg-surface-hover">
+                    <svg viewBox="0 0 24 24" class="h-4 w-4 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
+                    @if(($workspaceNotificationCount ?? 0) > 0)<span class="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full border-2 border-white bg-red-600 px-1 text-[8px] font-bold leading-none text-white">{{ $workspaceNotificationCount }}</span>@endif
+                </button>
+
                 {{-- MOBILE PROFILE --}}
 
-                <a
-                    href="{{ route('logistics.profile') }}"
-                    aria-label="Open profile"
-                    class="
-                        grid
-                        h-9
-                        w-9
-                        place-items-center
-
-                        rounded-full
-
-                        bg-primary-soft
-
-                        text-[8px]
-                        font-bold
-                        text-primary
-
-                        transition
-
-                        hover:bg-primary
-                        hover:text-white
-                    "
-                >
-                    LC
-                </a>
+                <x-workspace-account-menu label="Logistics Account" profile-route="logistics.profile" compact />
 
             </header>
 
@@ -315,6 +304,7 @@
         PAGE-SPECIFIC SCRIPTS
     ====================================================== --}}
 
+    <x-notification-popover />
     @stack('scripts')
 
 </body>

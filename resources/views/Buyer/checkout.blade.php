@@ -12,7 +12,7 @@
         $image = collect(data_get($product, 'images', []))->firstWhere('is_primary', true) ?? collect(data_get($product, 'images', []))->first();
         $path = data_get($image, 'file_path');
         if (! filled($path)) return asset('images/product-placeholder.svg');
-        return \Illuminate\Support\Str::startsWith($path, ['http://', 'https://']) ? $path : \Illuminate\Support\Facades\Storage::url($path);
+        return \Illuminate\Support\Str::startsWith($path, ['http://', 'https://']) ? $path : \Illuminate\Support\Facades\Storage::disk('public')->url($path);
     };
 @endphp
 

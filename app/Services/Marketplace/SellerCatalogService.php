@@ -8,6 +8,7 @@ use App\Models\Seller\ProductImage;
 use App\Models\Seller\ProductOptionValue;
 use App\Models\Seller\ProductVariant;
 use App\Models\Seller\SellerProfile;
+use App\Services\Media\ImageOptimizationService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -18,6 +19,8 @@ use Illuminate\Validation\ValidationException;
 
 class SellerCatalogService
 {
+    public function __construct(private readonly ImageOptimizationService $images) {}
+
     public function save(SellerProfile $seller, SaveSellerProductRequest $request, ?Product $product = null): Product
     {
         return DB::transaction(function () use ($seller, $request, $product): Product {
@@ -243,20 +246,28 @@ class SellerCatalogService
         }
 
         $existing = $product->images()->count();
-        if ($existing + $files->count() > 8) {
+        if ($existing + $files->count() > 10) {
             throw ValidationException::withMessages([
-                'images' => 'A product may have at most 8 images.',
+                'images' => 'A product may have at most 10 images.',
             ]);
         }
 
-        foreach ($files as $file) {
+        $uploadedPrimary = $mainImage instanceof UploadedFile && $mainImage->isValid();
+        if ($uploadedPrimary) {
+            $product->images()->update(['is_primary' => false]);
+        }
+
+        foreach ($files as $index => $file) {
             $sort = (int) $product->images()->max('sort_order') + 1;
-            $path = $file->store("sellers/{$seller->id}/products/{$product->id}", 'public');
+            $path = $this->images->store($file, "sellers/{$seller->id}/products/{$product->id}");
+            $isPrimary = $uploadedPrimary
+                ? $index === 0
+                : $existing === 0 && $index === 0;
 
             $product->images()->create([
                 'file_path' => $path,
                 'alt_text' => $product->name,
-                'is_primary' => $product->images()->count() === 0,
+                'is_primary' => $isPrimary,
                 'sort_order' => $sort,
             ]);
         }

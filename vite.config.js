@@ -29,6 +29,9 @@ export default defineConfig(({ mode }) => {
     return {
         plugins: [
             laravel({
+                // Keep the development-server marker out of public/ so it can
+                // never be uploaded with the production web root.
+                hotFile: 'storage/framework/vite.hot',
                 input: [
                     'resources/css/app.css',
                     'resources/css/admin/admin.css',
@@ -39,14 +42,15 @@ export default defineConfig(({ mode }) => {
                     'resources/css/logistic/app.css',
                     'resources/css/logistic/landing.css',
                     'resources/js/app.js',
+                    'resources/js/shared/messages.js',
                     'resources/js/Buyer/buyer.js',
                     'resources/js/admin/admin.js',
                     'resources/js/seller/seller.js',
                     'resources/js/auth/login.js',
                     'resources/js/auth/register.js',
                     'resources/js/logistic/app.js',
-                    'resources/js/logistics.js',
-                    'resources/js/rider.js',
+                    'resources/js/logistic/portal.js',
+                    'resources/js/rider/app.js',
                 ],
                 refresh: [
                     'resources/views/**',

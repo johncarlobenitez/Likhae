@@ -54,7 +54,7 @@
 
     .lk-page {
         min-height: 100vh !important;
-        padding: 40px 0 56px !important;
+        padding: 40px clamp(18px, 2.4vw, 36px) 56px !important;
     }
 
     .lk-section {
@@ -653,7 +653,7 @@
 
     @media (max-width: 900px) {
         .lk-page {
-            padding: 30px 0 44px !important;
+            padding: 30px clamp(18px, 2.4vw, 24px) 44px !important;
         }
 
         .lk-section-head {
@@ -681,8 +681,8 @@
     @media (max-width: 560px) {
         .lk-page {
             padding-top: 24px !important;
-            padding-left: 0 !important;
-            padding-right: 0 !important;
+            padding-right: 16px !important;
+            padding-left: 16px !important;
         }
 
         .lk-quick-grid,

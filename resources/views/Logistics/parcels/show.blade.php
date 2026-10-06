@@ -10,8 +10,8 @@
     @if($deliveryProof)
         <section class="border border-line bg-surface p-5">
             <h2 class="font-semibold">Proof of delivery</h2>
-            <a href="{{ asset('storage/'.$deliveryProof->proof_path) }}" target="_blank" rel="noopener" class="mt-4 inline-block">
-                <img src="{{ asset('storage/'.$deliveryProof->proof_path) }}" alt="Delivery proof for {{ $shipment->tracking_number }}" class="max-h-96 max-w-full border border-line object-contain">
+            <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($deliveryProof->proof_path) }}" target="_blank" rel="noopener" class="mt-4 inline-block">
+                <img src="{{ \Illuminate\Support\Facades\Storage::disk('public')->url($deliveryProof->proof_path) }}" alt="Delivery proof for {{ $shipment->tracking_number }}" class="max-h-96 max-w-full border border-line object-contain">
             </a>
             <p class="mt-2 text-sm text-muted">Submitted {{ $deliveryProof->attempted_at?->format('M d, Y g:i A') }}</p>
         </section>

@@ -13,6 +13,13 @@ class PasswordRecoveryTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_marketplace_login_links_to_the_password_reset_page(): void
+    {
+        $this->get(route('login'))
+            ->assertOk()
+            ->assertSee('href="'.route('password.request').'"', escape: false);
+    }
+
     public function test_password_reset_link_can_be_requested_and_used(): void
     {
         $this->withoutVite();

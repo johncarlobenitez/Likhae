@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin\Dispute;
 use App\Models\Buyer\Address;
 use App\Models\Buyer\CartItem;
 use App\Models\Buyer\Order;
@@ -10,6 +11,8 @@ use App\Models\Buyer\WishlistItem;
 use App\Models\Communication\Conversation;
 use App\Models\Communication\ConversationParticipant;
 use App\Models\Logistics\ServiceAreaLocation;
+use App\Models\Logistics\Shipment;
+use App\Models\Rider\RiderAssignment;
 use App\Models\Seller\Product;
 use App\Models\Seller\SellerProfile;
 use App\Models\Seller\Voucher;
@@ -19,6 +22,7 @@ use App\Services\Fulfillment\ShipmentWorkflowService;
 use App\Services\Marketplace\CartService;
 use App\Services\Marketplace\CheckoutService;
 use App\Services\Marketplace\ProductCatalogService;
+use App\Services\Media\ImageOptimizationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -82,7 +86,17 @@ class BuyerApiController extends Controller
     {
         $this->authorizeBuyer($request);
         $orders = $request->user()->orders()
-            ->with(['buyer', 'sellerOrders.items.product.images', 'sellerOrders.shipment.events', 'address', 'payments'])
+            ->with([
+                'buyer',
+                'sellerOrders.items.product.images',
+                'sellerOrders.shipment.events',
+                'sellerOrders.shipment.riderAssignments.liveLocation',
+                'address',
+                'payments',
+                'disputes' => fn ($query) => $query
+                    ->where('type', 'RETURN_REFUND')
+                    ->whereIn('status', ['OPEN', 'UNDER_REVIEW']),
+            ])
             ->latest()
             ->paginate(min(max($request->integer('per_page', 20), 1), 50));
         $orders->getCollection()->each(fn (Order $order) => $workflow->syncParentOrderProgress($order));
@@ -104,9 +118,35 @@ class BuyerApiController extends Controller
         $this->authorizeBuyer($request);
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
         $workflow->syncParentOrderProgress($order);
-        $order->load(['buyer', 'sellerOrders.items.product.images', 'sellerOrders.shipment.events', 'address', 'payments']);
+        $order->load([
+            'buyer',
+            'sellerOrders.items.product.images',
+            'sellerOrders.shipment.events',
+            'sellerOrders.shipment.riderAssignments.liveLocation',
+            'address',
+            'payments',
+            'disputes' => fn ($query) => $query
+                ->where('type', 'RETURN_REFUND')
+                ->whereIn('status', ['OPEN', 'UNDER_REVIEW']),
+        ]);
 
         return response()->json(['success' => true, 'data' => $this->orderPayload($order)]);
+    }
+
+    public function liveRiderLocation(Request $request, Order $order): JsonResponse
+    {
+        $this->authorizeBuyer($request);
+        abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
+
+        $order->load('sellerOrders.shipment.riderAssignments.liveLocation');
+        $shipment = $order->sellerOrders->firstWhere('shipment', '!=', null)?->shipment;
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'rider_location' => $this->riderLocationPayload($shipment),
+            ],
+        ]);
     }
 
     public function placeOrder(Request $request, CartService $cart, CheckoutService $checkout): JsonResponse
@@ -231,7 +271,7 @@ class BuyerApiController extends Controller
         return response()->json(['success' => true, 'data' => $this->addressPayload($address->fresh())]);
     }
 
-    public function updateProfile(Request $request): JsonResponse
+    public function updateProfile(Request $request, ImageOptimizationService $images): JsonResponse
     {
         $this->authorizeBuyer($request);
         $data = $request->validate([
@@ -250,7 +290,7 @@ class BuyerApiController extends Controller
         }
         $oldPath = null;
         if ($request->hasFile('profile_photo')) {
-            $data['profile_photo_path'] = $request->file('profile_photo')->store('profile-photos', 'public');
+            $data['profile_photo_path'] = $images->store($request->file('profile_photo'), 'profile-photos');
             $oldPath = $user->profile_photo_path;
         }
         $user->update($data);
@@ -500,7 +540,7 @@ class BuyerApiController extends Controller
         ]);
     }
 
-    public function sendMessage(Request $request, ConversationService $service): JsonResponse
+    public function sendMessage(Request $request, ConversationService $service, ImageOptimizationService $images): JsonResponse
     {
         $this->authorizeBuyer($request);
         $data = $request->validate([
@@ -514,7 +554,9 @@ class BuyerApiController extends Controller
             ->where('status', 'ACTIVE')
             ->whereHas('user', fn ($query) => $query->whereKey($data['recipient_id'])->where('status', 'ACTIVE'))
             ->firstOrFail();
-        $attachmentPath = $request->file('attachment')?->store('message-attachments', 'public');
+        $attachmentPath = $request->hasFile('attachment')
+            ? $images->store($request->file('attachment'), 'message-attachments')
+            : null;
         $message = $service->send($request->user(), (int) $recipient->user_id, trim((string) ($data['body'] ?? '')) ?: '[Photo]', [
             'order_id' => $data['order_id'] ?? null,
         ]);
@@ -616,13 +658,32 @@ class BuyerApiController extends Controller
             'quantity' => (int) $item->quantity,
         ]))->values();
         $shipment = $order->sellerOrders->firstWhere('shipment', '!=', null)?->shipment;
+        $activeReturnRequest = $order->disputes->first(
+            fn (Dispute $dispute): bool => $dispute->type === 'RETURN_REFUND'
+                && in_array($dispute->status, ['OPEN', 'UNDER_REVIEW'], true),
+        );
         $events = $order->sellerOrders->flatMap(fn ($sellerOrder) => $sellerOrder->shipment?->events ?? collect())
             ->sortBy('occurred_at')->values();
+        $allShipmentsDelivered = $order->sellerOrders->isNotEmpty()
+            && $order->sellerOrders->every(fn ($sellerOrder): bool => $sellerOrder->shipment
+                && in_array($sellerOrder->shipment->current_status, ['DELIVERED', 'COMPLETED'], true));
+        $deliveredAt = $order->sellerOrders
+            ->flatMap(fn ($sellerOrder) => $sellerOrder->shipment?->events ?? collect())
+            ->where('status', 'DELIVERED')
+            ->max('occurred_at');
+        $insideReturnWindow = $deliveredAt
+            && now()->lte($deliveredAt->copy()->addDays(5));
+        $canRequestReturn = ! $activeReturnRequest
+            && in_array($order->status, ['PROCESSING', 'COMPLETED'], true)
+            && $allShipmentsDelivered
+            && $insideReturnWindow;
 
         return [
             'id' => (string) $order->id,
             'order_number' => $order->order_number,
             'status' => $order->status,
+            'buyer_status' => $activeReturnRequest ? 'returns' : null,
+            'buyer_status_label' => $activeReturnRequest ? 'Return / Refund Requested' : null,
             'status_label' => str($order->status)->headline()->toString(),
             'payment_method' => $order->payments->first()?->method ?? 'Not specified',
             'payment_status' => $order->payment_status,
@@ -638,6 +699,7 @@ class BuyerApiController extends Controller
                 'formatted_address' => $order->address->formatted(),
             ] : null,
             'tracking_number' => $shipment?->tracking_number,
+            'rider_location' => $this->riderLocationPayload($shipment),
             'items' => $items,
             'timeline' => $events->map(fn ($event): array => [
                 'status' => $event->status,
@@ -650,7 +712,31 @@ class BuyerApiController extends Controller
             'allow_mark_received' => $order->sellerOrders->isNotEmpty()
                 && $order->sellerOrders->every(fn ($sellerOrder): bool => $sellerOrder->shipment?->current_status === 'DELIVERED'),
             'allow_review' => $order->status === 'COMPLETED',
-            'allow_return_request' => in_array($order->status, ['PROCESSING', 'COMPLETED'], true),
+            'allow_return_request' => $canRequestReturn,
+            'has_active_return_request' => (bool) $activeReturnRequest,
+        ];
+    }
+
+    private function riderLocationPayload(?Shipment $shipment): ?array
+    {
+        if ($shipment?->current_status !== 'OUT_FOR_DELIVERY') {
+            return null;
+        }
+
+        $assignment = $shipment->riderAssignments->first(
+            fn (RiderAssignment $assignment): bool => $assignment->assignment_type === RiderAssignment::TYPE_DELIVERY
+                && $assignment->status === 'IN_PROGRESS',
+        );
+        $location = $assignment?->liveLocation;
+
+        if (! $location?->recorded_at?->greaterThan(now()->subMinutes(2))) {
+            return null;
+        }
+
+        return [
+            'latitude' => (float) $location->latitude,
+            'longitude' => (float) $location->longitude,
+            'recorded_at' => $location->recorded_at->toIso8601String(),
         ];
     }
 }

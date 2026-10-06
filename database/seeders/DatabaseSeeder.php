@@ -31,9 +31,11 @@ class DatabaseSeeder extends Seeder
         $logisticsUser = $this->user('LOGISTICS', 'Logistics', 'Center', 'logistics@likhae.com');
         $riderUser = $this->user('RIDER', 'Rider', 'User', 'rider@likhae.com');
 
+        $this->address($admin, 'Home');
         $buyerAddress = $this->address($buyer, 'Home');
         $sellerAddress = $this->address($sellerUser, 'Business');
         $centerAddress = $this->address($logisticsUser, 'Center');
+        $this->address($riderUser, 'Home');
 
         $category = Category::firstOrCreate(
             ['slug' => 'handmade-goods'],
@@ -106,21 +108,26 @@ class DatabaseSeeder extends Seeder
 
     private function user(string $type, string $first, string $last, string $email): User
     {
-        return User::updateOrCreate(
-            ['email' => $email],
-            [
-                'account_type' => $type,
-                'first_name' => $first,
-                'middle_initial' => null,
-                'last_name' => $last,
-                'sex' => 'PREFER_NOT_TO_SAY',
-                'contact_number' => '09'.random_int(100000000, 999999999),
-                'birthday' => '2000-01-01',
-                'email_verified_at' => now(),
-                'password' => Hash::make('Password1'),
-                'status' => 'ACTIVE',
-            ],
-        );
+        $user = User::firstOrNew(['email' => $email]);
+        $user->fill([
+            'account_type' => $type,
+            'first_name' => $first,
+            'middle_initial' => null,
+            'last_name' => $last,
+            'sex' => $user->sex ?: 'PREFER_NOT_TO_SAY',
+            'contact_number' => $user->contact_number ?: '09'.random_int(100000000, 999999999),
+            'birthday' => $user->birthday ?: '2000-01-01',
+            'email_verified_at' => $user->email_verified_at ?: now(),
+            'status' => 'ACTIVE',
+        ]);
+
+        if (! $user->exists || blank($user->password)) {
+            $user->password = Hash::make('Password1');
+        }
+
+        $user->save();
+
+        return $user;
     }
 
     private function address(User $user, string $label): Address
