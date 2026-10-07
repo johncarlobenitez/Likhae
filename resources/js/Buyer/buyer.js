@@ -194,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
         all('[data-variation-option]', group || document).forEach((option) => {
             const selected = option === button;
             option.setAttribute('aria-pressed', String(selected));
+            option.classList.toggle('is-selected', selected);
             option.classList.toggle('border-red-800', selected);
             option.classList.toggle('bg-red-50', selected);
             option.classList.toggle('text-red-900', selected);

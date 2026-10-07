@@ -17,7 +17,8 @@ class RiderLocationService
         $shipment = $assignment->shipment;
         $allowed = in_array($assignment->status, ['ACCEPTED', 'IN_PROGRESS'], true)
             && (($assignment->assignment_type === RiderAssignment::TYPE_PICKUP && $shipment?->current_status === 'READY_FOR_PICKUP')
-                || ($assignment->assignment_type === RiderAssignment::TYPE_DELIVERY && $shipment?->current_status === 'OUT_FOR_DELIVERY'))
+                || ($assignment->assignment_type === RiderAssignment::TYPE_DELIVERY
+                    && in_array($shipment?->current_status, ['ASSIGNED_TO_RIDER', 'OUT_FOR_DELIVERY'], true)))
             || ($assignment->assignment_type === RiderAssignment::TYPE_PICKUP
                 && $assignment->status === 'COMPLETED'
                 && $shipment?->current_status === 'PICKED_UP');

@@ -10,7 +10,7 @@
     <div class="grid gap-4">
     @forelse($shipments as $shipment)
         @php($activeAssignment = $shipment->riderAssignments->where('assignment_type','DELIVERY')->whereIn('status',['ASSIGNED','ACCEPTED','IN_PROGRESS'])->sortByDesc('id')->first())
-        @php($eligibleRiders = $riders->filter(fn($rider) => $shipment->service_area_id && $rider->areaAssignments->contains(fn($assignment) => $assignment->is_active && $assignment->service_area_id === $shipment->service_area_id)))
+        @php($eligibleRiders = $eligibleRidersByShipment[$shipment->id] ?? collect())
         <article class="border border-line bg-surface p-5"><div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div><a class="text-lg font-bold text-primary" href="{{ route('logistics.parcels.show',$shipment) }}">{{ $shipment->tracking_number }}</a><p class="mt-1 text-sm text-muted">{{ $shipment->sellerOrder?->order?->address?->formatted() }}</p><span class="text-xs font-semibold">{{ $shipment->serviceArea?->name ?? 'No delivery area' }} · {{ str($shipment->current_status)->headline() }}</span></div>
             @if($activeAssignment)<div><strong>{{ $activeAssignment->riderProfile?->user?->name }}</strong><small class="block text-muted">{{ str($activeAssignment->status)->headline() }}</small></div>

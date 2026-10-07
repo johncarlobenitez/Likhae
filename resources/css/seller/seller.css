@@ -584,6 +584,8 @@ a.sl-stat-card:hover {
 .sl-order-details div { display: grid; }
 .sl-order-details dt, .sl-detail-list dt, .sl-price-list dt, .sl-shipment-meta dt { color: var(--sl-muted); font-size: 8px; }
 .sl-order-details dd, .sl-detail-list dd, .sl-price-list dd, .sl-shipment-meta dd { margin: 2px 0 0; font-size: 9px; }
+.sl-order-provider { margin: 0; padding: 0 14px 10px; color: var(--sl-muted); font-size: 9px; }
+.sl-order-provider strong { color: var(--sl-text); }
 .sl-order-card-actions { min-height: 50px; padding: 8px 14px; display: flex; justify-content: flex-end; align-items: center; gap: 6px; background: #FFF9F2; border-top: 1px solid var(--sl-border); }
 .sl-order-detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; align-items: start; gap: 16px; }
 .sl-order-detail-main, .sl-order-detail-side { display: grid; gap: 16px; }

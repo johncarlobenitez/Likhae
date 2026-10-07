@@ -132,7 +132,9 @@ class RiderMobileApiTest extends TestCase
                 'latitude' => 14.601,
                 'longitude' => 120.986,
             ])
-            ->assertConflict();
+            ->assertOk()
+            ->assertJsonPath('data.latitude', 14.601)
+            ->assertJsonPath('data.longitude', 120.986);
     }
 
     private function createRider(): User

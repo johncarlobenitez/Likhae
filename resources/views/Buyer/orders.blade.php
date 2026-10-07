@@ -19,7 +19,7 @@
     $orderCollection = isset($orders) && method_exists($orders, 'getCollection') ? $orders->getCollection() : collect($orders ?? []);
     $filter = strtoupper((string) request('status', ''));
     $returnRefundReady = $returnRefundReady ?? false;
-    $visibleOrders = in_array($filter, ['', 'ALL', 'RETURNS'], true) ? $orderCollection : $orderCollection->where('status', $filter);
+    $visibleOrders = in_array($filter, ['', 'ALL', 'RETURNS', 'DELIVERED'], true) ? $orderCollection : $orderCollection->where('status', $filter);
 @endphp
 
 <div class="lk-page-narrow lk-order-page">
@@ -34,7 +34,7 @@
             $deliveryAssignment = $selectedOrder->sellerOrders->pluck('shipment')->filter()->flatMap->riderAssignments->where('assignment_type', 'DELIVERY')->sortByDesc('id')->first();
             $payment = $selectedOrder->payments->first();
         @endphp
-        <div class="lk-page-title"><div><span class="lk-kicker">Order details</span><h1>{{ $selectedOrder->order_number }}</h1><p>{{ $detailDelivered && $selectedOrder->status !== 'COMPLETED' ? 'Delivered — please confirm receipt' : str($selectedOrder->status)->headline() }}</p></div><div class="flex flex-wrap gap-2"><a class="lk-btn lk-btn-light" href="{{ route('buyer.orders', ['status' => 'RETURNS']) }}">Returns & Refunds</a><a class="lk-btn lk-btn-light" href="{{ route('buyer.orders') }}">Back to Orders</a></div></div>
+        <div class="lk-page-title"><div><span class="lk-kicker">Order details</span><h1>{{ $selectedOrder->order_number }}</h1><p>{{ $detailDelivered && $selectedOrder->status !== 'COMPLETED' ? 'Delivered — please confirm receipt' : str($selectedOrder->status)->headline() }}</p></div><div class="flex flex-wrap gap-2"><a class="lk-btn lk-btn-light" href="{{ route('buyer.orders') }}">Back to Orders</a></div></div>
         <section class="mt-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
             <h2 class="text-lg font-bold text-stone-900">Shipping information</h2>
             <div class="mt-4 grid gap-4 md:grid-cols-2">
@@ -144,7 +144,7 @@
     @else
         <div class="lk-page-title"><div><span class="lk-kicker">Order Center</span><h1>My Orders</h1><p>Track fulfillment and confirm receipt after delivery.</p></div><div class="flex flex-wrap gap-2"><a class="lk-btn lk-btn-light" href="{{ route('buyer.products') }}">Shop Products</a></div></div>
         @php
-            $orderTabs = ['' => 'All', 'PLACED' => 'Placed', 'PROCESSING' => 'Processing', 'COMPLETED' => 'Completed', 'CANCELLED' => 'Cancelled', 'RETURNS' => 'Returns & Refunds'];
+            $orderTabs = ['' => 'All', 'PLACED' => 'Placed', 'PROCESSING' => 'Processing', 'DELIVERED' => 'Delivered', 'COMPLETED' => 'Completed', 'CANCELLED' => 'Cancelled', 'RETURNS' => 'Returns & Refunds'];
         @endphp
         <nav class="lk-order-status-tabs mt-4" aria-label="Order status filters">
             @foreach($orderTabs as $key => $label)

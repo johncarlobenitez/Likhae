@@ -57,7 +57,7 @@
             <div>
                 <span class="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Rider Management</span>
                 <h1 class="mt-2 font-display text-[32px] font-semibold tracking-[-0.04em] text-ink">{{ $name }}</h1>
-                <p class="mt-1 text-[10px] text-muted">Rider ID: RID-{{ str_pad((string) data_get($data, 'id', 0), 4, '0', STR_PAD_LEFT) }}</p>
+                <p class="mt-1 text-[10px] text-muted">Rider ID: RID-{{ str_pad((string) data_get($rider, 'id', 0), 4, '0', STR_PAD_LEFT) }}</p>
             </div>
         </div>
     </section>

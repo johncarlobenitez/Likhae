@@ -331,18 +331,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (previewGallery) {
+                const selectedPreviewUrl = previewImage?.dataset.previewSelected && imageItems.some((item) => item.dataset.imageUrl === previewImage.dataset.previewSelected)
+                    ? previewImage.dataset.previewSelected
+                    : imageItems[0]?.dataset.imageUrl;
                 previewGallery.innerHTML = '';
                 previewGallery.hidden = imageItems.length === 0;
-                imageItems.forEach((item) => {
+                imageItems.forEach((item, index) => {
                     const button = document.createElement('button');
                     button.type = 'button';
                     button.className = 'sl-preview-gallery-button';
+                    const selected = item.dataset.imageUrl === selectedPreviewUrl || (!selectedPreviewUrl && index === 0);
+                    button.classList.toggle('is-selected', selected);
+                    button.setAttribute('aria-pressed', String(selected));
                     button.setAttribute('aria-label', `Preview ${item.dataset.imageLabel || 'product image'}`);
                     button.addEventListener('click', () => {
                         if (!previewImage) return;
                         previewImage.src = item.dataset.imageUrl;
-                        previewImage.dataset.previewSelected = 'true';
+                        previewImage.dataset.previewSelected = item.dataset.imageUrl;
                         selectAll('.sl-preview-gallery-button', previewGallery).forEach((thumbnail) => thumbnail.classList.remove('is-selected'));
+                        selectAll('.sl-preview-gallery-button', previewGallery).forEach((thumbnail) => thumbnail.setAttribute('aria-pressed', String(thumbnail === button)));
                         button.classList.add('is-selected');
                     });
 

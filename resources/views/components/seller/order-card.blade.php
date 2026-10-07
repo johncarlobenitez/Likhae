@@ -20,6 +20,7 @@
         <div class="sl-order-product"><x-product-thumbnail :item="data_get($order, 'first_item')" size="64" class="sl-order-thumb"/><div><strong>{{ data_get($order,'product') }}</strong><small>{{ data_get($order,'variant','Standard') }} · Qty: {{ data_get($order,'quantity',1) }}</small></div></div>
         <dl class="sl-order-details"><div><dt>Buyer</dt><dd>{{ data_get($order,'buyer') }}</dd></div><div><dt>Payment</dt><dd>{{ data_get($order,'payment') }}</dd></div><div><dt>Shipping</dt><dd>{{ data_get($order,'shipping') }}</dd></div><div><dt>Total</dt><dd><strong>₱{{ number_format((float) data_get($order,'total'),2) }}</strong></dd></div></dl>
     </div>
+    <p class="sl-order-provider"><strong>Logistics:</strong> {{ data_get($order, 'logistics_provider', 'Not assigned') }} <span aria-hidden="true">·</span> <strong>Courier:</strong> {{ data_get($order, 'shipping', 'Waiting for Logistics') }}</p>
     <footer class="sl-order-card-actions">
         <a href="{{ route('seller.orders',['mode'=>'show','order'=>$id]) }}" class="sl-btn sl-btn-ghost sl-btn-sm">View Details</a>
         @if ($statusKey === 'placed')

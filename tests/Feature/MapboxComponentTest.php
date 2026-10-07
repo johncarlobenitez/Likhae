@@ -8,6 +8,7 @@ use App\Models\Logistics\Shipment;
 use App\Models\Rider\RiderAssignment;
 use App\Models\Rider\RiderProfile;
 use App\Models\Seller\SellerOrder;
+use App\Models\Seller\SellerProfile;
 use App\Models\User;
 use App\Services\Maps\MapDataService;
 use Illuminate\Support\Facades\Blade;
@@ -113,5 +114,67 @@ class MapboxComponentTest extends TestCase
         $this->assertNotNull($marker);
         $this->assertArrayNotHasKey('latitude', $marker);
         $this->assertSame(route('rider.assignments.location', ['assignment' => 1001]), $marker['location_update_endpoint']);
+    }
+
+    public function test_accepted_delivery_map_routes_to_the_saved_order_destination(): void
+    {
+        $riderUser = new User(['account_type' => User::TYPE_RIDER]);
+        $riderUser->id = 702;
+        $rider = new RiderProfile(['user_id' => $riderUser->id]);
+        $rider->id = 802;
+        $rider->setRelation('user', $riderUser);
+
+        $assignment = new RiderAssignment([
+            'shipment_id' => 902,
+            'rider_profile_id' => $rider->id,
+            'assignment_type' => RiderAssignment::TYPE_DELIVERY,
+            'status' => 'ACCEPTED',
+        ]);
+        $assignment->id = 1002;
+        $assignment->setRelation('riderProfile', $rider);
+        $assignment->setRelation('liveLocation', null);
+
+        $buyerAddress = new OrderAddress([
+            'latitude' => 14.6101,
+            'longitude' => 120.9901,
+            'barangay_name' => 'Buyer Barangay',
+            'municipality_name' => 'Buyer City',
+            'province_name' => 'Buyer Province',
+        ]);
+        $order = new Order();
+        $order->setRelation('address', $buyerAddress);
+        $seller = new SellerProfile();
+        $seller->setRelation('businessAddress', new OrderAddress([
+            'latitude' => 14.5801,
+            'longitude' => 120.9701,
+        ]));
+        $sellerOrder = new SellerOrder();
+        $sellerOrder->setRelation('order', $order);
+        $sellerOrder->setRelation('sellerProfile', $seller);
+
+        $shipment = new Shipment([
+            'tracking_number' => 'TRACK-902',
+            'current_status' => 'ASSIGNED_TO_RIDER',
+        ]);
+        $shipment->id = 902;
+        $shipment->setRelation('sellerOrder', $sellerOrder);
+        $shipment->setRelation('riderAssignments', collect([$assignment]));
+        $shipment->setRelation('logisticsCenter', null);
+        $shipment->setRelation('serviceArea', null);
+
+        $this->actingAs($riderUser);
+        $service = app(MapDataService::class);
+        $markers = $service->forShipment($shipment, true, true);
+        $tracking = $service->trackingState($shipment, $riderUser);
+        $riderMarker = collect($markers)->firstWhere('id', 'rider-assignment-1002');
+
+        $this->assertSame('buyer', $tracking['active_destination_kind']);
+        $this->assertSame(1002, $tracking['active_assignment_id']);
+        $this->assertSame(14.6101, $tracking['destination']['latitude']);
+        $this->assertSame(120.9901, $tracking['destination']['longitude']);
+        $this->assertNotNull($riderMarker);
+        $this->assertSame('buyer', $riderMarker['active_destination_kind']);
+        $this->assertSame(route('rider.assignments.location', ['assignment' => 1002]), $riderMarker['location_update_endpoint']);
+        $this->assertSame(14.6101, collect($markers)->firstWhere('target_kind', 'buyer')['latitude']);
     }
 }

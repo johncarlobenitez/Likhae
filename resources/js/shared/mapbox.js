@@ -280,7 +280,7 @@ async function refreshTracking(shell, map, mapboxgl, payload) {
     }
     if (tracking.live) {
         updateStatus(shell, `Rider live location updated · ${tracking.status || 'Active shipment'}.`);
-    } else if (['READY_FOR_PICKUP', 'PICKED_UP', 'OUT_FOR_DELIVERY'].includes(tracking.status)) {
+    } else if (['READY_FOR_PICKUP', 'PICKED_UP', 'ASSIGNED_TO_RIDER', 'OUT_FOR_DELIVERY'].includes(tracking.status)) {
         updateStatus(shell, `Waiting for the active rider location · ${tracking.status.replaceAll('_', ' ')}.`);
     } else if (markers.length) {
         updateStatus(shell, `${markers.length} saved location${markers.length === 1 ? '' : 's'} shown. Live movement starts when the active delivery phase begins.`);

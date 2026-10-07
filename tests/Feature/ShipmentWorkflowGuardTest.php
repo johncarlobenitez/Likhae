@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Buyer\Order;
 use App\Models\Logistics\LogisticsCenter;
+use App\Models\Logistics\ServiceArea;
+use App\Models\Logistics\ServiceAreaLocation;
 use App\Models\Logistics\Shipment;
 use App\Models\Rider\RiderAssignment;
+use App\Models\Rider\RiderAreaAssignment;
 use App\Models\Rider\RiderProfile;
 use App\Models\Seller\Category;
 use App\Models\Seller\SellerOrder;
@@ -77,6 +80,71 @@ class ShipmentWorkflowGuardTest extends TestCase
         } catch (ValidationException) {
             $this->assertDatabaseHas('shipments', ['id' => $shipment->id, 'current_status' => 'PICKED_UP']);
         }
+    }
+
+    public function test_sorting_accepts_matching_area_names_when_address_codes_differ(): void
+    {
+        $centerUser = User::factory()->create(['account_type' => User::TYPE_LOGISTICS]);
+        $center = LogisticsCenter::create([
+            'owner_user_id' => $centerUser->id,
+            'code' => 'CENTER-SORT-NAME-TEST',
+            'business_name' => 'Sorting Name Test Center',
+            'status' => 'ACTIVE',
+        ]);
+        $area = ServiceArea::create([
+            'logistics_center_id' => $center->id,
+            'code' => 'AREA-SAN-MIGUEL',
+            'name' => 'Barangay San Miguel - Pila Area',
+            'is_active' => true,
+        ]);
+        ServiceAreaLocation::create([
+            'service_area_id' => $area->id,
+            'province_code' => '0403400000',
+            'province_name' => 'Laguna',
+            'municipality_code' => '0403422000',
+            'municipality_name' => 'Pila',
+            'barangay_code' => '0403422015',
+            'barangay_name' => 'San Miguel',
+        ]);
+        $shipment = Shipment::create([
+            'seller_order_id' => $this->sellerOrder()->id,
+            'tracking_number' => 'TRACK-SORT-NAME-TEST',
+            'logistics_center_id' => $center->id,
+            'destination_province_code' => 'LAG',
+            'destination_province_name' => 'Laguna',
+            'destination_municipality_code' => 'PILA',
+            'destination_municipality_name' => 'Pila',
+            'destination_barangay_code' => 'SAN-MIGUEL',
+            'destination_barangay_name' => 'San Miguel',
+            'current_status' => 'AT_SORTING_CENTER',
+        ]);
+
+        $result = app(ShipmentWorkflowService::class)->sortShipment($shipment, $center, $centerUser, $area);
+
+        $this->assertSame('SORTED', $result->current_status);
+        $this->assertSame($area->id, $result->service_area_id);
+
+        $riderUser = User::factory()->create(['account_type' => User::TYPE_RIDER]);
+        $rider = RiderProfile::create([
+            'user_id' => $riderUser->id,
+            'logistics_center_id' => $center->id,
+            'vehicle_type' => 'motorcycle',
+            'plate_number' => 'SORT-NAME-'.uniqid(),
+            'drivers_license_number' => 'SORT-LICENSE-'.uniqid(),
+            'status' => 'ACTIVE',
+        ]);
+        RiderAreaAssignment::create([
+            'rider_profile_id' => $rider->id,
+            'service_area_id' => $area->id,
+            'assigned_by_user_id' => $centerUser->id,
+            'is_active' => true,
+            'assigned_at' => now(),
+        ]);
+
+        $assignment = app(ShipmentWorkflowService::class)->assignRider($result, $rider, 'DELIVERY', $centerUser);
+
+        $this->assertSame('DELIVERY', $assignment->assignment_type);
+        $this->assertSame('ASSIGNED_TO_RIDER', $shipment->fresh()->current_status);
     }
 
     private function pickupFixture(string $assignmentStatus = 'IN_PROGRESS'): array

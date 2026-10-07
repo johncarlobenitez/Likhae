@@ -59,13 +59,34 @@ class BuyerOrderController extends Controller
         $filter = strtoupper((string) $request->query('status', ''));
         $returnRefundReady = $this->returnRefundStorageReady();
         $buyerOrders = $request->user()->orders();
+        $deliveredShipmentStatuses = ['DELIVERED', 'COMPLETED'];
         $orderStatusCounts = (clone $buyerOrders)
             ->selectRaw('status, COUNT(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status')
             ->map(fn ($count): int => (int) $count);
 
-        $orderStatusCounts->put('ALL', $orderStatusCounts->sum());
+        $orderStatusCounts->put(
+            'PROCESSING',
+            (clone $buyerOrders)
+                ->where('status', 'PROCESSING')
+                ->where(function ($query) use ($deliveredShipmentStatuses): void {
+                    $query
+                        ->whereHas('sellerOrders', fn ($sellerOrderQuery) => $sellerOrderQuery->whereDoesntHave('shipment'))
+                        ->orWhereHas('sellerOrders.shipment', fn ($shipmentQuery) => $shipmentQuery->whereNotIn('current_status', $deliveredShipmentStatuses));
+                })
+                ->count(),
+        );
+        $orderStatusCounts->put(
+            'DELIVERED',
+            (clone $buyerOrders)
+                ->where('status', 'PROCESSING')
+                ->whereHas('sellerOrders')
+                ->whereDoesntHave('sellerOrders', fn ($sellerOrderQuery) => $sellerOrderQuery->whereDoesntHave('shipment'))
+                ->whereDoesntHave('sellerOrders.shipment', fn ($shipmentQuery) => $shipmentQuery->whereNotIn('current_status', $deliveredShipmentStatuses))
+                ->count(),
+        );
+        $orderStatusCounts->put('ALL', (clone $buyerOrders)->count());
         $orderStatusCounts->put(
             'RETURNS',
             $returnRefundReady ? (clone $buyerOrders)->whereHas('returnRefundRequests')->count() : 0
@@ -83,7 +104,21 @@ class BuyerOrderController extends Controller
             $returnRefundReady
                 ? $orderQuery->whereHas('returnRefundRequests')
                 : $orderQuery->whereRaw('1 = 0');
-        } elseif (in_array($filter, ['PLACED', 'PROCESSING', 'COMPLETED', 'CANCELLED'], true)) {
+        } elseif ($filter === 'DELIVERED') {
+            $orderQuery
+                ->where('status', 'PROCESSING')
+                ->whereHas('sellerOrders')
+                ->whereDoesntHave('sellerOrders', fn ($sellerOrderQuery) => $sellerOrderQuery->whereDoesntHave('shipment'))
+                ->whereDoesntHave('sellerOrders.shipment', fn ($shipmentQuery) => $shipmentQuery->whereNotIn('current_status', $deliveredShipmentStatuses));
+        } elseif ($filter === 'PROCESSING') {
+            $orderQuery
+                ->where('status', 'PROCESSING')
+                ->where(function ($query) use ($deliveredShipmentStatuses): void {
+                    $query
+                        ->whereHas('sellerOrders', fn ($sellerOrderQuery) => $sellerOrderQuery->whereDoesntHave('shipment'))
+                        ->orWhereHas('sellerOrders.shipment', fn ($shipmentQuery) => $shipmentQuery->whereNotIn('current_status', $deliveredShipmentStatuses));
+                });
+        } elseif (in_array($filter, ['PLACED', 'COMPLETED', 'CANCELLED'], true)) {
             $orderQuery->where('status', $filter);
         }
 

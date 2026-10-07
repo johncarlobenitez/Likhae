@@ -82,7 +82,7 @@ class DispatchController extends Controller
         $riders = RiderProfile::query()
             ->where('status', 'ACTIVE')
             ->when($center, fn ($query) => $query->where('logistics_center_id', $center->id))
-            ->with(['user', 'areaAssignments'])
+            ->with(['user', 'areaAssignments.serviceArea.locations'])
             ->orderBy('id')
             ->get();
 
@@ -90,9 +90,19 @@ class DispatchController extends Controller
         $pickupAreaIds = $pickups->getCollection()->mapWithKeys(fn ($pickup) => [
             $pickup->shipment_id => $workflow->sellerPickupServiceArea($pickup->shipment, $center)?->id,
         ]);
+        $pickupEligibleRiderIds = $pickups->getCollection()->mapWithKeys(fn ($pickup) => [
+            $pickup->shipment_id => $riders
+                ->filter(fn (RiderProfile $rider) => $workflow->riderCoversSellerPickupArea($pickup->shipment, $rider))
+                ->pluck('id')
+                ->values(),
+        ]);
 
-        $mapMarkers = app(MapDataService::class)->forShipments($pickups->getCollection()->map->shipment->filter(), true);
-        return view('Logistics.pickups.index', compact('pickups', 'riders', 'center', 'pickupAreaIds', 'mapMarkers'));
+        $mapMarkers = app(MapDataService::class)->forShipments(
+            $pickups->getCollection()->map->shipment->filter(),
+            includeSeller: true,
+            viewer: auth()->user(),
+        );
+        return view('Logistics.pickups.index', compact('pickups', 'riders', 'center', 'pickupAreaIds', 'pickupEligibleRiderIds', 'mapMarkers'));
     }
 
     public function receive(Request $request): View
@@ -139,7 +149,7 @@ class DispatchController extends Controller
         return view('Logistics.sorting.index', compact('shipments', 'areas', 'center'));
     }
 
-    public function assignments(Request $request): View
+    public function assignments(Request $request, ShipmentWorkflowService $workflow): View
     {
         $center = $this->center($request);
         $tracking = trim((string) $request->query('tracking', ''));
@@ -156,12 +166,20 @@ class DispatchController extends Controller
         $riders = RiderProfile::query()
             ->where('status', 'ACTIVE')
             ->when($center, fn ($query) => $query->where('logistics_center_id', $center->id))
-            ->with(['user', 'areaAssignments.serviceArea'])
+            ->with(['user', 'areaAssignments.serviceArea.locations'])
             ->orderBy('id')
             ->get();
 
+        $eligibleRidersByShipment = $shipments->getCollection()
+            ->mapWithKeys(fn (Shipment $shipment): array => [
+                $shipment->id => $riders
+                    ->filter(fn (RiderProfile $rider): bool => $workflow->riderCoversShipmentDestinationArea($shipment, $rider))
+                    ->values(),
+            ])
+            ->all();
+
         $mapMarkers = app(MapDataService::class)->forShipments($shipments->getCollection(), true);
-        return view('Logistics.assignments.index', compact('shipments', 'riders', 'center', 'mapMarkers'));
+        return view('Logistics.assignments.index', compact('shipments', 'riders', 'center', 'eligibleRidersByShipment', 'mapMarkers'));
     }
 
     public function tracking(Request $request): View
@@ -210,7 +228,13 @@ class DispatchController extends Controller
 
         $rider = RiderProfile::findOrFail($data['rider_profile_id']);
         abort_unless((int) $rider->logistics_center_id === (int) $center->id, 403);
-        $workflow->assignRider($shipment, $rider, $data['assignment_type'], $request->user());
+        try {
+            $workflow->assignRider($shipment, $rider, $data['assignment_type'], $request->user());
+        } catch (\RuntimeException $exception) {
+            return back()
+                ->withErrors(['rider_profile_id' => $exception->getMessage()])
+                ->withInput();
+        }
 
         return back()->with('status', 'Rider assignment created.');
     }
@@ -222,6 +246,7 @@ class DispatchController extends Controller
         $this->ensureShipmentBelongsToCenter($shipment, $center);
         $data = $request->validate([
             'rider_profile_id' => ['required', 'integer', 'exists:rider_profiles,id'],
+            'coverage_override' => ['nullable', 'boolean'],
         ]);
 
         $pickup = $shipment->pickupRequests()->whereIn('status', ['PENDING', 'APPROVED'])->latest()->firstOrFail();
@@ -231,7 +256,32 @@ class DispatchController extends Controller
 
         $rider = RiderProfile::findOrFail($data['rider_profile_id']);
         abort_unless((int) $rider->logistics_center_id === (int) $center->id, 403);
-        $workflow->assignRider($shipment, $rider, 'PICKUP', $request->user());
+        $coverageOverride = (bool) ($data['coverage_override'] ?? false);
+        $pickupArea = $workflow->sellerPickupServiceArea($shipment, $center);
+
+        if ($coverageOverride && $pickupArea) {
+            $hasCoveredRider = RiderProfile::query()
+                ->where('logistics_center_id', $center->id)
+                ->where('status', 'ACTIVE')
+                ->whereHas('areaAssignments', fn ($query) => $query
+                    ->where('service_area_id', $pickupArea->id)
+                    ->where('is_active', true))
+                ->exists();
+
+            if ($hasCoveredRider) {
+                return back()
+                    ->withErrors(['rider_profile_id' => 'A rider already covers this pickup area. Select that rider instead of using the shortage override.'])
+                    ->withInput();
+            }
+        }
+
+        try {
+            $workflow->assignRider($shipment, $rider, 'PICKUP', $request->user(), $coverageOverride);
+        } catch (\RuntimeException $exception) {
+            return back()
+                ->withErrors(['rider_profile_id' => $exception->getMessage()])
+                ->withInput();
+        }
 
         return back()->with('status', 'Pickup rider assigned.');
     }
@@ -286,7 +336,13 @@ class DispatchController extends Controller
         $area = isset($data['service_area_id'])
             ? ServiceArea::query()->where('logistics_center_id', $center->id)->where('is_active', true)->findOrFail($data['service_area_id'])
             : null;
-        $workflow->sortShipment($shipment, $center, $request->user(), $area);
+        try {
+            $workflow->sortShipment($shipment, $center, $request->user(), $area);
+        } catch (\RuntimeException $exception) {
+            return back()
+                ->withErrors(['service_area_id' => $exception->getMessage()])
+                ->withInput();
+        }
 
         return back()->with('status', 'Parcel sorted successfully.');
     }

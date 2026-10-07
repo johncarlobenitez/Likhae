@@ -94,6 +94,8 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
+        $this->call(BackstreetSellerSeeder::class);
+
         $center = LogisticsCenter::updateOrCreate(
             ['owner_user_id' => $logisticsUser->id],
             [

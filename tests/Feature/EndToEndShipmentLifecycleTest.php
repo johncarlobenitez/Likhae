@@ -169,6 +169,15 @@ class EndToEndShipmentLifecycleTest extends TestCase
         Storage::disk('public')->assertExists($deliveryProof->proof_path);
 
         $this->assertSame('PROCESSING', $order->fresh()->status);
+        $this->actingAs($buyer)
+            ->get(route('buyer.orders', ['status' => 'DELIVERED']))
+            ->assertOk()
+            ->assertSee($order->order_number)
+            ->assertSee('Delivered');
+        $processingResponse = $this->actingAs($buyer)
+            ->get(route('buyer.orders', ['status' => 'PROCESSING']))
+            ->assertOk();
+        $this->assertFalse($processingResponse->viewData('orders')->getCollection()->contains('id', $order->id));
 
         $this->actingAs($buyer)
             ->post(route('buyer.orders.received', $order))

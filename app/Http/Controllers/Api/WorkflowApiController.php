@@ -102,7 +102,14 @@ class WorkflowApiController extends Controller
         $area = isset($data['service_area_id'])
             ? ServiceArea::query()->where('logistics_center_id', $center->id)->where('is_active', true)->findOrFail($data['service_area_id'])
             : null;
-        $result = $workflow->sortShipment($shipment, $center, $request->user(), $area);
+        try {
+            $result = $workflow->sortShipment($shipment, $center, $request->user(), $area);
+        } catch (\RuntimeException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
 
         return response()->json(['success' => true, 'tracking_number' => $result->tracking_number, 'current_status' => $result->current_status, 'service_area_id' => $result->service_area_id]);
     }

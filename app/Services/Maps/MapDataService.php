@@ -204,13 +204,9 @@ class MapDataService
             'serviceArea.logisticsCenter.address',
         ]);
 
-        $assignment = $this->activeAssignment($shipment);
-        $destinationKind = match ($shipment->current_status) {
-            'READY_FOR_PICKUP' => 'seller',
-            'PICKED_UP' => 'logistics',
-            'OUT_FOR_DELIVERY' => 'buyer',
-            default => null,
-        };
+        $assignment = $this->activeAssignment($shipment)
+            ?: $this->acceptedDeliveryAssignment($shipment);
+        $destinationKind = $this->destinationKind($shipment, $assignment);
         $destination = match ($destinationKind) {
             'seller' => $shipment->sellerOrder?->sellerProfile?->businessAddress,
             'logistics' => ($shipment->logisticsCenter ?: $shipment->serviceArea?->logisticsCenter)?->address,
@@ -245,6 +241,39 @@ class MapDataService
         ];
     }
 
+    private function destinationKind(Shipment $shipment, ?RiderAssignment $assignment): ?string
+    {
+        if ($assignment) {
+            return match ($assignment->assignment_type) {
+                'PICKUP' => $assignment->status === 'COMPLETED' || $shipment->current_status === 'PICKED_UP'
+                    ? 'logistics'
+                    : 'seller',
+                'DELIVERY' => 'buyer',
+                default => null,
+            };
+        }
+
+        return match ($shipment->current_status) {
+            'READY_FOR_PICKUP' => 'seller',
+            'PICKED_UP' => 'logistics',
+            'OUT_FOR_DELIVERY' => 'buyer',
+            default => null,
+        };
+    }
+
+    private function acceptedDeliveryAssignment(Shipment $shipment): ?RiderAssignment
+    {
+        if ($shipment->current_status !== 'ASSIGNED_TO_RIDER') {
+            return null;
+        }
+
+        return $shipment->riderAssignments
+            ->where('assignment_type', 'DELIVERY')
+            ->whereIn('status', ['ACCEPTED', 'IN_PROGRESS'])
+            ->sortByDesc('id')
+            ->first();
+    }
+
     private function activeAssignment(Shipment $shipment): ?RiderAssignment
     {
         return match ($shipment->current_status) {
@@ -260,7 +289,7 @@ class MapDataService
                 ->first(),
             'OUT_FOR_DELIVERY' => $shipment->riderAssignments
                 ->where('assignment_type', RiderAssignment::TYPE_DELIVERY)
-                ->where('status', 'IN_PROGRESS')
+                ->whereIn('status', ['ACCEPTED', 'IN_PROGRESS'])
                 ->sortByDesc('id')
                 ->first(),
             default => null,
@@ -279,7 +308,7 @@ class MapDataService
 
         $phaseVisible = match ($shipment->current_status) {
             'READY_FOR_PICKUP', 'PICKED_UP' => $assignment->assignment_type === RiderAssignment::TYPE_PICKUP,
-            'OUT_FOR_DELIVERY' => $assignment->assignment_type === RiderAssignment::TYPE_DELIVERY,
+            'ASSIGNED_TO_RIDER', 'OUT_FOR_DELIVERY' => $assignment->assignment_type === RiderAssignment::TYPE_DELIVERY,
             default => false,
         };
 
@@ -323,8 +352,8 @@ class MapDataService
         }
 
         if ($assignment->assignment_type === RiderAssignment::TYPE_DELIVERY
-            && $shipment->current_status === 'OUT_FOR_DELIVERY'
-            && $assignment->status === 'IN_PROGRESS') {
+            && in_array($shipment->current_status, ['ASSIGNED_TO_RIDER', 'OUT_FOR_DELIVERY'], true)
+            && in_array($assignment->status, ['ACCEPTED', 'IN_PROGRESS'], true)) {
             return true;
         }
 
