@@ -143,11 +143,11 @@ document.addEventListener('DOMContentLoaded', () => {
             || document.querySelector('[data-product-gallery]');
         if (!gallery) return;
 
-        let images = [];
-        try { images = JSON.parse(button?.dataset.variationImages || '[]').filter(Boolean); } catch (_) { images = []; }
-        if (!images.length) {
-            try { images = JSON.parse(gallery.dataset.galleryBaseImages || '[]').filter(Boolean); } catch (_) { images = []; }
-        }
+        let variantImages = [];
+        let baseImages = [];
+        try { variantImages = JSON.parse(button?.dataset.variationImages || '[]').filter(Boolean); } catch (_) { variantImages = []; }
+        try { baseImages = JSON.parse(gallery.dataset.galleryBaseImages || '[]').filter(Boolean); } catch (_) { baseImages = []; }
+        const images = [...variantImages, ...baseImages].filter((url, index, allImages) => allImages.indexOf(url) === index);
         if (!images.length) return;
 
         const mainImage = one('[data-detail-main-image], [data-gallery-main]', gallery);
