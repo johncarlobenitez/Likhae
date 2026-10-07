@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\SellerProductSuspended;
 use App\Models\Admin\Announcement;
 use App\Models\Admin\AuditLog;
 use App\Models\Admin\CommissionTransaction;
@@ -21,6 +22,8 @@ use App\Models\User;
 use App\Services\Communication\ConversationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
@@ -152,19 +155,25 @@ class AdminOperationsController extends Controller
     {
         $data = $request->validate([
             'status' => ['required', 'string', 'in:ACTIVE,SUSPENDED,ARCHIVED,DRAFT'],
-            'reason' => ['nullable', 'string', 'max:1000'],
+            'reason' => ['required_if:status,SUSPENDED', 'nullable', 'string', 'max:1000'],
         ]);
 
-        $product->update(['status' => $data['status']]);
+        $mailDetails = null;
 
         if ($data['status'] === 'SUSPENDED') {
+            $product->loadMissing(['sellerProfile.user', 'category', 'variants']);
+            $reason = trim((string) $data['reason']);
+            $seller = $product->sellerProfile;
+            $sellerUser = $seller?->user;
+            $actionUrl = route('seller.products', ['mode' => 'edit', 'product' => $product->id]);
+
             $case = SellerComplianceCase::create([
                 'case_number' => 'CMP-'.now()->format('YmdHis').'-'.strtoupper(Str::random(4)),
                 'seller_profile_id' => $product->seller_profile_id,
                 'product_id' => $product->id,
                 'opened_by_admin_user_id' => $request->user()->id,
                 'violation_type' => 'PRODUCT_MODERATION',
-                'description' => $data['reason'] ?? 'Product suspended by admin.',
+                'description' => $reason,
                 'status' => 'OPEN',
                 'opened_at' => now(),
             ]);
@@ -176,9 +185,65 @@ class AdminOperationsController extends Controller
                 'reason' => $data['reason'] ?? null,
                 'performed_at' => now(),
             ]);
+
+            $product->update(['status' => $data['status']]);
+
+            if ($sellerUser) {
+                $productName = $product->name;
+                $caseNumber = $case->case_number;
+                $notificationMessage = 'Your product "'.$productName.'" (Product ID #'.$product->id.') was suspended on '
+                    .now()->format('M j, Y \\a\\t g:i A').'. Reason: '.$reason
+                    .'. Case '.$caseNumber.'. The listing is unavailable to buyers while suspended. Review and correct the listing, then contact LIKHAE support with the case number if you need clarification or a review.';
+
+                Notification::create([
+                    'user_id' => $sellerUser->id,
+                    'type' => 'PRODUCT_SUSPENDED',
+                    'title' => 'Product suspended: '.$productName,
+                    'message' => $notificationMessage,
+                    'reference_type' => 'PRODUCT',
+                    'reference_id' => $product->id,
+                    'action_url' => $actionUrl,
+                ]);
+
+                $mailDetails = [
+                    'sellerUser' => $sellerUser,
+                    'product' => $product,
+                    'case' => $case,
+                    'reason' => $reason,
+                    'actionUrl' => $actionUrl,
+                ];
+            }
+        } else {
+            $product->update(['status' => $data['status']]);
         }
 
-        return back()->with('status', 'Product moderation updated.');
+        $emailSent = false;
+
+        if ($mailDetails && filled($mailDetails['sellerUser']->email)) {
+            try {
+                Mail::to($mailDetails['sellerUser']->email)->send(new SellerProductSuspended(
+                    $mailDetails['product'],
+                    $mailDetails['case'],
+                    $mailDetails['reason'],
+                    $mailDetails['actionUrl'],
+                ));
+                $emailSent = true;
+            } catch (\Throwable $exception) {
+                Log::warning('Product suspension email could not be sent.', [
+                    'product_id' => $mailDetails['product']->id,
+                    'seller_user_id' => $mailDetails['sellerUser']->id,
+                    'exception' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        $statusMessage = ! $mailDetails
+            ? 'Product moderation updated.'
+            : ($emailSent
+                ? 'Product suspended. The seller was sent an in-app notification and email.'
+                : 'Product suspended and in-app notification saved. The seller email could not be sent; check the mail configuration.');
+
+        return back()->with('status', $statusMessage);
     }
 
     public function categories(Request $request): View
