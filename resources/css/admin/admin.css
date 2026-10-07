@@ -356,6 +356,50 @@ a.ad-stat:hover { border-color: var(--ad-blue-border); transform: translateY(-1p
 .ad-report-card svg { width: 20px; fill: none; stroke: var(--ad-blue); stroke-width: 1.7; }
 .ad-report-card h3 { margin: 0; font-size: 10px; }
 .ad-report-card p { min-height: 32px; margin: -5px 0 0; color: var(--ad-muted); font-size: 7px; line-height: 1.5; }
+.ad-report-page { gap: 16px; }
+.ad-report-page-head { align-items: center; }
+.ad-report-page-head > div, .ad-report-section-head > div { display: grid; gap: 4px; }
+.ad-report-page-head h2, .ad-report-section-head h2 { margin: 0; font-size: 19px; letter-spacing: -.035em; }
+.ad-report-page-head p, .ad-report-section-head p { margin: 0; color: var(--ad-muted); font-size: 9px; line-height: 1.5; }
+.ad-report-page-head .ad-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ad-report-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ad-report-stat { display: flex; min-width: 0; min-height: 102px; align-items: flex-start; gap: 11px; padding: 14px; border: 1px solid var(--ad-border); border-radius: 13px; background: var(--ad-card); box-shadow: var(--ad-shadow); }
+.ad-report-stat-icon { display: grid; width: 36px; height: 36px; flex: 0 0 36px; place-items: center; border-radius: 10px; color: var(--ad-blue); background: var(--ad-blue-soft); }
+.ad-report-stat-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.ad-report-stat.is-commission .ad-report-stat-icon { color: #987044; background: #F5EFE2; }
+.ad-report-stat.is-units .ad-report-stat-icon { color: #6C4936; background: #F6EFE7; }
+.ad-report-stat-copy { display: grid; min-width: 0; }
+.ad-report-stat-label { color: var(--ad-muted); font-size: 8px; }
+.ad-report-stat-copy strong { margin-top: 5px; overflow-wrap: anywhere; color: var(--ad-text); font-size: 17px; letter-spacing: -.035em; }
+.ad-report-stat-copy small { margin-top: 5px; color: var(--ad-muted); font-size: 7px; line-height: 1.45; }
+.ad-report-filter-card, .ad-report-detail-card { min-width: 0; }
+.ad-report-filter-card > form { margin: 0; }
+.ad-report-filter-card .ad-card-head p, .ad-report-rank-card .ad-card-head p, .ad-report-detail-card .ad-card-head p { margin: 3px 0 0; color: var(--ad-muted); font-size: 8px; line-height: 1.5; }
+.ad-report-filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.ad-report-filter-grid .ad-field { min-width: 0; }
+.ad-report-filter-grid .ad-field select, .ad-report-filter-grid .ad-field input { width: 100%; }
+.ad-report-filter-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--ad-border); }
+.ad-report-filter-hint { margin: 0; color: var(--ad-muted); font-size: 8px; line-height: 1.5; }
+.ad-report-section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
+.ad-report-rankings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+.ad-report-rank-card { min-width: 0; }
+.ad-report-rank-card.is-wide { grid-column: 1 / -1; }
+.ad-report-rank-card .ad-card-head { min-height: 58px; }
+.ad-report-rank-card .ad-card-head h3 { margin: 0; font-size: 11px; }
+.ad-report-rank-badge { display: grid; width: 29px; height: 29px; flex: 0 0 29px; place-items: center; border: 1px solid var(--ad-blue-border); border-radius: 9px; color: var(--ad-blue); background: var(--ad-blue-soft); font-size: 8px; font-weight: 700; }
+.ad-report-table { min-width: 660px; }
+.ad-report-table th { padding: 10px 11px; font-size: 7px; }
+.ad-report-table td { padding: 10px 11px; font-size: 8px; }
+.ad-report-table strong { font-size: 8px; }
+.ad-report-table small { font-size: 7px; }
+.ad-report-detail-table { min-width: 1160px; }
+.ad-report-detail-table th, .ad-report-detail-table td { padding-inline: 10px; }
+.ad-report-number { font-variant-numeric: tabular-nums; }
+.ad-report-empty { height: 76px; color: var(--ad-muted) !important; text-align: center; }
+.ad-report-row-count { flex: 0 0 auto; padding: 6px 9px; border: 1px solid var(--ad-border); border-radius: 999px; color: var(--ad-muted); background: var(--ad-bg); font-size: 8px; }
+.ad-report-footnote { margin: 9px 2px 0; color: var(--ad-muted); font-size: 7px; line-height: 1.6; }
+.ad-report-pagination { border-top: 1px solid var(--ad-border); }
+.ad-report-pagination nav { margin-left: auto; }
 .ad-empty { display: grid; min-height: 260px; place-items: center; align-content: center; gap: 8px; padding: 30px; text-align: center; }
 .ad-empty-icon { display: grid; width: 48px; height: 48px; place-items: center; border-radius: 14px; color: var(--ad-blue); background: var(--ad-blue-soft); }
 .ad-empty-icon svg { width: 22px; fill: none; stroke: currentColor; stroke-width: 1.7; }
@@ -376,6 +420,8 @@ a.ad-stat:hover { border-color: var(--ad-blue-border); transform: translateY(-1p
 
 @media (max-width: 1280px) {
     .ad-stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ad-report-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ad-report-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .ad-header { grid-template-columns: minmax(210px, .75fr) minmax(240px, 420px) auto; }
     .ad-profile > span:not(.ad-avatar), .ad-profile > svg { display: none; }
     .ad-report-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -395,6 +441,7 @@ a.ad-stat:hover { border-color: var(--ad-blue-border); transform: translateY(-1p
     .ad-mobile-menu { display: grid !important; }
     .ad-header { grid-template-columns: minmax(210px, 1fr) minmax(220px, 380px) auto; }
     .ad-dashboard-grid, .ad-dashboard-split, .ad-risk-layout { grid-template-columns: 1fr; }
+    .ad-report-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ad-application-card { grid-template-columns: 1fr auto; }
     .ad-application-meta { grid-column: 1 / -1; grid-row: 2; }
 }
@@ -407,6 +454,15 @@ a.ad-stat:hover { border-color: var(--ad-blue-border); transform: translateY(-1p
     .ad-header-actions { gap: 6px; }
     .ad-icon-btn { width: 35px; height: 35px; flex-basis: 35px; }
     .ad-page-head { align-items: flex-start; flex-direction: column; }
+    .ad-report-page-head { align-items: flex-start; }
+    .ad-report-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ad-report-filter-grid { grid-template-columns: 1fr; }
+    .ad-report-filter-footer { align-items: stretch; flex-direction: column; }
+    .ad-report-filter-footer .ad-btn { justify-content: center; }
+    .ad-report-rankings { grid-template-columns: 1fr; }
+    .ad-report-rank-card.is-wide { grid-column: auto; }
+    .ad-report-section-head { align-items: flex-start; }
+    .ad-report-detail-card .ad-card-head { align-items: flex-start; }
     .ad-stat-grid, .ad-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ad-stat { min-height: 96px; padding: 12px; }
     .ad-filter-bar { align-items: stretch; flex-direction: column; }
@@ -428,7 +484,10 @@ a.ad-stat:hover { border-color: var(--ad-blue-border); transform: translateY(-1p
 
 @media (max-width: 460px) {
     .ad-stat-grid, .ad-summary-grid { grid-template-columns: 1fr; }
+    .ad-report-summary { grid-template-columns: 1fr; }
     .ad-stat { min-height: 82px; }
+    .ad-report-stat { min-height: 82px; }
+    .ad-report-row-count { display: none; }
     .ad-inline-actions { width: 100%; }
     .ad-inline-actions .ad-btn { flex: 1; }
     .ad-donut-wrap { align-items: flex-start; flex-direction: column; }
@@ -1036,6 +1095,7 @@ html.dark .ad-header,
 html.dark .ad-footer,
 html.dark .ad-card,
 html.dark .ad-stat,
+html.dark .ad-report-stat,
 html.dark .ad-report-card,
 html.dark .ad-application-card,
 html.dark .ad-complaint-card,
@@ -1056,6 +1116,12 @@ html.dark .ad-filter-bar,
 html.dark .ad-chat-body {
     background: #1E1A17 !important;
     border-color: var(--ad-border) !important;
+}
+
+html.dark .ad-report-stat.is-commission .ad-report-stat-icon,
+html.dark .ad-report-stat.is-units .ad-report-stat-icon {
+    color: var(--ad-blue);
+    background: var(--ad-blue-soft);
 }
 
 html.dark .ad-page-head {

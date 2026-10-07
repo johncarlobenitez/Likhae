@@ -18,6 +18,7 @@ use App\Models\Communication\Conversation;
 use App\Models\Seller\Category;
 use App\Models\Seller\Product;
 use App\Models\Seller\SellerOrder;
+use App\Models\Seller\SellerProfile;
 use App\Models\User;
 use App\Services\Communication\ConversationService;
 use Illuminate\Http\RedirectResponse;
@@ -25,10 +26,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 class AdminOperationsController extends Controller
 {
@@ -73,24 +76,125 @@ class AdminOperationsController extends Controller
 
     public function reports(Request $request): View
     {
-        $data = $request->validate([
+        $filters = $this->reportFilters($request);
+        $items = $this->reportItemsQuery($filters);
+        $salesExpression = $this->reportItemSalesExpression();
+        $commissionExpression = $this->reportAllocatedCommissionExpression();
+
+        $summary = (clone $items)->selectRaw("\n            COALESCE(SUM($salesExpression), 0) AS sales,\n            COALESCE(SUM($commissionExpression), 0) AS commission,\n            COALESCE(SUM(oi.quantity), 0) AS units_sold,\n            COUNT(DISTINCT so.id) AS order_count\n        ")->first();
+
+        $sortColumn = match ($filters['sort'] ?? 'sales') {
+            'units' => 'units_sold',
+            'commission' => 'commission',
+            'orders' => 'order_count',
+            default => 'sales',
+        };
+
+        $shops = (clone $items)
+            ->selectRaw("sp.id, sp.business_name AS label, shop_category.name AS shop_category, COUNT(DISTINCT so.id) AS order_count, SUM(oi.quantity) AS units_sold, SUM($salesExpression) AS sales, SUM($commissionExpression) AS commission")
+            ->groupBy('sp.id', 'sp.business_name', 'shop_category.name')
+            ->orderByDesc($sortColumn)
+            ->orderBy('label')
+            ->limit(10)
+            ->get();
+
+        $categories = (clone $items)
+            ->selectRaw("c.id, COALESCE(c.name, 'Uncategorized') AS category_name, parent_category.name AS parent_category_name, COUNT(DISTINCT so.id) AS order_count, SUM(oi.quantity) AS units_sold, SUM($salesExpression) AS sales, SUM($commissionExpression) AS commission")
+            ->groupBy('c.id', 'c.name', 'parent_category.name')
+            ->orderByDesc($sortColumn)
+            ->orderBy('category_name')
+            ->limit(10)
+            ->get();
+
+        $products = (clone $items)
+            ->selectRaw("oi.product_id AS id, oi.product_name AS label, sp.business_name AS shop_name, COALESCE(c.name, 'Uncategorized') AS category_name, parent_category.name AS parent_category_name, COUNT(DISTINCT so.id) AS order_count, SUM(oi.quantity) AS units_sold, SUM($salesExpression) AS sales, SUM($commissionExpression) AS commission")
+            ->groupBy('oi.product_id', 'oi.product_name', 'sp.business_name', 'c.name', 'parent_category.name')
+            ->orderByDesc($sortColumn)
+            ->orderBy('label')
+            ->limit(10)
+            ->get();
+
+        $orderItemRecords = (clone $items)
+            ->join('orders as o', 'o.id', '=', 'so.order_id')
+            ->leftJoin('users as buyer', 'buyer.id', '=', 'o.buyer_user_id')
+            ->select([
+                'oi.id',
+                'oi.product_name',
+                'oi.sku',
+                'oi.quantity',
+                'so.seller_order_number',
+                'so.status',
+                'so.created_at',
+                'sp.business_name',
+                'c.name as category_name',
+                'parent_category.name as parent_category_name',
+                'buyer.first_name as buyer_first_name',
+                'buyer.middle_initial as buyer_middle_initial',
+                'buyer.last_name as buyer_last_name',
+                'ct.status as commission_status',
+            ])
+            ->selectRaw("$salesExpression AS sales, $commissionExpression AS commission")
+            ->orderByDesc('so.created_at')
+            ->orderByDesc('oi.id')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('Admin.reports', [
+            'orderItemRecords' => $orderItemRecords,
+            'summary' => $summary,
+            'shops' => $shops,
+            'categories' => $categories,
+            'products' => $products,
+            'shopOptions' => SellerProfile::query()->with('primaryCategory')->orderBy('business_name')->get(['id', 'business_name', 'primary_category_id']),
+            'categoryOptions' => Category::query()->with('parent')->where('is_active', true)->orderBy('parent_id')->orderBy('name')->get(),
+            'productOptions' => Product::query()->with('sellerProfile')->orderBy('name')->get(['id', 'name', 'seller_profile_id']),
+            'filters' => $filters,
+        ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function reportFilters(Request $request): array
+    {
+        return $request->validate([
             'status' => ['nullable', 'string', 'in:PLACED,CONFIRMED,PREPARING,READY_FOR_PICKUP,PICKED_UP,COMPLETED,CANCELLED'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'seller_profile_id' => ['nullable', 'integer', 'exists:seller_profiles,id'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'product_id' => ['nullable', 'integer', 'exists:products,id'],
+            'sort' => ['nullable', 'string', 'in:sales,units,commission,orders'],
         ]);
-        $orders = SellerOrder::query()
-            ->with(['order.buyer', 'order.payments', 'sellerProfile.user'])
-            ->when($data['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
-            ->when($data['date_from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
-            ->when($data['date_to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date));
+    }
 
-        return view('Admin.reports', [
-            'orderRecords' => (clone $orders)->latest()->paginate(20)->withQueryString(),
-            'gross' => (float) (clone $orders)->sum('grand_total'),
-            'commission' => (float) CommissionTransaction::query()->whereIn('seller_order_id', (clone $orders)->select('id'))->sum('commission_amount'),
-            'completed' => (clone $orders)->where('status', 'COMPLETED')->count(),
-            'cancelled' => (clone $orders)->where('status', 'CANCELLED')->count(),
-        ]);
+    /** @param array<string, mixed> $filters */
+    private function reportItemsQuery(array $filters): QueryBuilder
+    {
+        return DB::table('order_items as oi')
+            ->join('seller_orders as so', 'so.id', '=', 'oi.seller_order_id')
+            ->join('seller_profiles as sp', 'sp.id', '=', 'so.seller_profile_id')
+            ->leftJoin('products as p', 'p.id', '=', 'oi.product_id')
+            ->leftJoin('categories as c', 'c.id', '=', 'p.category_id')
+            ->leftJoin('categories as parent_category', 'parent_category.id', '=', 'c.parent_id')
+            ->leftJoin('categories as shop_category', 'shop_category.id', '=', 'sp.primary_category_id')
+            ->leftJoin('commission_transactions as ct', 'ct.seller_order_id', '=', 'so.id')
+            ->when($filters['status'] ?? null, fn (QueryBuilder $query, string $status) => $query->where('so.status', $status))
+            ->when($filters['date_from'] ?? null, fn (QueryBuilder $query, string $date) => $query->whereDate('so.created_at', '>=', $date))
+            ->when($filters['date_to'] ?? null, fn (QueryBuilder $query, string $date) => $query->whereDate('so.created_at', '<=', $date))
+            ->when($filters['seller_profile_id'] ?? null, fn (QueryBuilder $query, int $sellerId) => $query->where('so.seller_profile_id', $sellerId))
+            ->when($filters['category_id'] ?? null, fn (QueryBuilder $query, int $categoryId) => $query->where(function (QueryBuilder $categoryQuery) use ($categoryId): void {
+                $categoryQuery->where('p.category_id', $categoryId)->orWhere('c.parent_id', $categoryId);
+            }))
+            ->when($filters['product_id'] ?? null, fn (QueryBuilder $query, int $productId) => $query->where('oi.product_id', $productId));
+    }
+
+    private function reportItemSalesExpression(): string
+    {
+        return 'CASE WHEN so.item_subtotal > 0 THEN oi.line_total * GREATEST(so.item_subtotal - so.voucher_discount, 0) / so.item_subtotal ELSE 0 END';
+    }
+
+    private function reportAllocatedCommissionExpression(): string
+    {
+        return "CASE WHEN ct.status IS NOT NULL AND ct.status <> 'VOID' AND so.item_subtotal > 0 THEN ct.commission_amount * oi.line_total / so.item_subtotal ELSE 0 END";
     }
 
     public function messages(Request $request, ConversationService $conversationService): View
@@ -523,9 +627,56 @@ class AdminOperationsController extends Controller
         return $this->csv('finance.csv', CommissionTransaction::query()->select(['id', 'seller_order_id', 'commission_amount', 'status'])->get()->toArray());
     }
 
-    public function exportReport()
+    public function exportReport(Request $request)
     {
-        return $this->exportFinance();
+        $filters = $this->reportFilters($request);
+        $salesExpression = $this->reportItemSalesExpression();
+        $commissionExpression = $this->reportAllocatedCommissionExpression();
+        $items = $this->reportItemsQuery($filters)
+            ->join('orders as o', 'o.id', '=', 'so.order_id')
+            ->leftJoin('users as buyer', 'buyer.id', '=', 'o.buyer_user_id')
+            ->select([
+                'so.seller_order_number',
+                'so.status as order_status',
+                'so.created_at as order_date',
+                'sp.business_name as shop',
+                'oi.product_name',
+                'oi.sku',
+                'c.name as category',
+                'parent_category.name as parent_category',
+                'oi.quantity',
+                'ct.status as commission_status',
+                'buyer.first_name as buyer_first_name',
+                'buyer.middle_initial as buyer_middle_initial',
+                'buyer.last_name as buyer_last_name',
+            ])
+            ->selectRaw("$salesExpression AS sales, $commissionExpression AS commission")
+            ->orderByDesc('so.created_at')
+            ->orderByDesc('oi.id');
+
+        return response()->streamDownload(function () use ($items): void {
+            $output = fopen('php://output', 'wb');
+            fputcsv($output, ['Seller order', 'Order date', 'Order status', 'Buyer', 'Shop', 'Category', 'Product', 'SKU', 'Quantity', 'Item sales (PHP)', 'Allocated commission (PHP)', 'Commission status']);
+
+            foreach ($items->cursor() as $item) {
+                fputcsv($output, [
+                    $item->seller_order_number,
+                    $item->order_date,
+                    $item->order_status,
+                    collect([$item->buyer_first_name, $item->buyer_middle_initial, $item->buyer_last_name])->filter()->implode(' '),
+                    $item->shop,
+                    $item->parent_category ? $item->parent_category.' / '.($item->category ?: 'Uncategorized') : ($item->category ?: 'Uncategorized'),
+                    $item->product_name,
+                    $item->sku,
+                    $item->quantity,
+                    number_format((float) $item->sales, 2, '.', ''),
+                    number_format((float) $item->commission, 2, '.', ''),
+                    $item->commission_status ?: 'NOT_CALCULATED',
+                ]);
+            }
+
+            fclose($output);
+        }, 'sales-commission-report-'.now()->format('Ymd-His').'.csv');
     }
 
     public function exportAuditLogs()
