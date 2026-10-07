@@ -6,6 +6,7 @@
     @if(session('status'))<div class="border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800">{{ session('status') }}</div>@endif
     @if($errors->any())<div class="border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-800">{{ $errors->first() }}</div>@endif
     <x-parcel-scanner :action="route('logistics.dispatch')" :tracking="request('tracking', '')" title="Scan Delivery Waybill" button="Find Parcel" />
+    <x-shared.mapbox :markers="$mapMarkers" title="Delivery assignment map" height="330px" />
     <div class="grid gap-4">
     @forelse($shipments as $shipment)
         @php($activeAssignment = $shipment->riderAssignments->where('assignment_type','DELIVERY')->whereIn('status',['ASSIGNED','ACCEPTED','IN_PROGRESS'])->sortByDesc('id')->first())

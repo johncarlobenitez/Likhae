@@ -181,6 +181,17 @@ class AdminOperationsController extends Controller
         return back()->with('status', 'Product moderation updated.');
     }
 
+    public function categories(Request $request): View
+    {
+        $lineOfBusiness = Category::whereNull('parent_id')->orderBy('name')->get();
+        $subcategories = Category::whereNotNull('parent_id')->with('parent')->orderBy('name')->get();
+
+        return view('Admin.category-management.index', [
+            'lineOfBusiness' => $lineOfBusiness,
+            'subcategories' => $subcategories,
+        ]);
+    }
+
     public function storeCategory(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -215,6 +226,64 @@ class AdminOperationsController extends Controller
         ]);
 
         return back()->with('status', 'Category updated.');
+    }
+
+    public function updateCategoryStatus(Request $request, Category $category): RedirectResponse
+    {
+        $request->validate([
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $category->update(['is_active' => $request->boolean('is_active')]);
+
+        return back()->with('status', 'Category status updated.');
+    }
+
+    public function storeSubcategory(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'category_id' => ['required', 'integer', 'exists:categories,id'],
+            'name' => ['required', 'string', 'max:150'],
+            'description' => ['nullable', 'string'],
+        ]);
+
+        Category::create([
+            'parent_id' => $data['category_id'],
+            'name' => $data['name'],
+            'slug' => Str::slug($data['name']).'-'.strtolower(Str::random(4)),
+            'description' => $data['description'] ?? null,
+            'is_active' => true,
+        ]);
+
+        return back()->with('status', 'Subcategory added.');
+    }
+
+    public function updateSubcategory(Request $request, Category $category): RedirectResponse
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'description' => ['nullable', 'string'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $category->update([
+            'name' => $data['name'],
+            'description' => $data['description'] ?? null,
+            'is_active' => $request->boolean('is_active'),
+        ]);
+
+        return back()->with('status', 'Subcategory updated.');
+    }
+
+    public function updateSubcategoryStatus(Request $request, Category $category): RedirectResponse
+    {
+        $request->validate([
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $category->update(['is_active' => $request->boolean('is_active')]);
+
+        return back()->with('status', 'Subcategory status updated.');
     }
 
     public function sendMessage(Request $request, ConversationService $conversationService): RedirectResponse

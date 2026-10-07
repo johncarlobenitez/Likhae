@@ -27,7 +27,7 @@ class CheckoutService
             ->groupBy(fn (CartItem $item) => (int) $item->productVariant->product->seller_profile_id)
             ->map(function (Collection $sellerItems, int $sellerId) use ($buyer): Collection {
                 $subtotal = $sellerItems->sum(
-                    fn (CartItem $item): float => (float) $item->productVariant->price * (int) $item->quantity
+                    fn (CartItem $item): float => $item->productVariant->final_price * (int) $item->quantity
                 );
 
                 return Voucher::query()
@@ -64,7 +64,7 @@ class CheckoutService
             $product = $variant->product;
             $seller = $product->sellerProfile;
             $sellerId = (int) $seller->id;
-            $lineTotal = (float) $variant->price * (int) $item->quantity;
+            $lineTotal = $variant->final_price * (int) $item->quantity;
             $subtotal += $lineTotal;
 
             $groups[$sellerId] ??= [
@@ -126,6 +126,21 @@ class CheckoutService
             ]);
         }
 
+        foreach ($items as $item) {
+            $configuredMethod = strtolower((string) ($item->productVariant?->payment_method ?? 'cod_online'));
+            $allowed = match ($configuredMethod) {
+                'cod' => ['COD'],
+                'online' => ['ONLINE'],
+                default => ['COD', 'ONLINE'],
+            };
+
+            if (! in_array($paymentMethod, $allowed, true)) {
+                throw ValidationException::withMessages([
+                    'payment_method' => 'The selected payment method is not available for one or more products in this order.',
+                ]);
+            }
+        }
+
         $serviceable = ServiceAreaLocation::query()
             ->where('province_code', $address->province_code)
             ->where('municipality_code', $address->municipality_code)
@@ -184,6 +199,8 @@ class CheckoutService
                 'house_number' => $address->house_number,
                 'street_address' => $address->street_address,
                 'landmark' => $address->landmark,
+                'latitude' => $address->latitude,
+                'longitude' => $address->longitude,
             ]);
 
             Payment::query()->create([
@@ -214,7 +231,8 @@ class CheckoutService
                     $item->loadMissing(['productVariant.product', 'productVariant.optionValues.option']);
                     $variant = $lockedVariants->get($item->product_variant_id);
                     $product = $item->productVariant->product;
-                    $lineTotal = (float) $item->productVariant->price * (int) $item->quantity;
+                    $lineTotal = $variant->final_price * (int) $item->quantity;
+                    $discountAmount = $variant->discount_amount * (int) $item->quantity;
 
                     $sellerOrder->items()->create([
                         'product_id' => $product->id,
@@ -222,9 +240,9 @@ class CheckoutService
                         'product_name' => $product->name,
                         'sku' => $item->productVariant->sku,
                         'variant_description' => $item->productVariant->description,
-                        'unit_price' => $item->productVariant->price,
+                        'unit_price' => $variant->final_price,
                         'quantity' => $item->quantity,
-                        'discount_amount' => 0,
+                        'discount_amount' => $discountAmount,
                         'line_total' => $lineTotal,
                     ]);
 

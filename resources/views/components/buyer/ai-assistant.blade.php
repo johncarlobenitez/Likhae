@@ -21,14 +21,14 @@
 <script>window.LIKHAE_BUYER_AI_PAGE_CONTEXT = @json($context);</script>
 <section class="likhae-buyer-ai-widget" data-likhae-buyer-ai data-chat-url="{{ route('buyer.ai.chat') }}" data-ai-response-sound="{{ $aiResponseSound ? '1' : '0' }}">
     <button id="likhaeBuyerAiHead" class="likhae-buyer-ai-head" type="button" aria-label="Open LIKHAE AI Assistant" aria-controls="likhaeBuyerAiWindow" aria-expanded="false" title="LIKHAE AI Assistant">
-        <img class="likhae-buyer-ai-head-icon" src="{{ asset('images/buyer/likhae-ai-assistant.png') }}" alt=""><span class="likhae-buyer-ai-online-dot" aria-hidden="true"></span>
+        <img class="likhae-buyer-ai-head-icon" src="{{ asset('images/buyer/likhae-ai-logo.png') }}" alt=""><span class="likhae-buyer-ai-online-dot" aria-hidden="true"></span>
     </button>
     <div id="likhaeBuyerAiWindow" class="likhae-buyer-ai-window" role="dialog" aria-modal="false" aria-label="LIKHAE AI Assistant" hidden>
         <header class="likhae-buyer-ai-header">
-            <img class="likhae-buyer-ai-avatar" src="{{ asset('images/buyer/likhae-ai-assistant.png') }}" alt="">
-            <div class="likhae-buyer-ai-title"><strong>LIKHAE AI Assistant</strong><span><i></i><b data-likhae-buyer-ai-state>Online</b></span></div>
+            <img class="likhae-buyer-ai-avatar" src="{{ asset('images/buyer/likhae-ai-logo.png') }}" alt="">
+            <div class="likhae-buyer-ai-title"><strong>LIKHAE AI Assistant</strong><span><i></i><b data-likhae-buyer-ai-state>Offline</b></span></div>
             <div class="likhae-buyer-ai-window-actions">
-                <button id="likhaeBuyerAiToggle" type="button" aria-label="Turn LIKHAE AI Assistant off" aria-pressed="true" title="AI is working — turn off">&#128065;</button>
+                <button id="likhaeBuyerAiToggle" type="button" aria-label="Turn LIKHAE AI Assistant on" aria-pressed="false" title="AI is offline — turn on">&#128683;</button>
                 <button id="likhaeBuyerAiMinimize" type="button" aria-label="Minimize LIKHAE AI Assistant" title="Minimize">−</button>
                 <button id="likhaeBuyerAiClose" type="button" aria-label="Close LIKHAE AI Assistant" title="Close">×</button>
             </div>

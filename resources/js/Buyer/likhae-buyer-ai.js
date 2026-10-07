@@ -18,7 +18,7 @@
     const responseSoundEnabled = widget.dataset.aiResponseSound === '1';
     let openedOnce = false;
     let sending = false;
-    let enabled = sessionStorage.getItem('likhaeBuyerAiEnabled') !== '0';
+    let enabled = sessionStorage.getItem('likhaeBuyerAiEnabled') === '1';
 
     const scrollToBottom = () => { messages.scrollTop = messages.scrollHeight; };
     const addBubble = (text, type = 'assistant', options = []) => {

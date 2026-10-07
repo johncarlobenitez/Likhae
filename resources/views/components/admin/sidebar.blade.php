@@ -212,6 +212,14 @@
                     'count' => $sidebarCounts['products'] ?? 0,
                     'active' => [
                         'admin.products',
+                    ],
+                ],
+                [
+                    'key' => 'categories',
+                    'label' => 'Categories',
+                    'route' => 'admin.categories',
+                    'icon' => 'products',
+                    'active' => [
                         'admin.categories',
                     ],
                 ],

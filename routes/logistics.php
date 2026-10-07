@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthenticationController;
 use App\Http\Controllers\Logistics\DispatchController;
 use App\Http\Controllers\Logistics\LogisticsPortalController;
+use App\Http\Controllers\WorkspaceAiController;
 use App\Http\Middleware\EnsureWorkspaceRole;
 use Illuminate\Support\Facades\Route;
 
@@ -24,6 +25,11 @@ Route::prefix('logistics')->name('logistics.')->group(function (): void {
     Route::post('/login', [AuthenticationController::class, 'store'])->middleware(['guest', 'throttle:30,1'])->name('login.store');
 
     Route::middleware(['auth', 'verified', EnsureWorkspaceRole::class.':logistics', 'provider.approved'])->group(function (): void {
+        Route::post('/ai/chat', [WorkspaceAiController::class, 'chat'])
+            ->defaults('workspace', 'logistics')
+            ->middleware('throttle:20,1')
+            ->name('ai.chat');
+
         Route::get('/dashboard', [LogisticsPortalController::class, 'dashboard'])->name('dashboard');
 
         Route::get('/parcels', [DispatchController::class, 'parcels'])->name('parcels');

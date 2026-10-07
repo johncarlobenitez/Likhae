@@ -14,6 +14,7 @@ use App\Services\Account\ProfilePhotoService;
 use App\Services\Communication\ConversationService;
 use App\Services\RegistrationWorkflowService;
 use App\Services\RiderRatingService;
+use App\Services\Maps\MapDataService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -142,12 +143,17 @@ class LogisticsPortalController extends Controller
         $center = $request->user()->logisticsCenter;
         abort_unless($center && (int) $rider->logistics_center_id === (int) $center->id, 403);
 
-        $rider->load(['user', 'areaAssignments.serviceArea', 'assignments.shipment.sellerOrder.order.address', 'earnings']);
+        $rider->load(['user', 'areaAssignments.serviceArea', 'assignments.shipment.sellerOrder.order.address', 'assignments.shipment.riderAssignments.liveLocation', 'assignments.shipment.logisticsCenter.address', 'assignments.liveLocation', 'earnings']);
         $ratingSummary = $riderRatings->summary($rider);
         $rider->setAttribute('rating_average', $ratingSummary['average']);
         $rider->setAttribute('rating_count', $ratingSummary['count']);
 
-        return view('Logistics.riders.show', compact('rider', 'center'));
+        $maps = app(MapDataService::class);
+        $mapMarkers = $maps->forAssignments($rider->assignments);
+        if ($centerMarker = $maps->centerMarker($center->loadMissing('address'))) {
+            $mapMarkers[] = $centerMarker;
+        }
+        return view('Logistics.riders.show', compact('rider', 'center', 'mapMarkers'));
     }
 
     public function activateRider(Request $request, RiderProfile $rider): RedirectResponse
@@ -185,7 +191,8 @@ class LogisticsPortalController extends Controller
 
         $riders = RiderProfile::where('logistics_center_id', $center->id)->where('status', 'ACTIVE')->with('user')->get();
 
-        return view('Logistics.delivery-areas.index', compact('areas', 'riders', 'center'));
+        $mapMarkers = array_filter([app(MapDataService::class)->centerMarker($center->loadMissing('address'))]);
+        return view('Logistics.delivery-areas.index', compact('areas', 'riders', 'center', 'mapMarkers'));
     }
 
     public function saveDeliveryArea(Request $request): RedirectResponse

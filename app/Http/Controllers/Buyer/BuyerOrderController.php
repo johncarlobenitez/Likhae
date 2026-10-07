@@ -21,6 +21,7 @@ use App\Services\RiderRatingService;
 use App\Services\ReviewImageService;
 use App\Services\Fulfillment\ShipmentWorkflowService;
 use App\Services\Media\ImageOptimizationService;
+use App\Services\Maps\MapDataService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -106,7 +107,7 @@ class BuyerOrderController extends Controller
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
         $workflow->syncParentOrderProgress($order);
-        $orderRelations = ['sellerOrders.sellerProfile.user', 'sellerOrders.items.review', 'sellerOrders.items.product.images', 'sellerOrders.shipment.events', 'sellerOrders.shipment.riderAssignments.riderProfile.user', 'address', 'payments', 'disputes'];
+        $orderRelations = ['sellerOrders.sellerProfile.user', 'sellerOrders.items.review', 'sellerOrders.items.product.images', 'sellerOrders.shipment.events', 'sellerOrders.shipment.riderAssignments.riderProfile.user', 'sellerOrders.shipment.riderAssignments.liveLocation', 'sellerOrders.shipment.logisticsCenter.address', 'address', 'payments', 'disputes'];
         if ($this->returnRefundStorageReady()) {
             $orderRelations[] = 'disputes.returnRefundRequest';
         }
@@ -126,12 +127,14 @@ class BuyerOrderController extends Controller
                 : [];
         });
         $reviewImagesById = $reviewImages->urlsFor($selectedOrder->sellerOrders->flatMap->items->pluck('review')->filter());
+        $mapMarkers = app(MapDataService::class)->forShipments($selectedOrder->sellerOrders->map->shipment->filter());
 
         return view('Buyer.orders', [
             'mode' => 'show',
             'selectedOrder' => $selectedOrder,
             'riderRatingsByShipment' => $riderRatingsByShipment,
             'reviewImagesById' => $reviewImagesById,
+            'mapMarkers' => $mapMarkers,
             'orders' => $request->user()->orders()->with(['sellerOrders.shipment'])->latest()->paginate(10),
         ]);
     }

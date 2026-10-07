@@ -34,4 +34,9 @@ class ProductOptionValue extends Model
     {
         return $this->hasMany(ProductVariantOptionValue::class);
     }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProductImage::class, 'product_option_value_id')->orderBy('sort_order');
+    }
 }

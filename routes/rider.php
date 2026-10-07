@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Rider\RiderController;
 use App\Http\Controllers\Rider\RiderShipmentController;
+use App\Http\Controllers\WorkspaceAiController;
 use App\Http\Middleware\EnsureWorkspaceRole;
 use Illuminate\Support\Facades\Route;
 
@@ -20,6 +21,11 @@ Route::prefix('rider')
     ->name('rider.')
     ->middleware(['auth', 'verified', EnsureWorkspaceRole::class.':rider', 'rider.active'])
     ->group(function (): void {
+        Route::post('/ai/chat', [WorkspaceAiController::class, 'chat'])
+            ->defaults('workspace', 'rider')
+            ->middleware('throttle:20,1')
+            ->name('ai.chat');
+
         Route::get('/', fn () => redirect()->route('rider.dashboard'))->name('home');
         Route::get('/dashboard', [RiderController::class, 'dashboard'])->name('dashboard');
 

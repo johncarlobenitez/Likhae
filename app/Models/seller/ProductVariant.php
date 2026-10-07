@@ -17,8 +17,12 @@ class ProductVariant extends Model
 
     protected $fillable = [
         'product_id',
+        'product_image_id',
         'sku',
         'price',
+        'discount_type',
+        'discount_value',
+        'payment_method',
         'stock',
         'is_default',
         'is_active',
@@ -28,6 +32,7 @@ class ProductVariant extends Model
     {
         return [
             'price' => 'decimal:2',
+            'discount_value' => 'decimal:2',
             'stock' => 'integer',
             'is_default' => 'boolean',
             'is_active' => 'boolean',
@@ -37,6 +42,11 @@ class ProductVariant extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function productImage(): BelongsTo
+    {
+        return $this->belongsTo(ProductImage::class, 'product_image_id');
     }
 
     public function optionValues(): BelongsToMany
@@ -52,6 +62,41 @@ class ProductVariant extends Model
     public function optionValueLinks(): HasMany
     {
         return $this->hasMany(ProductVariantOptionValue::class);
+    }
+
+    public function getDiscountAmountAttribute(): float
+    {
+        $price = (float) $this->price;
+        $value = max(0, (float) ($this->discount_value ?? 0));
+
+        return match ($this->resolved_discount_type) {
+            'fixed' => round(min($price, $value), 2),
+            'percentage' => round(min($price, $price * min(100, $value) / 100), 2),
+            default => 0.0,
+        };
+    }
+
+    public function getResolvedDiscountTypeAttribute(): string
+    {
+        $type = strtolower(trim((string) ($this->getRawOriginal('discount_type') ?? '')));
+
+        if (in_array($type, ['none', 'percentage', 'fixed'], true)) {
+            return $type;
+        }
+
+        return (float) ($this->discount_value ?? 0) > 0 ? 'percentage' : 'none';
+    }
+
+    public function getDiscountPercentageAttribute(): float
+    {
+        return $this->resolved_discount_type === 'percentage'
+            ? round(min(100, max(0, (float) ($this->discount_value ?? 0))), 2)
+            : 0.0;
+    }
+
+    public function getFinalPriceAttribute(): float
+    {
+        return round(max(0, (float) $this->price - $this->discount_amount), 2);
     }
 
     public function cartItems(): HasMany

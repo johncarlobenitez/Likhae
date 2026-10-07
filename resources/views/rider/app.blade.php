@@ -29,7 +29,11 @@
 
     @vite([
         'resources/css/logistic/app.css',
-        'resources/js/rider/app.js'
+        'resources/css/shared/likhae-workspace-ai.css',
+        'resources/css/shared/mapbox.css',
+        'resources/js/rider/app.js',
+        'resources/js/shared/likhae-workspace-ai.js',
+        'resources/js/shared/mapbox.js'
     ])
 
     <style>
@@ -716,6 +720,11 @@
     </div>
 
     <x-notification-popover />
+    @php
+        $workspaceAiPage = request()->route()?->getName() ?: 'rider.dashboard';
+        $workspaceAiTitle = trim($__env->yieldContent('title')) ?: 'Rider';
+    @endphp
+    <x-workspace.ai-assistant workspace="rider" :page="$workspaceAiPage" :page-title="$workspaceAiTitle" />
     @stack('scripts')
 </body>
 

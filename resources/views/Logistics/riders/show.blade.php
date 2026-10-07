@@ -47,6 +47,8 @@
         </div>
     </section>
 
+    <x-shared.mapbox :markers="$mapMarkers" title="Rider operations map" height="350px" />
+
     <section class="rounded-xl border border-line bg-surface p-5">
         <h2 class="text-[13px] font-semibold text-ink">Rider Information</h2>
         <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

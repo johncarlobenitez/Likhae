@@ -21,11 +21,21 @@ class OrderAddress extends Model
         'house_number',
         'street_address',
         'landmark',
+        'latitude',
+        'longitude',
     ];
 
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
+        ];
     }
 
     public function formatted(): string

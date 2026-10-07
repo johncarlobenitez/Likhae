@@ -26,8 +26,9 @@ class SellerProductController extends Controller
     public function index(Request $request): View
     {
         $seller = $this->seller($request);
+        $seller->loadMissing('primaryCategory.children');
         $products = $seller->products()
-            ->with(['category', 'images', 'options.values', 'variants.optionValues.option', 'orderItems.review'])
+            ->with(['category', 'images.optionValue.option', 'options.values.images', 'variants.optionValues.option', 'variants.productImage', 'orderItems.review'])
             ->latest()
             ->get();
         $sellerProducts = $products->map(fn (Product $product) => $this->viewData($product));
@@ -47,7 +48,8 @@ class SellerProductController extends Controller
             'products' => $products,
             'sellerProducts' => $sellerProducts,
             'selectedProduct' => $selected,
-            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
+            'lineOfBusinessCategory' => $seller->primaryCategory,
+            'categories' => $this->allowedCategories($seller),
         ]);
     }
 
@@ -163,9 +165,14 @@ class SellerProductController extends Controller
     /** @return array<string, mixed> */
     private function viewData(Product $product): array
     {
-        $product->loadMissing(['category', 'images', 'variants.optionValues.option']);
-        $activeVariants = $product->variants->where('is_active', true)->values();
-        $firstImage = $product->images->sortByDesc('is_primary')->first();
+        $product->loadMissing(['category', 'images.optionValue.option', 'options.values.images', 'variants.optionValues.option', 'variants.productImage']);
+        $allVariants = $product->variants->sortBy('id')->values();
+        $activeVariants = $allVariants->where('is_active', true)->values();
+        $imageLibrary = $product->images
+            ->sortBy(fn (ProductImage $image): int => ((int) ! $image->is_primary * 1000000) + ((int) $image->sort_order * 1000) + (int) $image->id)
+            ->values();
+        $baseImages = $imageLibrary;
+        $firstImage = $baseImages->first();
 
         return [
             'db_id' => $product->id,
@@ -174,7 +181,7 @@ class SellerProductController extends Controller
             'name' => $product->name,
             'category' => $product->category?->name ?? 'Uncategorized',
             'category_id' => $product->category_id,
-            'price' => (float) ($activeVariants->min('price') ?? 0),
+            'price' => (float) ($activeVariants->min(fn (ProductVariant $variant) => $variant->final_price) ?? 0),
             'stock' => (int) $activeVariants->sum('stock'),
             'sold' => (int) $product->orderItems->sum('quantity'),
             'rating' => (float) $product->orderItems->pluck('review.rating')->filter()->avg(),
@@ -188,20 +195,63 @@ class SellerProductController extends Controller
                 'url' => $this->catalog->publicUrl($image->file_path),
                 'alt' => $image->alt_text ?: $product->name,
                 'is_primary' => (bool) $image->is_primary,
+                'product_option_value_id' => $image->product_option_value_id,
+                'option_name' => $image->optionValue?->option?->name,
+                'option_value' => $image->optionValue?->value,
+            ])->all(),
+            'base_images' => $baseImages->map(fn ($image): array => [
+                'id' => $image->id,
+                'url' => $this->catalog->publicUrl($image->file_path),
+                'alt' => $image->alt_text ?: $product->name,
+                'is_primary' => (bool) $image->is_primary,
             ])->all(),
             'option_rows' => $product->options->map(fn ($option): array => [
+                'id' => $option->id,
                 'name' => $option->name,
                 'values' => $option->values->pluck('value')->join(', '),
+                'value_rows' => $option->values->map(fn ($value): array => [
+                    'id' => $value->id,
+                    'value' => $value->value,
+                ])->all(),
             ])->all(),
-            'variation_rows' => $activeVariants->map(fn (ProductVariant $variant): array => [
+            'variation_rows' => $allVariants->map(fn (ProductVariant $variant): array => [
                 'id' => $variant->id,
                 'sku' => $variant->sku,
                 'price' => $variant->price,
+                'discount_type' => $variant->resolved_discount_type,
+                'discount_value' => $variant->discount_value,
+                'payment_method' => $variant->payment_method ?: 'cod_online',
                 'stock' => $variant->stock,
-                'values' => $variant->optionValues->pluck('value')->join(', '),
+                'values' => $variant->optionValues->sortBy(fn ($value) => $value->option?->sort_order ?? 0)->pluck('value')->join(', '),
+                'option_value_ids' => $variant->optionValues->pluck('id')->values()->all(),
+                'product_image_id' => $variant->product_image_id,
+                'product_image_ref' => $variant->product_image_id ? 'image:'.$variant->product_image_id : null,
                 'description' => $variant->description,
                 'is_active' => $variant->is_active,
             ])->all(),
+            'image_library' => $imageLibrary->map(fn (ProductImage $image, int $index): array => [
+                'id' => $image->id,
+                'ref' => 'image:'.$image->id,
+                'number' => $index + 1,
+                'url' => $this->catalog->publicUrl($image->file_path),
+                'alt' => $image->alt_text ?: $product->name,
+                'is_primary' => (bool) $image->is_primary,
+            ])->all(),
         ];
+    }
+
+    private function allowedCategories(SellerProfile $seller)
+    {
+        $primary = $seller->primaryCategory;
+
+        if (! $primary) {
+            return collect();
+        }
+
+        $children = $primary->children->where('is_active', true)->sortBy('name')->values();
+
+        return $children->isNotEmpty()
+            ? $children
+            : collect([$primary])->filter(fn (Category $category) => $category->is_active);
     }
 }

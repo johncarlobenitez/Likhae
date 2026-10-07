@@ -9,6 +9,7 @@ use App\Models\Logistics\ServiceArea;
 use App\Models\Logistics\Shipment;
 use App\Models\Rider\RiderProfile;
 use App\Services\Fulfillment\ShipmentWorkflowService;
+use App\Services\Maps\MapDataService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -33,12 +34,13 @@ class DispatchController extends Controller
                         ->whereHas('serviceArea', fn ($area) => $area->where('logistics_center_id', $center->id)));
             }))
             ->when($status !== '', fn ($query) => $query->where('current_status', $status))
-            ->with(['sellerOrder.sellerProfile.user', 'sellerOrder.order.address', 'serviceArea', 'riderAssignments.riderProfile.user'])
+            ->with(['sellerOrder.sellerProfile.user', 'sellerOrder.order.address', 'serviceArea', 'riderAssignments.riderProfile.user', 'riderAssignments.liveLocation', 'logisticsCenter.address'])
             ->latest()
             ->paginate(15)
             ->withQueryString();
 
-        return view('Logistics.parcels.index', compact('shipments', 'status', 'center'));
+        $mapMarkers = app(MapDataService::class)->forShipments($shipments->getCollection());
+        return view('Logistics.parcels.index', compact('shipments', 'status', 'center', 'mapMarkers'));
     }
 
     public function pickups(Request $request): View
@@ -72,7 +74,7 @@ class DispatchController extends Controller
                     $query->where('tracking_number', $tracking);
                 }
             })
-            ->with(['shipment.sellerOrder.sellerProfile.user', 'shipment.sellerOrder.sellerProfile.businessAddress', 'shipment.sellerOrder.order.address', 'shipment.serviceArea', 'shipment.riderAssignments.riderProfile.user'])
+            ->with(['shipment.sellerOrder.sellerProfile.user', 'shipment.sellerOrder.sellerProfile.businessAddress', 'shipment.sellerOrder.order.address', 'shipment.serviceArea', 'shipment.riderAssignments.riderProfile.user', 'shipment.riderAssignments.liveLocation', 'shipment.logisticsCenter.address'])
             ->latest()
             ->paginate(15)
             ->withQueryString();
@@ -89,7 +91,8 @@ class DispatchController extends Controller
             $pickup->shipment_id => $workflow->sellerPickupServiceArea($pickup->shipment, $center)?->id,
         ]);
 
-        return view('Logistics.pickups.index', compact('pickups', 'riders', 'center', 'pickupAreaIds'));
+        $mapMarkers = app(MapDataService::class)->forShipments($pickups->getCollection()->map->shipment->filter());
+        return view('Logistics.pickups.index', compact('pickups', 'riders', 'center', 'pickupAreaIds', 'mapMarkers'));
     }
 
     public function receive(Request $request): View
@@ -145,7 +148,7 @@ class DispatchController extends Controller
             ->whereIn('current_status', ['SORTED', 'ASSIGNED_TO_RIDER', 'OUT_FOR_DELIVERY', 'DELIVERY_FAILED'])
             ->when($tracking !== '', fn ($query) => $query->where('tracking_number', $tracking))
             ->when($center, fn ($query) => $query->where('logistics_center_id', $center->id))
-            ->with(['sellerOrder.order.address', 'serviceArea', 'riderAssignments.riderProfile.user'])
+            ->with(['sellerOrder.order.address', 'serviceArea', 'riderAssignments.riderProfile.user', 'riderAssignments.liveLocation', 'logisticsCenter.address'])
             ->latest()
             ->paginate(15)
             ->withQueryString();
@@ -157,7 +160,8 @@ class DispatchController extends Controller
             ->orderBy('id')
             ->get();
 
-        return view('Logistics.assignments.index', compact('shipments', 'riders', 'center'));
+        $mapMarkers = app(MapDataService::class)->forShipments($shipments->getCollection());
+        return view('Logistics.assignments.index', compact('shipments', 'riders', 'center', 'mapMarkers'));
     }
 
     public function tracking(Request $request): View
@@ -175,11 +179,12 @@ class DispatchController extends Controller
                         ->orWhere(fn ($unassigned) => $unassigned->whereNull('logistics_center_id')
                             ->whereHas('serviceArea', fn ($area) => $area->where('logistics_center_id', $center->id)));
                 })
-                ->with(['sellerOrder.items', 'sellerOrder.order.address', 'events.actor', 'scans', 'deliveryAttempts'])
+                ->with(['sellerOrder.items', 'sellerOrder.order.address', 'events.actor', 'scans', 'deliveryAttempts', 'riderAssignments.liveLocation', 'logisticsCenter.address'])
                 ->first();
         }
 
-        return view('Logistics.tracking.index', compact('shipment', 'tracking'));
+        $mapMarkers = app(MapDataService::class)->forShipment($shipment);
+        return view('Logistics.tracking.index', compact('shipment', 'tracking', 'mapMarkers'));
     }
 
     public function show(Shipment $shipment): View
@@ -187,9 +192,10 @@ class DispatchController extends Controller
         $center = request()->user()?->logisticsCenter;
         abort_unless($center, 403);
         $this->ensureShipmentBelongsToCenter($shipment, $center);
-        $shipment->load(['sellerOrder.items.product.images', 'sellerOrder.sellerProfile.user', 'sellerOrder.order.address', 'sellerOrder.order.buyer', 'serviceArea', 'riderAssignments.riderProfile.user', 'events.actor', 'scans', 'deliveryAttempts']);
+        $shipment->load(['sellerOrder.items.product.images', 'sellerOrder.sellerProfile.user', 'sellerOrder.order.address', 'sellerOrder.order.buyer', 'serviceArea', 'riderAssignments.riderProfile.user', 'riderAssignments.liveLocation', 'logisticsCenter.address', 'events.actor', 'scans', 'deliveryAttempts']);
 
-        return view('Logistics.parcels.show', compact('shipment'));
+        $mapMarkers = app(MapDataService::class)->forShipment($shipment);
+        return view('Logistics.parcels.show', compact('shipment', 'mapMarkers'));
     }
 
     public function assign(Request $request, Shipment $shipment, ShipmentWorkflowService $workflow): RedirectResponse

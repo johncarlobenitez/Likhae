@@ -11,7 +11,8 @@
         $variant = data_get($item, 'productVariant');
         $product = data_get($variant, 'product');
         $productImages = collect(data_get($product, 'images', []));
-        $imagePath = data_get($productImages->firstWhere('is_primary', true), 'file_path')
+        $imagePath = data_get($variant, 'productImage.file_path')
+            ?? data_get($productImages->firstWhere('is_primary', true), 'file_path')
             ?? data_get($productImages->first(), 'file_path');
         $imageUrl = filled($imagePath)
             ? (str_starts_with($imagePath, 'http://') || str_starts_with($imagePath, 'https://')
@@ -52,7 +53,7 @@
             'price' => max(
                 0,
                 (float) (
-                    data_get($variant, 'price')
+                    data_get($variant, 'final_price')
                     ?? 0
                 )
             ),

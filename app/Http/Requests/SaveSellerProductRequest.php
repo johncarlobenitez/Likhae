@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Seller\Category;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,8 +15,14 @@ class SaveSellerProductRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $discountValue = $this->input('discount_value', $this->input('discount', $this->input('discount_percentage')));
+        $discountType = strtolower((string) $this->input('discount_type', 'none'));
+
         $this->merge([
+            'product_type' => strtolower((string) $this->input('product_type', 'single')),
             'status' => strtoupper((string) $this->input('status', $this->input('listing_status', 'DRAFT'))),
+            'discount_type' => in_array($discountType, ['none', 'percentage', 'fixed'], true) ? $discountType : 'none',
+            'discount_value' => $discountValue,
         ]);
     }
 
@@ -32,22 +39,85 @@ class SaveSellerProductRequest extends FormRequest
             'stock' => ['required_if:product_type,single', 'nullable', 'integer', 'min:0', 'max:999999'],
             'sku' => ['nullable', 'string', 'max:100'],
             'single_variant_id' => ['nullable', 'integer'],
+            'discount_type' => ['nullable', Rule::in(['none', 'percentage', 'fixed'])],
+            'discount_value' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
+            'payment_method' => ['nullable', Rule::in(['cod', 'online', 'cod_online'])],
+            'is_active' => ['nullable', 'boolean'],
 
             'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'images' => ['nullable', 'array', 'max:9'],
             'images.*' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'delete_image_ids' => ['nullable', 'array', 'max:10'],
+            'delete_image_ids.*' => ['integer', Rule::exists('product_images', 'id')],
 
-            'options' => ['required_if:product_type,variations', 'nullable', 'array', 'max:5'],
+            'options' => ['required_if:product_type,variations', 'nullable', 'array', 'max:3'],
             'options.*.name' => ['required_with:options.*.values', 'nullable', 'string', 'max:100'],
             'options.*.values' => ['required_with:options.*.name', 'nullable', 'string', 'max:1000'],
 
-            'variants' => ['required_if:product_type,variations', 'nullable', 'array', 'max:100'],
+            'variants' => ['nullable', 'array', 'max:100'],
             'variants.*.id' => ['nullable', 'integer'],
             'variants.*.sku' => ['nullable', 'string', 'max:100', 'distinct'],
-            'variants.*.price' => ['required_if:product_type,variations', 'nullable', 'numeric', 'min:0', 'max:999999.99'],
-            'variants.*.stock' => ['required_if:product_type,variations', 'nullable', 'integer', 'min:0', 'max:999999'],
-            'variants.*.values' => ['required_if:product_type,variations', 'nullable', 'string', 'max:500'],
+            'variants.*.price' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
+            'variants.*.stock' => ['nullable', 'integer', 'min:0', 'max:999999'],
+            'variants.*.values' => ['nullable', 'string', 'max:500'],
+            'variants.*.discount_type' => ['nullable', Rule::in(['none', 'percentage', 'fixed'])],
+            'variants.*.discount_value' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
+            'variants.*.payment_method' => ['nullable', Rule::in(['cod', 'online', 'cod_online'])],
             'variants.*.is_active' => ['nullable', 'boolean'],
+            'variants.*.product_image_ref' => ['nullable', 'string', 'max:100'],
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $seller = $this->user()?->sellerProfile?->loadMissing('primaryCategory');
+            $lineOfBusinessId = (int) ($seller?->primary_category_id ?? 0);
+            $categoryId = (int) $this->input('category_id');
+
+            $categoryAllowed = $lineOfBusinessId > 0 && Category::query()
+                ->whereKey($categoryId)
+                ->where('is_active', true)
+                ->where(function ($query) use ($lineOfBusinessId): void {
+                    $query->whereKey($lineOfBusinessId)
+                        ->orWhere('parent_id', $lineOfBusinessId);
+                })
+                ->exists();
+
+            if (! $categoryAllowed) {
+                $validator->errors()->add('category_id', 'Choose a category within your approved line of business.');
+            }
+
+            $this->validateDiscount($validator, (array) $this->input('variants', []), 'variants', $this->input('price'));
+            $this->validateDiscount($validator, [[
+                'discount_type' => $this->input('discount_type'),
+                'discount_value' => $this->input('discount_value'),
+                'price' => $this->input('price'),
+            ]], '', $this->input('price'));
+        });
+    }
+
+    private function validateDiscount($validator, array $rows, string $attribute, mixed $fallbackPrice = null): void
+    {
+        foreach ($rows as $index => $row) {
+            $value = (float) ($row['discount_value'] ?? $row['discount'] ?? 0);
+            $type = strtolower((string) ($row['discount_type'] ?? ($value > 0 ? 'percentage' : 'none')));
+            $price = $row['price'] ?? $fallbackPrice;
+            $prefix = $attribute !== '' ? $attribute.'.'.$index : '';
+
+            if ($type === 'percentage' && $value > 100) {
+                $validator->errors()->add(
+                    $prefix !== '' ? $prefix.'.discount_value' : 'discount_value',
+                    'Discount cannot exceed 100%.'
+                );
+            }
+
+            if ($type === 'fixed' && $price !== null && $price !== '' && $value > (float) $price) {
+                $validator->errors()->add(
+                    $prefix !== '' ? $prefix.'.discount_value' : 'discount_value',
+                    'Fixed discount cannot exceed the product price.'
+                );
+            }
+        }
     }
 }

@@ -43,6 +43,8 @@ export default defineConfig(({ mode }) => {
                     'resources/css/auth/register.css',
                     'resources/css/logistic/app.css',
                     'resources/css/logistic/landing.css',
+                    'resources/css/shared/likhae-workspace-ai.css',
+                    'resources/css/shared/mapbox.css',
                     'resources/js/app.js',
                     'resources/js/shared/messages.js',
                     'resources/js/Buyer/buyer.js',
@@ -54,6 +56,8 @@ export default defineConfig(({ mode }) => {
                     'resources/js/logistic/app.js',
                     'resources/js/logistic/portal.js',
                     'resources/js/rider/app.js',
+                    'resources/js/shared/likhae-workspace-ai.js',
+                    'resources/js/shared/mapbox.js',
                 ],
                 refresh: [
                     'resources/views/**',

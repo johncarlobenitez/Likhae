@@ -17,6 +17,8 @@
         <p class="mt-3 text-sm text-muted">{{ $parcel['status_label'] }} - Buyer: {{ $parcel['buyer'] }}</p>
     </section>
 
+    <x-shared.mapbox :markers="$mapMarkers" title="Delivery route map" height="350px" />
+
     <section class="grid gap-6 lg:grid-cols-2">
         <article class="rounded-3xl border border-line bg-surface p-8">
             <h2 class="text-lg font-bold text-ink">Recipient</h2>

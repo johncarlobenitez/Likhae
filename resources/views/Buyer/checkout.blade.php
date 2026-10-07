@@ -8,9 +8,10 @@
     $addresses = collect($addresses ?? []);
     $defaultAddress = $addresses->firstWhere('is_default', true) ?? $addresses->first();
     $groups = collect(data_get($preview ?? [], 'groups', []));
-    $imageUrl = static function ($product): string {
+    $imageUrl = static function ($product, $variant = null): string {
+        $assignedPath = data_get($variant, 'productImage.file_path');
         $image = collect(data_get($product, 'images', []))->firstWhere('is_primary', true) ?? collect(data_get($product, 'images', []))->first();
-        $path = data_get($image, 'file_path');
+        $path = $assignedPath ?? data_get($image, 'file_path');
         if (! filled($path)) return asset('images/product-placeholder.svg');
         return \Illuminate\Support\Str::startsWith($path, ['http://', 'https://']) ? $path : \Illuminate\Support\Facades\Storage::disk('public')->url($path);
     };
@@ -39,7 +40,7 @@
                             @foreach(collect(data_get($group, 'items', [])) as $item)
                                 @php($variant = $item->productVariant)
                                 @php($product = $variant->product)
-                                <div class="flex gap-3 text-sm"><img class="h-14 w-14 rounded-lg object-cover" src="{{ $imageUrl($product) }}" alt="{{ $product->name }}"><div class="min-w-0 flex-1"><strong class="line-clamp-2 text-stone-800">{{ $product->name }}</strong><span class="block text-xs text-stone-500">{{ $variant->description ?: 'Standard' }} · Qty {{ $item->quantity }}</span></div><strong>&#8369;{{ number_format((float) $variant->price * $item->quantity, 2) }}</strong></div>
+                                <div class="flex gap-3 text-sm"><img class="h-14 w-14 rounded-lg object-cover" src="{{ $imageUrl($product, $variant) }}" alt="{{ $product->name }}"><div class="min-w-0 flex-1"><strong class="line-clamp-2 text-stone-800">{{ $product->name }}</strong><span class="block text-xs text-stone-500">{{ $variant->description ?: 'Standard' }} · Qty {{ $item->quantity }}</span></div><strong>&#8369;{{ number_format((float) $variant->final_price * $item->quantity, 2) }}</strong></div>
                             @endforeach
                         </div>
                         <label class="mt-4 block text-xs font-semibold text-stone-700">Voucher code<input name="voucher_codes[{{ $sellerId }}]" value="{{ $voucherCodes[$sellerId] ?? '' }}" maxlength="80" class="mt-2 block w-full rounded-xl border border-stone-300 px-3 py-2.5 text-sm" placeholder="Optional"></label>

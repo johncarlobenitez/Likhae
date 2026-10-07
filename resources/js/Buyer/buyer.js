@@ -138,6 +138,49 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }));
 
+    const syncVariantGallery = (button) => {
+        const gallery = button?.closest('[data-variant-stock-product]')?.closest('section')?.querySelector('[data-product-gallery]')
+            || document.querySelector('[data-product-gallery]');
+        if (!gallery) return;
+
+        let images = [];
+        try { images = JSON.parse(button?.dataset.variationImages || '[]').filter(Boolean); } catch (_) { images = []; }
+        if (!images.length) {
+            try { images = JSON.parse(gallery.dataset.galleryBaseImages || '[]').filter(Boolean); } catch (_) { images = []; }
+        }
+        if (!images.length) return;
+
+        const mainImage = one('[data-detail-main-image], [data-gallery-main]', gallery);
+        if (mainImage) mainImage.src = images[0];
+
+        let thumbs = one('[data-gallery-thumbs]', gallery) || one('.lk-detail-thumbs', gallery);
+        if (!thumbs) {
+            thumbs = document.createElement('div');
+            thumbs.className = 'lk-detail-thumbs';
+            thumbs.dataset.galleryThumbs = 'true';
+            gallery.appendChild(thumbs);
+        }
+        thumbs.innerHTML = '';
+        thumbs.hidden = images.length < 2;
+        images.forEach((url, index) => {
+            const thumb = document.createElement('button');
+            thumb.type = 'button';
+            thumb.className = `lk-detail-thumb${index === 0 ? ' is-active' : ''}`;
+            thumb.dataset.galleryThumb = 'true';
+            thumb.dataset.image = url;
+            thumb.setAttribute('aria-label', `View variation image ${index + 1}`);
+            const image = document.createElement('img');
+            image.src = url;
+            image.alt = `Variation image ${index + 1}`;
+            thumb.appendChild(image);
+            thumb.addEventListener('click', () => {
+                if (mainImage) mainImage.src = url;
+                all('[data-gallery-thumb]', gallery).forEach((item) => item.classList.toggle('is-active', item === thumb));
+            });
+            thumbs.appendChild(thumb);
+        });
+    };
+
     all('[data-quantity-control]').forEach((control) => {
         const input = one('input', control);
         const clamp = (value) => Math.min(Number(input?.max || 99), Math.max(Number(input?.min || 1), value));
@@ -157,6 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
             option.classList.toggle('border-stone-300', !selected);
             option.classList.toggle('text-stone-700', !selected);
         });
+        syncVariantGallery(button);
     }));
 
     const selectedVariation = (scope) => {
@@ -168,6 +212,10 @@ document.addEventListener('DOMContentLoaded', () => {
             value: selected.dataset.variationValue || '',
             stock: Number(selected.dataset.variationStock || 0),
             price: Number(selected.dataset.variationPrice || 0),
+            originalPrice: Number(selected.dataset.variationOriginalPrice || selected.dataset.variationPrice || 0),
+            discountType: selected.dataset.variationDiscountType || 'none',
+            discountValue: Number(selected.dataset.variationDiscountValue ?? selected.dataset.variationDiscount ?? 0),
+            discountAmount: Number(selected.dataset.variationDiscountAmount || 0),
         };
     };
 
@@ -217,12 +265,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const quantity = one('[data-quantity-input]', product);
             const price = one('.lk-detail-price', product);
             if (availability) availability.textContent = stock ? `${stock} available` : 'Out of stock';
-            if (price && variation?.price) price.textContent = `₱${variation.price.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            if (price && variation?.id) price.textContent = `₱${variation.price.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            const oldPrice = one('[data-variation-old-price]', product);
+            const discountBadge = one('[data-variation-discount-badge-wrapper]', product);
+            const discountBadgeText = one('[data-variation-discount-badge]', product);
+            const discountType = String(variation?.discountType || 'none').toLowerCase();
+            const discountAmount = variation?.discountAmount || (discountType === 'fixed'
+                ? Math.min(variation?.originalPrice || 0, variation?.discountValue || 0)
+                : (variation?.originalPrice || 0) * Math.min(100, variation?.discountValue || 0) / 100);
+            if (oldPrice && variation?.id) {
+                oldPrice.textContent = `₱${variation.originalPrice.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                oldPrice.hidden = !(discountAmount > 0 && variation.originalPrice > variation.price);
+            }
+            if (discountBadge) {
+                discountBadge.hidden = !(discountAmount > 0);
+                if (discountBadgeText) {
+                    discountBadgeText.textContent = discountType === 'fixed'
+                        ? `₱${(variation?.discountValue || 0).toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})} OFF`
+                        : `${(variation?.discountValue || 0).toLocaleString('en-PH', {maximumFractionDigits: 2})}% OFF`;
+                }
+            }
             if (quantity) { quantity.max = Math.max(1, stock); quantity.value = Math.min(Number(quantity.value || 1), Math.max(1, stock)); }
             all('[data-product-purchase]', product).forEach((control) => { control.disabled = stock < 1; control.setAttribute('aria-disabled', String(stock < 1)); });
         };
         all('[data-variation-option]', product).forEach((button) => button.addEventListener('click', sync));
         sync();
+        syncVariantGallery(one('[data-variation-option][aria-pressed="true"]', product));
     });
 
     all('[data-add-cart]').forEach((button) => button.addEventListener('click', () => {

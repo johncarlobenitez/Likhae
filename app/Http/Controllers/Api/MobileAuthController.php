@@ -3,7 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Auth\PhilippineAddressController;
+use App\Http\Requests\StoreRegistrationRequest;
 use App\Models\User;
+use App\Models\Admin\PlatformSetting;
+use App\Services\RegistrationWorkflowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -12,6 +16,62 @@ use Illuminate\Support\Str;
 
 class MobileAuthController extends Controller
 {
+    public function register(
+        StoreRegistrationRequest $request,
+        RegistrationWorkflowService $workflow,
+    ): JsonResponse {
+        if (! (bool) PlatformSetting::valueOf('registration_enabled', true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'New registrations are temporarily disabled.',
+            ], 403);
+        }
+        if (! PhilippineAddressController::selectionIsValid(
+            (string) $request->input('region_code'),
+            (string) $request->input('region'),
+            (string) $request->input('province_code'),
+            (string) $request->input('province'),
+            (string) $request->input('municipality_code'),
+            (string) $request->input('municipality'),
+            (string) $request->input('barangay_code'),
+            (string) $request->input('barangay'),
+        )) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please select a valid Philippine address.',
+                'errors' => ['address' => ['The selected address is invalid.']],
+            ], 422);
+        }
+
+        $expectedPostalCode = PhilippineAddressController::expectedPostalCodeFor(
+            (string) $request->input('province_code'),
+            (string) $request->input('municipality_code'),
+            (string) $request->input('province'),
+            (string) $request->input('municipality'),
+        );
+        if ($expectedPostalCode !== null
+            && filled($request->input('postal_code'))
+            && (string) $request->input('postal_code') !== $expectedPostalCode) {
+            return response()->json([
+                'success' => false,
+                'message' => 'The postal code does not match the selected municipality.',
+                'errors' => ['postal_code' => ['Use the postal code for the selected municipality.']],
+            ], 422);
+        }
+
+        $application = $workflow->submit($request);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Registration submitted. Wait for account approval before signing in.',
+            'data' => [
+                'application_number' => $application->application_number,
+                'status' => $application->status,
+                'email' => $application->user?->email,
+            ],
+        ], 201);
+    }
+
     public function login(Request $request): JsonResponse
     {
         $credentials = $request->validate([

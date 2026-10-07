@@ -52,6 +52,10 @@ Route::prefix('admin')
         Route::post('/products/{product}/moderate', [AdminOperationsController::class, 'moderateProduct'])->name('products.moderate');
         Route::post('/categories', [AdminOperationsController::class, 'storeCategory'])->name('categories.store');
         Route::patch('/categories/{category}', [AdminOperationsController::class, 'updateCategory'])->name('categories.update');
+        Route::patch('/categories/{category}/status', [AdminOperationsController::class, 'updateCategoryStatus'])->name('categories.status');
+        Route::post('/subcategories', [AdminOperationsController::class, 'storeSubcategory'])->name('subcategories.store');
+        Route::patch('/subcategories/{category}', [AdminOperationsController::class, 'updateSubcategory'])->name('subcategories.update');
+        Route::patch('/subcategories/{category}/status', [AdminOperationsController::class, 'updateSubcategoryStatus'])->name('subcategories.status');
         Route::get('/products-export', [AdminOperationsController::class, 'exportProducts'])->name('products.export');
         Route::patch('/disputes/{dispute}', [AdminOperationsController::class, 'updateDispute'])->name('disputes.update');
         Route::get('/finance-export', [AdminOperationsController::class, 'exportFinance'])->name('finance.export');
@@ -69,7 +73,7 @@ Route::prefix('admin')
 
         // Compatibility aliases retained for the original Admin frontend.
         Route::get('/riders', fn () => redirect()->route('admin.users'))->name('riders');
-        Route::get('/categories', fn () => redirect()->route('admin.products', ['view' => 'categories']))->name('categories');
+        Route::get('/categories', [AdminOperationsController::class, 'categories'])->name('categories');
         Route::get('/payments', fn () => redirect()->route('admin.finance', ['tab' => 'payments']))->name('payments');
         Route::get('/refunds', fn () => redirect()->route('admin.complaints', ['tab' => 'returns']))->name('refunds');
     });

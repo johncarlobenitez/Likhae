@@ -59,10 +59,6 @@
     $image = data_get($product, 'primary_image.url')
         ?? 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&q=80';
 
-    $discount = $oldPrice > $price && $oldPrice > 0
-        ? (int) round((($oldPrice - $price) / $oldPrice) * 100)
-        : (int) data_get($product, 'discount', 0);
-
     $detailsUrl = $guest
         ? route('products.show', ['slug' => $slug])
         : route('buyer.product-details', ['slug' => $slug]);
@@ -70,6 +66,20 @@
     $hasVariations = $variants->count() > 1;
     $singleVariant = $hasVariations ? null : $variants->first();
     $canAddToCart = data_get($singleVariant, 'id') && (int) data_get($singleVariant, 'stock', 0) > 0;
+    $discountVariant = $variants
+        ->filter(fn ($variant) => (float) data_get($variant, 'discount_amount', 0) > 0)
+        ->sortByDesc(fn ($variant) => (float) data_get($variant, 'discount_amount', 0))
+        ->first();
+    $discountType = strtolower((string) data_get($discountVariant, 'discount_type', data_get($product, 'discount_type', 'none')));
+    $discountValue = (float) data_get($discountVariant, 'discount_value', data_get($product, 'discount_value', 0));
+    $discount = $discountVariant
+        ? $discountValue
+        : ($oldPrice > $price && $oldPrice > 0
+            ? (int) round((($oldPrice - $price) / $oldPrice) * 100)
+            : (int) data_get($product, 'discount', 0));
+    $discountLabel = $discountType === 'fixed'
+        ? '₱'.number_format($discountValue, 2).' OFF'
+        : '-'.min(100, $discount).'%';
 
     $storeUrl = $guest
         ? route('products.show', ['slug' => $slug])
@@ -690,7 +700,7 @@
 
         @if($discount > 0)
             <span class="lk-product-discount">
-                -{{ min(100, $discount) }}%
+                {{ $discountLabel }}
             </span>
         @endif
 

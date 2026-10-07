@@ -26,9 +26,11 @@ class ProductCatalogService
         return [
             'category',
             'sellerProfile.user',
-            'images',
-            'options.values',
+            'images.optionValue.option',
+            'options.values.images',
             'variants.optionValues.option',
+            'variants.optionValues.images',
+            'variants.productImage',
         ];
     }
 
@@ -146,13 +148,17 @@ class ProductCatalogService
                 'alt_text' => $image->alt_text,
                 'is_primary' => (bool) $image->is_primary,
                 'sort_order' => (int) $image->sort_order,
+                'product_option_value_id' => $image->product_option_value_id,
+                'option_name' => $image->optionValue?->option?->name,
+                'option_value' => $image->optionValue?->value,
             ])
-            ->sortByDesc('is_primary')
+            ->sortByDesc(fn (array $image): int => ((int) $image['is_primary'] * 100000) + (int) $image['sort_order'])
+            ->take(10)
             ->values();
 
         $primaryImage = $images->firstWhere('is_primary', true) ?: $images->first();
         $activeVariants = $product->variants->where('is_active', true)->values();
-        $minPrice = $activeVariants->min(fn (ProductVariant $variant) => (float) $variant->price);
+        $minPrice = $activeVariants->min(fn (ProductVariant $variant) => $variant->final_price);
 
         $payload = [
             'id' => $product->id,
@@ -222,12 +228,26 @@ class ProductCatalogService
     /** @return array<string, mixed> */
     public function variantPayload(ProductVariant $variant): array
     {
-        $variant->loadMissing('optionValues.option');
+        $variant->loadMissing(['optionValues.option', 'optionValues.images', 'productImage']);
+        $discountType = $variant->resolved_discount_type;
+        $assignedImage = $variant->productImage?->file_path
+            ? collect([$this->publicUrl($variant->productImage->file_path)])
+            : collect();
+        $fallbackImages = $variant->optionValues
+            ->flatMap(fn (ProductOptionValue $value) => $value->images->map(fn (ProductImage $image) => $this->publicUrl($image->file_path)))
+            ->filter()
+            ->unique();
 
         return [
             'id' => $variant->id,
             'sku' => $variant->sku,
-            'price' => number_format((float) $variant->price, 2, '.', ''),
+            'price' => number_format($variant->final_price, 2, '.', ''),
+            'original_price' => number_format((float) $variant->price, 2, '.', ''),
+            'discount_type' => $discountType === 'none' ? null : $discountType,
+            'discount_value' => number_format((float) ($variant->discount_value ?? 0), 2, '.', ''),
+            'discount_percentage' => $variant->discount_percentage,
+            'discount_amount' => number_format($variant->discount_amount, 2, '.', ''),
+            'payment_method' => $variant->payment_method ?: 'cod_online',
             'stock' => (int) $variant->stock,
             'is_default' => (bool) $variant->is_default,
             'is_active' => (bool) $variant->is_active,
@@ -240,6 +260,7 @@ class ProductCatalogService
                     'value' => $value->value,
                 ])
                 ->values(),
+            'image_urls' => $assignedImage->isNotEmpty() ? $assignedImage->values() : $fallbackImages->values(),
         ];
     }
 

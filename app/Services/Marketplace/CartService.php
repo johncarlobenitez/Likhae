@@ -29,7 +29,7 @@ class CartService
     {
         return $this->activeCart($buyer)
             ->items()
-            ->with(['productVariant.product.images', 'productVariant.product.sellerProfile', 'productVariant.optionValues.option'])
+            ->with(['productVariant.product.images', 'productVariant.productImage', 'productVariant.product.sellerProfile', 'productVariant.optionValues.option'])
             ->latest()
             ->get();
     }
@@ -100,7 +100,7 @@ class CartService
     {
         $query = $this->activeCart($buyer)
             ->items()
-            ->with(['productVariant.product.images', 'productVariant.product.sellerProfile', 'productVariant.optionValues.option']);
+            ->with(['productVariant.product.images', 'productVariant.productImage', 'productVariant.product.sellerProfile', 'productVariant.optionValues.option']);
 
         if ($ids !== []) {
             $query->whereIn('id', $ids);

@@ -65,6 +65,11 @@
     $discount = $oldPrice > $price && $price > 0
         ? (int) round((($oldPrice - $price) / $oldPrice) * 100)
         : (int) data_get($product, 'discount', 0);
+    $discountType = strtolower((string) data_get($product, 'discount_type', $discount > 0 ? 'percentage' : 'none'));
+    $discountValue = (float) data_get($product, 'discount_value', $discount);
+    if (! in_array($discountType, ['none', 'percentage', 'fixed'], true)) {
+        $discountType = $discountValue > 0 ? 'percentage' : 'none';
+    }
 
     $rating = (float) data_get($product, 'rating', 0);
 
@@ -95,6 +100,17 @@
         ->values();
 
     $defaultVariant = $variants->firstWhere('is_default', true) ?? $variants->first();
+
+    if ($defaultVariant) {
+        $price = (float) data_get($defaultVariant, 'price', $price);
+        $oldPrice = (float) data_get($defaultVariant, 'original_price', $oldPrice);
+        $discountType = strtolower((string) data_get($defaultVariant, 'discount_type', 'none'));
+        $discountValue = (float) data_get($defaultVariant, 'discount_value', 0);
+        if (! in_array($discountType, ['none', 'percentage', 'fixed'], true)) {
+            $discountType = $discountValue > 0 ? 'percentage' : 'none';
+        }
+        $discount = $discountType === 'percentage' ? $discountValue : 0;
+    }
 
     $variantStock = $variants
         ->mapWithKeys(fn ($variant) => [(string) data_get($variant, 'id') => (int) data_get($variant, 'stock', 0)])
@@ -1272,14 +1288,11 @@
         <div
             class="lk-detail-gallery-card"
             data-product-gallery
+            data-gallery-base-images='@json($images->all())'
         >
             <div class="lk-detail-gallery-main">
                 @if($images->isNotEmpty())
-                    <img
-                        src="{{ $images->first() }}"
-                        alt="{{ $name }}"
-                        data-gallery-main
-                    >
+                    <img src="{{ $images->first() }}" alt="{{ $name }}" data-gallery-main>
                 @else
                     <div class="lk-detail-image-placeholder">
                         <svg
@@ -1328,11 +1341,9 @@
                     {{ $category }}
                 </span>
 
-                @if($discount > 0)
-                    <span class="lk-detail-badge lk-detail-badge-tan">
-                        Save {{ $discount }}%
-                    </span>
-                @endif
+                <span class="lk-detail-badge lk-detail-badge-tan" data-variation-discount-badge-wrapper @if($discountValue <= 0) hidden @endif>
+                    <span data-variation-discount-badge>{{ $discountType === 'fixed' ? '₱'.number_format($discountValue, 2).' OFF' : number_format($discountValue, 2).'% OFF' }}</span>
+                </span>
             </div>
 
             <h1 class="lk-detail-title">
@@ -1360,10 +1371,12 @@
                         ₱{{ number_format($price, 2) }}
                     </strong>
 
-                    @if($oldPrice > $price)
-                        <del class="lk-detail-old-price">
+                    @if($oldPrice > $price && $discountValue > 0)
+                        <del class="lk-detail-old-price" data-variation-old-price>
                             ₱{{ number_format($oldPrice, 2) }}
                         </del>
+                    @else
+                        <del class="lk-detail-old-price" data-variation-old-price hidden></del>
                     @endif
                 </div>
 
@@ -1379,12 +1392,12 @@
                         <div class="lk-detail-option-group" data-variation-group>
                             @foreach($variants as $variant)
                                 @php $selected = (string) data_get($variant, 'id') === (string) data_get($defaultVariant, 'id'); @endphp
-                                <button type="button" class="lk-detail-option-btn {{ $selected ? 'is-selected' : '' }}" data-variation-option data-variation-id="{{ data_get($variant, 'id') }}" data-variation-value="{{ data_get($variant, 'description', data_get($variant, 'sku')) }}" data-variation-stock="{{ data_get($variant, 'stock', 0) }}" data-variation-price="{{ data_get($variant, 'price', 0) }}" aria-pressed="{{ $selected ? 'true' : 'false' }}">{{ data_get($variant, 'description', data_get($variant, 'sku')) }}</button>
+                                <button type="button" class="lk-detail-option-btn {{ $selected ? 'is-selected' : '' }}" data-variation-option data-variation-id="{{ data_get($variant, 'id') }}" data-variation-value="{{ data_get($variant, 'description', data_get($variant, 'sku')) }}" data-variation-stock="{{ data_get($variant, 'stock', 0) }}" data-variation-price="{{ data_get($variant, 'price', 0) }}" data-variation-original-price="{{ data_get($variant, 'original_price', data_get($variant, 'price', 0)) }}" data-variation-discount-type="{{ data_get($variant, 'discount_type', 'none') }}" data-variation-discount-value="{{ data_get($variant, 'discount_value', 0) }}" data-variation-discount="{{ data_get($variant, 'discount_value', data_get($variant, 'discount_percentage', 0)) }}" data-variation-discount-amount="{{ data_get($variant, 'discount_amount', 0) }}" data-variation-images='@json(data_get($variant, "image_urls", []))' aria-pressed="{{ $selected ? 'true' : 'false' }}">{{ data_get($variant, 'description', data_get($variant, 'sku')) }}</button>
                             @endforeach
                         </div>
                     </div>
                 @elseif($defaultVariant)
-                    <button type="button" hidden data-variation-option data-variation-id="{{ data_get($defaultVariant, 'id') }}" data-variation-value="{{ data_get($defaultVariant, 'description', 'Default') }}" data-variation-stock="{{ data_get($defaultVariant, 'stock', 0) }}" data-variation-price="{{ data_get($defaultVariant, 'price', 0) }}" aria-pressed="true">Default</button>
+                    <button type="button" hidden data-variation-option data-variation-id="{{ data_get($defaultVariant, 'id') }}" data-variation-value="{{ data_get($defaultVariant, 'description', 'Default') }}" data-variation-stock="{{ data_get($defaultVariant, 'stock', 0) }}" data-variation-price="{{ data_get($defaultVariant, 'price', 0) }}" data-variation-original-price="{{ data_get($defaultVariant, 'original_price', data_get($defaultVariant, 'price', 0)) }}" data-variation-discount-type="{{ data_get($defaultVariant, 'discount_type', 'none') }}" data-variation-discount-value="{{ data_get($defaultVariant, 'discount_value', 0) }}" data-variation-discount="{{ data_get($defaultVariant, 'discount_value', data_get($defaultVariant, 'discount_percentage', 0)) }}" data-variation-discount-amount="{{ data_get($defaultVariant, 'discount_amount', 0) }}" data-variation-images='@json(data_get($defaultVariant, "image_urls", []))' aria-pressed="true">Default</button>
                 @endif
 
                 <div class="lk-detail-qty-row">

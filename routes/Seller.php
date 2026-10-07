@@ -5,6 +5,7 @@ use App\Http\Controllers\Seller\SellerEngagementController;
 use App\Http\Controllers\Seller\SellerOperationsController;
 use App\Http\Controllers\Seller\SellerOrderController;
 use App\Http\Controllers\Seller\SellerProductController;
+use App\Http\Controllers\WorkspaceAiController;
 use App\Http\Middleware\EnsureWorkspaceRole;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +17,11 @@ Route::prefix('seller')
     ->name('seller.')
     ->middleware(['auth', 'verified', EnsureWorkspaceRole::class.':seller', 'seller.approved'])
     ->group(function (): void {
+        Route::post('/ai/chat', [WorkspaceAiController::class, 'chat'])
+            ->defaults('workspace', 'seller')
+            ->middleware('throttle:20,1')
+            ->name('ai.chat');
+
         Route::get('/dashboard', [SellerOperationsController::class, 'dashboard'])->name('dashboard');
 
         Route::get('/products', [SellerProductController::class, 'index'])->name('products');

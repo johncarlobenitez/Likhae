@@ -61,7 +61,11 @@
 
     @vite([
         'resources/css/logistic/app.css',
-        'resources/js/logistic/app.js'
+        'resources/css/shared/likhae-workspace-ai.css',
+        'resources/css/shared/mapbox.css',
+        'resources/js/logistic/app.js',
+        'resources/js/shared/likhae-workspace-ai.js',
+        'resources/js/shared/mapbox.js'
     ])
 
     @stack('styles')
@@ -305,6 +309,11 @@
     ====================================================== --}}
 
     <x-notification-popover />
+    @php
+        $workspaceAiPage = request()->route()?->getName() ?: 'logistics.dashboard';
+        $workspaceAiTitle = trim($__env->yieldContent('title')) ?: 'Logistics';
+    @endphp
+    <x-workspace.ai-assistant workspace="logistics" :page="$workspaceAiPage" :page-title="$workspaceAiTitle" />
     @stack('scripts')
 
 </body>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Buyer;
 use App\Http\Controllers\Controller;
 use App\Models\Logistics\DeliveryAttempt;
 use App\Models\Logistics\Shipment;
+use App\Services\Maps\MapDataService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
@@ -23,6 +24,8 @@ class TrackingController extends Controller
                 'events.actor',
                 'scans',
                 'deliveryAttempts',
+                'riderAssignments.liveLocation',
+                'logisticsCenter.address',
             ])
             ->firstOrFail();
 
@@ -32,7 +35,9 @@ class TrackingController extends Controller
             abort_unless((int) $shipment->sellerOrder->order->buyer_user_id === (int) $user->id, 403);
         }
 
-        return view('Buyer.tracking.show', compact('shipment'));
+        $mapMarkers = app(MapDataService::class)->forShipment($shipment);
+
+        return view('Buyer.tracking.show', compact('shipment', 'mapMarkers'));
     }
 
     public function proof(Request $request, int|string $event): BinaryFileResponse
