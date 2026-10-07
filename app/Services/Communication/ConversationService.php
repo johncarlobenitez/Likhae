@@ -7,6 +7,7 @@ use App\Models\Communication\Conversation;
 use App\Models\Communication\ConversationParticipant;
 use App\Models\Communication\Message;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -82,27 +83,39 @@ class ConversationService
     private function findOrCreate(User $creator, int $recipientUserId, array $context): Conversation
     {
         $ids = collect([$creator->id, $recipientUserId])->sort()->values();
+        if ((int) $ids[0] === (int) $ids[1]) {
+            throw new \InvalidArgumentException('A conversation requires two different accounts.');
+        }
 
-        $conversation = Conversation::query()
-            ->where('type', $context['type'] ?? 'DIRECT')
-            ->when($context['order_id'] ?? null, fn ($query, $id) => $query->where('order_id', $id))
-            ->when($context['seller_order_id'] ?? null, fn ($query, $id) => $query->where('seller_order_id', $id))
-            ->when($context['shipment_id'] ?? null, fn ($query, $id) => $query->where('shipment_id', $id))
-            ->whereHas('participants', fn ($query) => $query->where('users.id', $ids[0]))
-            ->whereHas('participants', fn ($query) => $query->where('users.id', $ids[1]))
-            ->first();
+        $conversation = $this->findPairConversation($ids);
 
         if ($conversation) {
             return $conversation;
         }
 
-        $conversation = Conversation::create([
-            'type' => $context['type'] ?? 'DIRECT',
-            'order_id' => $context['order_id'] ?? null,
-            'seller_order_id' => $context['seller_order_id'] ?? null,
-            'shipment_id' => $context['shipment_id'] ?? null,
-            'created_by_user_id' => $creator->id,
-        ]);
+        try {
+            $conversation = Conversation::create([
+                'type' => $context['type'] ?? 'DIRECT',
+                'direct_pair_key' => $ids->implode(':'),
+                'order_id' => $context['order_id'] ?? null,
+                'seller_order_id' => $context['seller_order_id'] ?? null,
+                'shipment_id' => $context['shipment_id'] ?? null,
+                'created_by_user_id' => $creator->id,
+            ]);
+        } catch (QueryException $exception) {
+            // A concurrent first message may win the unique pair key. Reuse
+            // that committed conversation instead of creating a second one.
+            if (! str_contains($exception->getMessage(), 'direct_pair_key')) {
+                throw $exception;
+            }
+
+            $conversation = $this->findPairConversation($ids);
+            if ($conversation) {
+                return $conversation;
+            }
+
+            throw $exception;
+        }
 
         foreach ($ids as $id) {
             ConversationParticipant::firstOrCreate([
@@ -112,5 +125,15 @@ class ConversationService
         }
 
         return $conversation;
+    }
+
+    private function findPairConversation(Collection $ids): ?Conversation
+    {
+        return Conversation::query()
+            ->whereHas('participants', fn ($query) => $query->where('users.id', $ids[0]))
+            ->whereHas('participants', fn ($query) => $query->where('users.id', $ids[1]))
+            ->whereDoesntHave('participants', fn ($query) => $query->whereNotIn('users.id', $ids->all()))
+            ->oldest('id')
+            ->first();
     }
 }

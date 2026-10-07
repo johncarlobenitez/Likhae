@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Logistics;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Auth\PhilippineAddressController;
 use App\Models\Auth\RegistrationApplication;
 use App\Models\Logistics\ServiceArea;
 use App\Models\Logistics\ServiceAreaLocation;
@@ -143,17 +144,73 @@ class LogisticsPortalController extends Controller
         $center = $request->user()->logisticsCenter;
         abort_unless($center && (int) $rider->logistics_center_id === (int) $center->id, 403);
 
-        $rider->load(['user', 'areaAssignments.serviceArea', 'assignments.shipment.sellerOrder.order.address', 'assignments.shipment.riderAssignments.liveLocation', 'assignments.shipment.logisticsCenter.address', 'assignments.liveLocation', 'earnings']);
+        $rider->load(['user', 'areaAssignments.serviceArea', 'assignments.shipment.sellerOrder.sellerProfile.businessAddress', 'assignments.shipment.sellerOrder.order.address', 'assignments.shipment.riderAssignments.liveLocation', 'assignments.shipment.logisticsCenter.address', 'assignments.liveLocation', 'earnings']);
+        $rider->setAttribute('active_assignments_count', $rider->assignments
+            ->whereIn('status', ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS'])
+            ->count());
         $ratingSummary = $riderRatings->summary($rider);
         $rider->setAttribute('rating_average', $ratingSummary['average']);
         $rider->setAttribute('rating_count', $ratingSummary['count']);
 
+        $serviceAreas = ServiceArea::query()
+            ->where('logistics_center_id', $center->id)
+            ->where('is_active', true)
+            ->with('locations')
+            ->orderBy('name')
+            ->get();
+
         $maps = app(MapDataService::class);
-        $mapMarkers = $maps->forAssignments($rider->assignments);
+        $mapMarkers = $maps->forAssignments($rider->assignments, true);
         if ($centerMarker = $maps->centerMarker($center->loadMissing('address'))) {
             $mapMarkers[] = $centerMarker;
         }
-        return view('Logistics.riders.show', compact('rider', 'center', 'mapMarkers'));
+        return view('Logistics.riders.show', compact('rider', 'center', 'mapMarkers', 'serviceAreas'));
+    }
+
+    public function reassignRiderArea(Request $request, RiderProfile $rider): RedirectResponse
+    {
+        $center = $request->user()->logisticsCenter;
+        abort_unless($center && (int) $rider->logistics_center_id === (int) $center->id, 403);
+
+        $data = $request->validate([
+            'service_area_id' => ['nullable', 'integer'],
+        ]);
+
+        $area = null;
+        if ($request->filled('service_area_id')) {
+            $area = ServiceArea::query()
+                ->whereKey($data['service_area_id'])
+                ->where('logistics_center_id', $center->id)
+                ->where('is_active', true)
+                ->first();
+
+            abort_unless($area, 403);
+        }
+
+        DB::transaction(function () use ($area, $rider, $request): void {
+            $rider->areaAssignments()
+                ->where('is_active', true)
+                ->update(['is_active' => false, 'ended_at' => now()]);
+
+            if ($area) {
+                RiderAreaAssignment::updateOrCreate(
+                    [
+                        'rider_profile_id' => $rider->id,
+                        'service_area_id' => $area->id,
+                    ],
+                    [
+                        'assigned_by_user_id' => $request->user()->id,
+                        'is_active' => true,
+                        'assigned_at' => now(),
+                        'ended_at' => null,
+                    ],
+                );
+            }
+        });
+
+        return back()->with('status', $area
+            ? 'Rider delivery area reassigned to '.$area->name.'.'
+            : 'Rider delivery area cleared.');
     }
 
     public function activateRider(Request $request, RiderProfile $rider): RedirectResponse
@@ -203,6 +260,8 @@ class LogisticsPortalController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'],
             'code' => ['nullable', 'string', 'max:50'],
+            'region_code' => ['required', 'string', 'max:50'],
+            'region_name' => ['required', 'string', 'max:150'],
             'province_code' => ['required', 'string', 'max:50'],
             'province_name' => ['required', 'string', 'max:150'],
             'municipality_code' => ['required', 'string', 'max:50'],
@@ -211,6 +270,21 @@ class LogisticsPortalController extends Controller
             'barangay_name' => ['required', 'string', 'max:150'],
             'rider_profile_id' => ['nullable', 'integer', 'exists:rider_profiles,id'],
         ]);
+
+        if (! PhilippineAddressController::selectionIsValid(
+            (string) $data['region_code'],
+            (string) $data['region_name'],
+            (string) $data['province_code'],
+            (string) $data['province_name'],
+            (string) $data['municipality_code'],
+            (string) $data['municipality_name'],
+            (string) $data['barangay_code'],
+            (string) $data['barangay_name'],
+        )) {
+            return back()
+                ->withErrors(['barangay_code' => 'Select the province, municipality, and barangay from the address API.'])
+                ->withInput();
+        }
 
         if (! empty($data['rider_profile_id'])) {
             abort_unless(

@@ -1,9 +1,9 @@
 <?php
 
-use App\Http\Controllers\Api\LookupApiController;
-use App\Http\Controllers\Api\ProductApiController;
-use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\BuyerApiController;
+use App\Http\Controllers\Api\LookupApiController;
+use App\Http\Controllers\Api\MobileAuthController;
+use App\Http\Controllers\Api\ProductApiController;
 use App\Http\Controllers\Api\RiderApiController;
 use App\Http\Controllers\Api\TrackingApiController;
 use App\Http\Controllers\Api\WorkflowApiController;
@@ -22,6 +22,7 @@ Route::prefix('v1')->group(function (): void {
     })->name('api.v1.health');
 
     Route::post('/auth/login', [MobileAuthController::class, 'login'])->middleware('throttle:10,1')->name('api.v1.auth.login');
+    Route::post('/auth/register', [MobileAuthController::class, 'register'])->middleware('throttle:5,1')->name('api.v1.auth.register');
 
     Route::get('/categories', [LookupApiController::class, 'categories'])->name('api.v1.categories.index');
     Route::get('/logistics-centers', [LookupApiController::class, 'logisticsCenters'])->name('api.v1.logistics-centers.index');
@@ -41,8 +42,7 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('/buyer/cart/items/{item}', [BuyerApiController::class, 'removeCartItem'])->name('api.v1.buyer.cart.destroy');
         Route::get('/buyer/orders', [BuyerApiController::class, 'orders'])->name('api.v1.buyer.orders.index');
         Route::get('/buyer/orders/{order}', [BuyerApiController::class, 'showOrder'])->name('api.v1.buyer.orders.show');
-        Route::get('/buyer/orders/{order}/rider-location', [BuyerApiController::class, 'liveRiderLocation'])->name('api.v1.buyer.orders.rider-location');
-        Route::get('/buyer/orders/{order}/rider-location', [BuyerApiController::class, 'liveRiderLocation'])->name('api.v1.buyer.orders.live-location');
+        Route::get('/buyer/orders/{order}/live-location', [BuyerApiController::class, 'liveRiderLocation'])->name('api.v1.buyer.orders.live-location');
         Route::post('/buyer/orders/{order}/cancel', [BuyerOrderController::class, 'cancel'])->name('api.v1.buyer.orders.cancel');
         Route::post('/buyer/orders/{order}/return-refund', [BuyerOrderController::class, 'returnRefund'])->name('api.v1.buyer.orders.return-refund');
         Route::post('/buyer/checkout', [BuyerApiController::class, 'placeOrder'])->name('api.v1.buyer.checkout.store');
@@ -63,19 +63,21 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/buyer/messages', [BuyerApiController::class, 'conversations'])->name('api.v1.buyer.messages.index');
         Route::get('/buyer/messages/{conversation}', [BuyerApiController::class, 'conversationMessages'])->name('api.v1.buyer.messages.show');
         Route::post('/buyer/messages', [BuyerApiController::class, 'sendMessage'])->name('api.v1.buyer.messages.store');
-        Route::patch('/seller/orders/{sellerOrder}', [WorkflowApiController::class, 'sellerOrder'])->name('api.v1.seller.orders.transition');
-        Route::patch('/rider/assignments/{assignment}', [WorkflowApiController::class, 'riderAssignment'])->name('api.v1.rider.assignments.transition');
         Route::get('/rider/dashboard', [RiderApiController::class, 'dashboard'])->name('api.v1.rider.dashboard');
         Route::get('/rider/assignments', [RiderApiController::class, 'assignments'])->name('api.v1.rider.assignments.index');
         Route::get('/rider/pickups', [RiderApiController::class, 'pickups'])->name('api.v1.rider.pickups.index');
-        Route::post('/rider/assignments/{assignment}/verify-pickup', [RiderApiController::class, 'verifyPickup'])->name('api.v1.rider.assignments.verify-pickup');
-        Route::match(['post', 'put'], '/rider/assignments/{assignment}/location', [RiderApiController::class, 'updateLocation'])->name('api.v1.rider.assignments.location');
+        Route::post('/rider/pickups/{assignment}/verify', [RiderApiController::class, 'verifyPickup'])->name('api.v1.rider.pickups.verify');
+        Route::post('/rider/assignments/{assignment}/location', [RiderApiController::class, 'updateLocation'])->name('api.v1.rider.assignments.location');
         Route::get('/rider/history', [RiderApiController::class, 'history'])->name('api.v1.rider.history.index');
         Route::get('/rider/earnings', [RiderApiController::class, 'earnings'])->name('api.v1.rider.earnings.index');
         Route::get('/rider/profile', [RiderApiController::class, 'profile'])->name('api.v1.rider.profile.show');
+        Route::get('/rider/notifications', [RiderApiController::class, 'notifications'])->name('api.v1.rider.notifications.index');
+        Route::post('/rider/notifications/read-all', [RiderApiController::class, 'markNotificationsRead'])->name('api.v1.rider.notifications.read-all');
         Route::get('/rider/messages', [RiderApiController::class, 'conversations'])->name('api.v1.rider.messages.index');
         Route::get('/rider/messages/{conversation}', [RiderApiController::class, 'conversationMessages'])->name('api.v1.rider.messages.show');
         Route::post('/rider/messages', [RiderApiController::class, 'sendMessage'])->name('api.v1.rider.messages.store');
+        Route::patch('/seller/orders/{sellerOrder}', [WorkflowApiController::class, 'sellerOrder'])->name('api.v1.seller.orders.transition');
+        Route::patch('/rider/assignments/{assignment}', [WorkflowApiController::class, 'riderAssignment'])->name('api.v1.rider.assignments.transition');
         Route::post('/logistics/shipments/{shipment}/receive', [WorkflowApiController::class, 'receiveParcel'])->name('api.v1.logistics.shipments.receive');
         Route::post('/logistics/shipments/{shipment}/sort', [WorkflowApiController::class, 'sortParcel'])->name('api.v1.logistics.shipments.sort');
         Route::post('/logistics/shipments/{shipment}/assign-rider', [WorkflowApiController::class, 'assignRider'])->name('api.v1.logistics.shipments.assign-rider');

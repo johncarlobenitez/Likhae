@@ -16,6 +16,7 @@ class Conversation extends Model
 {
     protected $fillable = [
         'type',
+        'direct_pair_key',
         'order_id',
         'seller_order_id',
         'shipment_id',

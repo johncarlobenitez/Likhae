@@ -30,6 +30,7 @@ Route::prefix('rider')
         Route::get('/dashboard', [RiderController::class, 'dashboard'])->name('dashboard');
 
         Route::get('/shipments', [RiderShipmentController::class, 'index'])->name('shipments');
+        Route::post('/assignments/{assignment}/location', [RiderShipmentController::class, 'updateLocation'])->name('assignments.location');
         Route::patch('/assignments/{assignment}', [RiderShipmentController::class, 'transition'])->name('assignments.transition');
         Route::patch('/shipments/{assignment}', [RiderShipmentController::class, 'transition'])->name('shipments.transition');
 

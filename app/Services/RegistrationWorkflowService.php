@@ -150,6 +150,14 @@ class RegistrationWorkflowService
                     ]);
                 }
 
+                // Handle optional profile picture
+                if ($request->hasFile('profile_picture')) {
+                    $profilePicture = $request->file('profile_picture');
+                    $path = $profilePicture->store('profile-pictures/'.$user->id, 'public');
+                    $storedPaths[] = $path;
+                    $user->update(['profile_picture' => $path]);
+                }
+
                 $this->audit(
                     actor: null,
                     event: 'registration.submitted',

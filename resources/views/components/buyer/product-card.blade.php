@@ -824,7 +824,7 @@
                     </span>
                 </a>
             @else
-                <form method="POST" action="{{ route('buyer.cart.add', ['product' => $id ?? $slug]) }}">
+                <form method="POST" action="{{ route('buyer.cart.add', ['product' => $id ?? $slug]) }}" data-cart-add-form>
                     @csrf
                     <input type="hidden" name="product_variant_id" value="{{ data_get($singleVariant, 'id') }}">
                     <input type="hidden" name="quantity" value="1">

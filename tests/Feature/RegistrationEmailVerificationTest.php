@@ -19,7 +19,39 @@ class RegistrationEmailVerificationTest extends TestCase
             ->assertOk()
             ->assertSee('Send verification code')
             ->assertSee('Email verification code')
-            ->assertSee('Verify your email address before continuing.');
+            ->assertSee('Verify your email address before continuing.')
+            ->assertSee('Minimum age: 18 years old.');
+    }
+
+    public function test_registration_rejects_anyone_under_18(): void
+    {
+        $birthday = now()->subYears(17)->subDay()->toDateString();
+
+        $this->post(route('register.store'), [
+            'account_type' => 'buyer',
+            'first_name' => 'Underage',
+            'last_name' => 'Applicant',
+            'sex' => 'prefer_not_to_say',
+            'email' => 'underage@example.com',
+            'contact_number' => '+639171234568',
+            'birthday' => $birthday,
+            'age' => 17,
+            'region' => 'Region',
+            'region_code' => 'region',
+            'province' => 'Province',
+            'province_code' => 'province',
+            'municipality' => 'Municipality',
+            'municipality_code' => 'municipality',
+            'barangay' => 'Barangay',
+            'barangay_code' => 'barangay',
+            'street' => 'Test Street',
+            'valid_id' => UploadedFile::fake()->create('valid-id.pdf', 10, 'application/pdf'),
+            'password' => 'StrongPass123',
+            'password_confirmation' => 'StrongPass123',
+            'terms' => '1',
+        ])->assertSessionHasErrors('birthday');
+
+        $this->assertDatabaseMissing('users', ['email' => 'underage@example.com']);
     }
 
     public function test_registration_email_code_is_sent_and_can_be_used_once(): void

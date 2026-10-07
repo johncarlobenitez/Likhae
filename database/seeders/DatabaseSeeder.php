@@ -19,7 +19,6 @@ use App\Models\Seller\SellerProfile;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
@@ -28,14 +27,54 @@ class DatabaseSeeder extends Seeder
         $admin = $this->user('ADMIN', 'Admin', 'User', 'admin@likhae.com');
         $buyer = $this->user('BUYER', 'Buyer', 'User', 'buyer@likhae.com');
         $sellerUser = $this->user('SELLER', 'Seller', 'User', 'seller@likhae.com');
-        $logisticsUser = $this->user('LOGISTICS', 'Logistics', 'Center', 'logistics@likhae.com');
-        $riderUser = $this->user('RIDER', 'Rider', 'User', 'rider@likhae.com');
+        $logisticsUser = $this->user(
+            'LOGISTICS',
+            'JNT',
+            'Logistics',
+            'jnt@likhae.online',
+            '09170000001',
+            '1990-01-01',
+            true,
+        );
+        $riderUser = $this->user(
+            'RIDER',
+            'Carlo',
+            'Martinez',
+            'carlomartinez@likhae.online',
+            '09170000002',
+            '2001-01-01',
+            true,
+        );
 
         $this->address($admin, 'Home');
         $buyerAddress = $this->address($buyer, 'Home');
         $sellerAddress = $this->address($sellerUser, 'Business');
-        $centerAddress = $this->address($logisticsUser, 'Center');
-        $this->address($riderUser, 'Home');
+        $centerAddress = $this->address($logisticsUser, 'Center', [
+            'province_code' => 'LAG',
+            'province_name' => 'Laguna',
+            'municipality_code' => 'PILA',
+            'municipality_name' => 'Pila',
+            'barangay_code' => 'BAGONG-POOK',
+            'barangay_name' => 'Bagong Pook',
+            'postal_code' => '4010',
+            'house_number' => '803',
+            'street_address' => 'Purok 3',
+            'landmark' => 'Region IV-A (CALABARZON)',
+        ]);
+        $this->address($riderUser, 'Home', [
+            'province_code' => 'LAG',
+            'province_name' => 'Laguna',
+            'municipality_code' => 'PILA',
+            'municipality_name' => 'Pila',
+            'barangay_code' => 'SAN-MIGUEL',
+            'barangay_name' => 'San Miguel',
+            'postal_code' => '4010',
+            'house_number' => null,
+            'street_address' => 'Barangay San Miguel',
+            'landmark' => 'Region IV-A (CALABARZON)',
+        ]);
+
+        $this->call(CatalogCategorySeeder::class);
 
         $category = Category::firstOrCreate(
             ['slug' => 'handmade-goods'],
@@ -59,10 +98,10 @@ class DatabaseSeeder extends Seeder
             ['owner_user_id' => $logisticsUser->id],
             [
                 'address_id' => $centerAddress->id,
-                'code' => 'LC-LAGUNA-001',
-                'business_name' => 'Likhae Laguna Sorting Center',
-                'business_registration_number' => 'LOG-'.date('Ymd'),
-                'dti_registration_number' => 'DTI-'.date('Ymd'),
+                'code' => 'JNT-LAGUNA-001',
+                'business_name' => 'JNT',
+                'business_registration_number' => 'JNT-LAGUNA-SEED',
+                'dti_registration_number' => 'JNT-DTI-LAGUNA-SEED',
                 'status' => 'ACTIVE',
                 'approved_by_user_id' => $admin->id,
                 'approved_at' => now(),
@@ -74,8 +113,8 @@ class DatabaseSeeder extends Seeder
             [
                 'logistics_center_id' => $center->id,
                 'vehicle_type' => 'Motorcycle',
-                'plate_number' => 'LKH-1234',
-                'drivers_license_number' => 'N01-00-000000',
+                'plate_number' => 'JNT-CARLO-01',
+                'drivers_license_number' => 'DL-CARLO-MARTINEZ-01',
                 'status' => 'ACTIVE',
                 'approved_by_user_id' => $logisticsUser->id,
                 'approved_at' => now(),
@@ -83,18 +122,18 @@ class DatabaseSeeder extends Seeder
         );
 
         $area = ServiceArea::updateOrCreate(
-            ['logistics_center_id' => $center->id, 'code' => 'PILA-MASICO'],
-            ['name' => 'Pila - Masico Area', 'is_active' => true],
+            ['logistics_center_id' => $center->id, 'code' => 'PILA-SAN-MIGUEL'],
+            ['name' => 'Barangay San Miguel - Pila Area', 'is_active' => true],
         );
 
         ServiceAreaLocation::updateOrCreate(
-            ['service_area_id' => $area->id, 'barangay_code' => 'MASICO'],
+            ['service_area_id' => $area->id, 'barangay_code' => 'SAN-MIGUEL'],
             [
                 'province_code' => 'LAG',
                 'province_name' => 'Laguna',
                 'municipality_code' => 'PILA',
                 'municipality_name' => 'Pila',
-                'barangay_name' => 'Masico',
+                'barangay_name' => 'San Miguel',
             ],
         );
 
@@ -106,7 +145,15 @@ class DatabaseSeeder extends Seeder
         $this->sampleProduct($seller, $category);
     }
 
-    private function user(string $type, string $first, string $last, string $email): User
+    private function user(
+        string $type,
+        string $first,
+        string $last,
+        string $email,
+        ?string $contactNumber = null,
+        ?string $birthday = null,
+        bool $resetPassword = false,
+    ): User
     {
         $user = User::firstOrNew(['email' => $email]);
         $user->fill([
@@ -115,13 +162,13 @@ class DatabaseSeeder extends Seeder
             'middle_initial' => null,
             'last_name' => $last,
             'sex' => $user->sex ?: 'PREFER_NOT_TO_SAY',
-            'contact_number' => $user->contact_number ?: '09'.random_int(100000000, 999999999),
-            'birthday' => $user->birthday ?: '2000-01-01',
+            'contact_number' => $contactNumber ?: ($user->contact_number ?: '09'.random_int(100000000, 999999999)),
+            'birthday' => $birthday ?: ($user->birthday ?: '2000-01-01'),
             'email_verified_at' => $user->email_verified_at ?: now(),
             'status' => 'ACTIVE',
         ]);
 
-        if (! $user->exists || blank($user->password)) {
+        if ($resetPassword || ! $user->exists || blank($user->password)) {
             $user->password = Hash::make('Password1');
         }
 
@@ -130,11 +177,11 @@ class DatabaseSeeder extends Seeder
         return $user;
     }
 
-    private function address(User $user, string $label): Address
+    private function address(User $user, string $label, array $overrides = []): Address
     {
         return Address::updateOrCreate(
             ['user_id' => $user->id, 'label' => $label],
-            [
+            array_merge([
                 'recipient_name' => $user->name,
                 'contact_number' => $user->contact_number,
                 'province_code' => 'LAG',
@@ -148,7 +195,7 @@ class DatabaseSeeder extends Seeder
                 'street_address' => 'Sample Street',
                 'landmark' => 'Near Barangay Hall',
                 'is_default' => true,
-            ],
+            ], $overrides),
         );
     }
 

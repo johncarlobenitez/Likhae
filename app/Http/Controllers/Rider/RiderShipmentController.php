@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Rider\RiderAssignment;
 use App\Services\Fulfillment\ShipmentWorkflowService;
 use App\Services\Media\ImageOptimizationService;
+use App\Services\Maps\RiderLocationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -17,6 +18,30 @@ use Throwable;
 
 class RiderShipmentController extends Controller
 {
+    public function updateLocation(Request $request, RiderAssignment $assignment, RiderLocationService $locations): \Illuminate\Http\JsonResponse
+    {
+        $data = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+        ]);
+
+        $location = $locations->update(
+            $assignment,
+            $request->user(),
+            (float) $data['latitude'],
+            (float) $data['longitude'],
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'latitude' => (float) $location->latitude,
+                'longitude' => (float) $location->longitude,
+                'recorded_at' => $location->recorded_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
     public function index(Request $request): View
     {
         $rider = $request->user()->riderProfile;

@@ -7,6 +7,7 @@ use App\Models\Buyer\Cart;
 use App\Models\Buyer\CartItem;
 use App\Models\Buyer\Order;
 use App\Models\Buyer\Payment;
+use App\Models\Logistics\LogisticsCenter;
 use App\Models\Logistics\ServiceAreaLocation;
 use App\Models\Logistics\Shipment;
 use App\Models\Logistics\ShipmentEvent;
@@ -50,12 +51,29 @@ class CheckoutService
             });
     }
 
-    public function preview(Collection $items, array $voucherCodes = [], ?User $buyer = null): array
+    public function availableLogisticsProviders(): Collection
+    {
+        return LogisticsCenter::query()
+            ->where('status', 'ACTIVE')
+            ->whereHas('serviceAreas', fn ($query) => $query
+                ->where('is_active', true)
+                ->whereHas('locations'))
+            ->orderBy('business_name')
+            ->get(['id', 'code', 'business_name', 'shipping_fee']);
+    }
+
+    public function preview(
+        Collection $items,
+        array $voucherCodes = [],
+        ?User $buyer = null,
+        ?LogisticsCenter $logisticsProvider = null,
+    ): array
     {
         $groups = [];
         $subtotal = 0.0;
         $discountTotal = 0.0;
         $shippingTotal = 0.0;
+        $shippingFee = $logisticsProvider ? (float) $logisticsProvider->shipping_fee : 0.0;
 
         foreach ($items as $item) {
             /** @var CartItem $item */
@@ -73,7 +91,7 @@ class CheckoutService
                 'item_subtotal' => 0.0,
                 'voucher' => null,
                 'voucher_discount' => 0.0,
-                'shipping_fee' => 0.0,
+                'shipping_fee' => $shippingFee,
                 'grand_total' => 0.0,
             ];
 
@@ -118,11 +136,31 @@ class CheckoutService
         ];
     }
 
-    public function placeOrder(User $buyer, Address $address, Collection $items, string $paymentMethod, array $voucherCodes = []): Order
+    public function placeOrder(
+        User $buyer,
+        Address $address,
+        Collection $items,
+        string $paymentMethod,
+        array $voucherCodes = [],
+        ?int $logisticsCenterId = null,
+    ): Order
     {
         if ($items->isEmpty()) {
             throw ValidationException::withMessages([
                 'cart' => 'Select at least one cart item before checkout.',
+            ]);
+        }
+
+        $logisticsProvider = $logisticsCenterId === null
+            ? null
+            : LogisticsCenter::query()
+                ->whereKey($logisticsCenterId)
+                ->where('status', 'ACTIVE')
+                ->first();
+
+        if ($logisticsCenterId !== null && ! $logisticsProvider) {
+            throw ValidationException::withMessages([
+                'logistics_center_id' => 'Select an active logistics provider.',
             ]);
         }
 
@@ -141,19 +179,16 @@ class CheckoutService
             }
         }
 
-        $serviceable = ServiceAreaLocation::query()
-            ->where('province_code', $address->province_code)
-            ->where('municipality_code', $address->municipality_code)
-            ->where('barangay_code', $address->barangay_code)
-            ->whereHas('serviceArea', fn ($query) => $query->where('is_active', true))
-            ->exists();
-        if (! $serviceable) {
+        $areaLocation = $this->serviceAreaLocationForAddress($address, $logisticsProvider);
+        if (! $areaLocation) {
             throw ValidationException::withMessages([
-                'address_id' => 'Delivery is not currently available to this address.',
+                $logisticsProvider ? 'logistics_center_id' : 'address_id' => $logisticsProvider
+                    ? 'The selected logistics provider does not serve this delivery address.'
+                    : 'Delivery is not currently available to this address.',
             ]);
         }
 
-        return DB::transaction(function () use ($buyer, $address, $items, $paymentMethod, $voucherCodes): Order {
+        return DB::transaction(function () use ($buyer, $address, $items, $paymentMethod, $voucherCodes, $logisticsProvider): Order {
             $variantIds = $items->pluck('product_variant_id')->unique()->values();
             $lockedVariants = ProductVariant::query()
                 ->whereIn('id', $variantIds)
@@ -170,7 +205,7 @@ class CheckoutService
                 }
             }
 
-            $preview = $this->preview($items, $voucherCodes, $buyer);
+            $preview = $this->preview($items, $voucherCodes, $buyer, $logisticsProvider);
 
             $order = Order::query()->create([
                 'order_number' => $this->uniqueNumber('orders', 'order_number', 'LK'),
@@ -249,7 +284,7 @@ class CheckoutService
                     $variant->decrement('stock', (int) $item->quantity);
                 }
 
-                $this->createShipmentForSellerOrder($sellerOrder, $address);
+                $this->createShipmentForSellerOrder($sellerOrder, $address, $logisticsProvider);
             }
 
             $cartId = $items->first()?->cart_id;
@@ -268,21 +303,27 @@ class CheckoutService
         });
     }
 
-    private function createShipmentForSellerOrder(SellerOrder $sellerOrder, Address $address): Shipment
+    private function createShipmentForSellerOrder(
+        SellerOrder $sellerOrder,
+        Address $address,
+        ?LogisticsCenter $logisticsProvider = null,
+    ): Shipment
     {
-        $areaLocation = ServiceAreaLocation::query()
-            ->where('province_code', $address->province_code)
-            ->where('municipality_code', $address->municipality_code)
-            ->where('barangay_code', $address->barangay_code)
-            ->whereHas('serviceArea', fn ($query) => $query->where('is_active', true))
-            ->with('serviceArea')
-            ->first();
+        $areaLocation = $this->serviceAreaLocationForAddress($address, $logisticsProvider);
+
+        if (! $areaLocation) {
+            throw ValidationException::withMessages([
+                $logisticsProvider ? 'logistics_center_id' : 'address_id' => $logisticsProvider
+                    ? 'The selected logistics provider does not serve this delivery address.'
+                    : 'Delivery is not currently available to this address.',
+            ]);
+        }
 
         $shipment = Shipment::query()->create([
             'seller_order_id' => $sellerOrder->id,
             'tracking_number' => $this->uniqueNumber('shipments', 'tracking_number', 'TRK'),
-            'logistics_center_id' => $areaLocation?->serviceArea?->logistics_center_id,
-            'service_area_id' => $areaLocation?->service_area_id,
+            'logistics_center_id' => $logisticsProvider?->id ?? $areaLocation->serviceArea?->logistics_center_id,
+            'service_area_id' => $areaLocation->service_area_id,
             'destination_province_code' => $address->province_code,
             'destination_province_name' => $address->province_name,
             'destination_municipality_code' => $address->municipality_code,
@@ -303,6 +344,20 @@ class CheckoutService
         ]);
 
         return $shipment;
+    }
+
+    private function serviceAreaLocationForAddress(Address $address, ?LogisticsCenter $logisticsProvider = null): ?ServiceAreaLocation
+    {
+        return ServiceAreaLocation::query()
+            ->where('province_code', $address->province_code)
+            ->where('municipality_code', $address->municipality_code)
+            ->where('barangay_code', $address->barangay_code)
+            ->whereHas('serviceArea', function ($query) use ($logisticsProvider): void {
+                $query->where('is_active', true)
+                    ->when($logisticsProvider, fn ($providerQuery) => $providerQuery->where('logistics_center_id', $logisticsProvider->id));
+            })
+            ->with('serviceArea')
+            ->first();
     }
 
     private function usableVoucher(int $sellerId, string $code, float $subtotal, ?User $buyer = null): ?Voucher

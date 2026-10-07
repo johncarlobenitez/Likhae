@@ -60,6 +60,7 @@ Route::prefix('logistics')->name('logistics.')->group(function (): void {
         Route::post('/riders/applications/{application}/approve', [LogisticsPortalController::class, 'approveRider'])->name('riders.approve');
         Route::post('/riders/applications/{application}/reject', [LogisticsPortalController::class, 'rejectRider'])->name('riders.reject');
         Route::get('/riders/{rider}', [LogisticsPortalController::class, 'riderShow'])->name('riders.show');
+        Route::patch('/riders/{rider}/area', [LogisticsPortalController::class, 'reassignRiderArea'])->name('riders.area.update');
         Route::patch('/riders/{rider}/activate', [LogisticsPortalController::class, 'activateRider'])->name('riders.activate');
         Route::patch('/riders/{rider}/deactivate', [LogisticsPortalController::class, 'deactivateRider'])->name('riders.deactivate');
 

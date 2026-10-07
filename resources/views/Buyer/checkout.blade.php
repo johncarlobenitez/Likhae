@@ -6,6 +6,7 @@
 @php
     $cartItems = collect($cartItems ?? []);
     $addresses = collect($addresses ?? []);
+    $logisticsProviders = collect($logisticsProviders ?? []);
     $defaultAddress = $addresses->firstWhere('is_default', true) ?? $addresses->first();
     $groups = collect(data_get($preview ?? [], 'groups', []));
     $imageUrl = static function ($product, $variant = null): string {
@@ -33,6 +34,32 @@
                     <div class="grid gap-3 p-5">@foreach($addresses as $address)<label class="cursor-pointer"><input required type="radio" name="address_id" value="{{ $address->id }}" class="peer sr-only" @checked($address->id === $defaultAddress?->id)><span class="flex gap-3 rounded-xl border border-stone-200 p-4 transition peer-checked:border-red-800 peer-checked:bg-red-50/60"><span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-800">⌖</span><span class="min-w-0"><span class="flex flex-wrap items-center gap-2"><strong class="text-sm text-stone-900">{{ $address->recipient_name }}</strong><span class="text-xs text-stone-500">{{ $address->contact_number }}</span>@if($address->is_default)<span class="rounded-full bg-red-100 px-2 py-0.5 text-[9px] font-semibold uppercase text-red-900">Default</span>@endif</span><span class="mt-2 block text-xs leading-5 text-stone-600">{{ $address->formatted() }}</span></span></span></label>@endforeach</div>
                 </section>
 
+                <section class="rounded-2xl border border-stone-200 bg-white shadow-sm">
+                    <div class="border-b border-stone-100 px-5 py-4">
+                        <h2 class="text-base font-bold text-stone-900">Logistics / Delivery Method</h2>
+                        <p class="mt-1 text-xs text-stone-500">Choose an available delivery provider for your parcel.</p>
+                    </div>
+                    <div class="grid gap-3 p-5">
+                        @forelse($logisticsProviders as $provider)
+                            <label class="cursor-pointer">
+                                <input required type="radio" name="logistics_center_id" value="{{ $provider->id }}" data-shipping-fee="{{ number_format((float) $provider->shipping_fee, 2, '.', '') }}" class="peer sr-only" @checked((string) old('logistics_center_id') === (string) $provider->id)>
+                                <span class="flex items-center gap-3 rounded-xl border border-stone-200 p-4 transition peer-checked:border-red-800 peer-checked:bg-red-50">
+                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-800">LP</span>
+                                    <span class="min-w-0 flex-1">
+                                        <strong class="block text-sm text-stone-900">{{ $provider->business_name }}</strong>
+                                        <small class="mt-1 block text-xs text-stone-500">Delivery fee: &#8369;{{ number_format((float) $provider->shipping_fee, 2) }}</small>
+                                    </span>
+                                    <span class="text-xs font-semibold text-stone-500">Select</span>
+                                </span>
+                            </label>
+                        @empty
+                            <p class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">No active logistics provider is available for checkout right now.</p>
+                        @endforelse
+                        @error('logistics_center_id')<p class="text-xs font-semibold text-red-700">{{ $message }}</p>@enderror
+                        <p class="text-[11px] leading-5 text-stone-500">The final delivery fee is verified from the selected provider when the order is placed.</p>
+                    </div>
+                </section>
+
                 @foreach($groups as $sellerId => $group)
                     <section class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
                         <h2 class="text-base font-bold text-stone-900">{{ data_get($group, 'seller.business_name', 'LIKHAE Seller') }}</h2>
@@ -50,8 +77,32 @@
                 <section class="rounded-2xl border border-stone-200 bg-white shadow-sm"><div class="border-b border-stone-100 px-5 py-4"><h2 class="text-base font-bold text-stone-900">Payment Method</h2><p class="mt-1 text-xs text-stone-500">Select how you want to pay for your order.</p></div><div class="grid gap-3 p-5 sm:grid-cols-3"><label class="cursor-pointer"><input checked type="radio" name="payment_method" value="COD" class="peer sr-only"><span class="flex h-full items-start gap-3 rounded-xl border border-stone-200 p-4 peer-checked:border-red-800 peer-checked:bg-red-50"><span class="text-red-800">₱</span><span><strong class="block text-xs">Cash on Delivery</strong><small class="text-[10px] text-stone-500">Pay when your order arrives.</small></span></span></label><label class="cursor-pointer"><input type="radio" name="payment_method" value="ONLINE" class="peer sr-only"><span class="flex h-full items-start gap-3 rounded-xl border border-stone-200 p-4 peer-checked:border-red-800 peer-checked:bg-red-50"><span class="font-bold text-blue-700">G</span><span><strong class="block text-xs">GCash</strong><small class="text-[10px] text-stone-500">Pay using your GCash wallet.</small></span></span></label><label class="cursor-pointer"><input type="radio" name="payment_method" value="ONLINE" class="peer sr-only"><span class="flex h-full items-start gap-3 rounded-xl border border-stone-200 p-4 peer-checked:border-red-800 peer-checked:bg-red-50"><span class="text-red-800">▣</span><span><strong class="block text-xs">Debit/Credit Card</strong><small class="text-[10px] text-stone-500">Visa and Mastercard.</small></span></span></label></div></section>
             </div>
 
-            <aside class="h-fit rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><h2 class="text-base font-bold text-stone-900">Order summary</h2><dl class="mt-4 space-y-3 text-sm"><div class="flex justify-between"><dt class="text-stone-500">Subtotal</dt><dd>&#8369;{{ number_format((float) data_get($preview, 'subtotal', 0), 2) }}</dd></div><div class="flex justify-between"><dt class="text-stone-500">Discount</dt><dd>-&#8369;{{ number_format((float) data_get($preview, 'discount_total', 0), 2) }}</dd></div><div class="flex justify-between"><dt class="text-stone-500">Shipping</dt><dd>&#8369;{{ number_format((float) data_get($preview, 'shipping_total', 0), 2) }}</dd></div><div class="flex justify-between border-t border-stone-200 pt-3 text-base font-bold"><dt>Total</dt><dd>&#8369;{{ number_format((float) data_get($preview, 'grand_total', 0), 2) }}</dd></div></dl><button class="lk-btn lk-btn-red lk-btn-full mt-5" type="submit">Place Order</button></aside>
+            <aside class="h-fit rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><h2 class="text-base font-bold text-stone-900">Order summary</h2><dl class="mt-4 space-y-3 text-sm"><div class="flex justify-between"><dt class="text-stone-500">Subtotal</dt><dd>&#8369;{{ number_format((float) data_get($preview, 'subtotal', 0), 2) }}</dd></div><div class="flex justify-between"><dt class="text-stone-500">Discount</dt><dd>-&#8369;{{ number_format((float) data_get($preview, 'discount_total', 0), 2) }}</dd></div><div class="flex justify-between"><dt class="text-stone-500">Shipping</dt><dd id="checkout-shipping-total">&#8369;{{ number_format((float) data_get($preview, 'shipping_total', 0), 2) }}</dd></div><div class="flex justify-between border-t border-stone-200 pt-3 text-base font-bold"><dt>Total</dt><dd id="checkout-grand-total">&#8369;{{ number_format((float) data_get($preview, 'grand_total', 0), 2) }}</dd></div></dl><button class="lk-btn lk-btn-red lk-btn-full mt-5" type="submit" @disabled($logisticsProviders->isEmpty())>Place Order</button></aside>
         </form>
     @endif
 </div>
+
+@if($cartItems->isNotEmpty() && $addresses->isNotEmpty())
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const shipping = document.getElementById('checkout-shipping-total');
+            const total = document.getElementById('checkout-grand-total');
+            const subtotal = Number(@json((float) data_get($preview, 'subtotal', 0)));
+            const discount = Number(@json((float) data_get($preview, 'discount_total', 0)));
+            const parcelCount = Number(@json(max($groups->count(), 1)));
+            const money = (value) => `₱${value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+            const updateTotals = (input) => {
+                const fee = Number(input?.dataset.shippingFee || 0) * parcelCount;
+                if (shipping) shipping.textContent = money(fee);
+                if (total) total.textContent = money(Math.max(0, subtotal - discount + fee));
+            };
+
+            document.querySelectorAll('input[name="logistics_center_id"]').forEach((input) => {
+                input.addEventListener('change', () => updateTotals(input));
+                if (input.checked) updateTotals(input);
+            });
+        });
+    </script>
+@endif
 @endsection

@@ -3,10 +3,16 @@
 @section('title', 'Rider Profile - LIKHAE Logistics')
 
 @php
-    $data = $rider ?? [];
-    $name = data_get($data, 'name', data_get($data, 'user.name', 'Rider Account'));
-    $ratingAverage = (float) data_get($data, 'rating_average', 0);
-    $ratingCount = (int) data_get($data, 'rating_count', 0);
+    $name = $rider->user?->name ?: 'Rider Account';
+    $activeAreas = $rider->areaAssignments
+        ->where('is_active', true)
+        ->pluck('serviceArea.name')
+        ->filter()
+        ->values();
+    $activeAreaId = $rider->areaAssignments->firstWhere('is_active', true)?->service_area_id;
+    $activeAssignments = (int) ($rider->active_assignments_count ?? 0);
+    $ratingAverage = (float) ($rider->rating_average ?? 0);
+    $ratingCount = (int) ($rider->rating_count ?? 0);
     $initials = collect(explode(' ', trim($name)))
         ->filter()
         ->take(2)
@@ -15,11 +21,13 @@
 
     $details = [
         ['Full Name', $name],
-        ['Email', data_get($data, 'email', 'Not recorded')],
-        ['Contact', data_get($data, 'contact', 'Not recorded')],
-        ['Delivery Area', data_get($data, 'area', 'Unassigned')],
-        ['Status', data_get($data, 'status', 'Not recorded')],
-        ['Active Deliveries', data_get($data, 'parcels', 0)],
+        ['Email', $rider->user?->email ?: 'Not recorded'],
+        ['Contact', $rider->user?->contact_number ?: 'Not recorded'],
+        ['Vehicle', $rider->vehicle_type ? str($rider->vehicle_type)->headline() : 'Not recorded'],
+        ['Plate Number', $rider->plate_number ?: 'Not recorded'],
+        ['Delivery Area', $activeAreas->join(', ') ?: 'Unassigned'],
+        ['Status', $rider->status ? str($rider->status)->headline() : 'Not recorded'],
+        ['Active Deliveries', $activeAssignments],
     ];
 @endphp
 
@@ -32,6 +40,13 @@
         <span>/</span>
         <span class="font-semibold text-ink">{{ $name }}</span>
     </nav>
+
+    @if(session('status'))
+        <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-[10px] text-green-800">{{ session('status') }}</div>
+    @endif
+    @if($errors->any())
+        <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[10px] text-red-700">{{ $errors->first() }}</div>
+    @endif
 
     <section class="rounded-xl border border-line bg-surface p-5">
         <div class="flex flex-col gap-5 md:flex-row md:items-center">
@@ -47,7 +62,7 @@
         </div>
     </section>
 
-    <x-shared.mapbox :markers="$mapMarkers" title="Rider operations map" height="350px" />
+    <x-shared.mapbox :markers="$mapMarkers" title="Rider operations map" height="220px" user-location-target="center" />
 
     <section class="rounded-xl border border-line bg-surface p-5">
         <h2 class="text-[13px] font-semibold text-ink">Rider Information</h2>
@@ -62,6 +77,32 @@
     </section>
 
     <section class="rounded-xl border border-line bg-surface p-5">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+                <h2 class="text-[13px] font-semibold text-ink">Delivery Area Assignment</h2>
+                <p class="mt-1 text-[10px] leading-5 text-muted">Choose the active destination coverage for this rider. Reassigning ends the previous active area assignment.</p>
+            </div>
+            <span class="rounded-full bg-primary-soft px-3 py-1 text-[8px] font-semibold text-primary">{{ $activeAreas->join(', ') ?: 'Unassigned' }}</span>
+        </div>
+
+        <form method="POST" action="{{ route('logistics.riders.area.update', $rider) }}" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+            @csrf
+            @method('PATCH')
+            <label class="flex-1 text-[10px] font-semibold text-ink">
+                Delivery area
+                <select name="service_area_id" class="mt-1 w-full rounded-lg border border-line bg-white px-3 py-3 text-[10px] font-normal" aria-label="Delivery area">
+                    <option value="">Unassigned</option>
+                    @foreach($serviceAreas as $area)
+                        @php($areaLocation = $area->locations->map(fn ($location) => collect([$location->barangay_name, $location->municipality_name, $location->province_name])->filter()->implode(', '))->join('; '))
+                        <option value="{{ $area->id }}" @selected((int) $activeAreaId === (int) $area->id)>{{ $area->name }}{{ $areaLocation ? ' — '.$areaLocation : '' }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <button type="submit" class="rounded-lg bg-primary px-4 py-3 text-[10px] font-semibold text-white">Save Assignment</button>
+        </form>
+    </section>
+
+    <section class="rounded-xl border border-line bg-surface p-5">
         <h2 class="text-[13px] font-semibold text-ink">Buyer Ratings</h2>
         <div class="mt-3 flex items-baseline gap-2">
             <strong class="text-2xl font-semibold text-ink">{{ number_format($ratingAverage, 1) }}</strong>
@@ -71,11 +112,5 @@
         </div>
     </section>
 
-    <section class="rounded-xl border border-line bg-surface p-5">
-        <h2 class="text-[13px] font-semibold text-ink">Operational Note</h2>
-        <p class="mt-2 text-[10px] leading-6 text-muted">
-            This page intentionally displays only fields currently available from LIKHAE rider/user records. Uploaded document previews and vehicle verification can be added once those storage-backed fields exist.
-        </p>
-    </section>
 </div>
 @endsection

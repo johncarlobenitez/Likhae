@@ -2,6 +2,7 @@
 
 namespace App\Services\Fulfillment;
 
+use App\Events\ShipmentTrackingUpdated;
 use App\Models\Buyer\Order;
 use App\Models\Logistics\DeliveryAttempt;
 use App\Models\Logistics\LogisticsCenter;
@@ -223,6 +224,11 @@ class ShipmentWorkflowService
                 'logistics_center_id' => $center->id,
                 'current_status' => 'AT_SORTING_CENTER',
             ]);
+            $shipment->riderAssignments()
+                ->where('assignment_type', RiderAssignment::TYPE_PICKUP)
+                ->where('status', 'COMPLETED')
+                ->get()
+                ->each(fn (RiderAssignment $assignment) => $assignment->liveLocation()->delete());
             $dropoffRequest?->update(['status' => 'FULFILLED', 'reviewed_by_user_id' => $actor->id, 'reviewed_at' => now()]);
             $this->recordEvent($shipment, 'AT_SORTING_CENTER', $actor, 'Parcel received at logistics center.', null, $center);
 
@@ -325,7 +331,7 @@ class ShipmentWorkflowService
         ?RiderAssignment $assignment = null,
         ?LogisticsCenter $center = null,
     ): ShipmentEvent {
-        return ShipmentEvent::create([
+        $event = ShipmentEvent::create([
             'shipment_id' => $shipment->id,
             'status' => strtoupper($status),
             'actor_user_id' => $actor?->id,
@@ -334,6 +340,11 @@ class ShipmentWorkflowService
             'notes' => $notes,
             'occurred_at' => now(),
         ]);
+
+        $shipment->loadMissing('riderAssignments');
+        event(ShipmentTrackingUpdated::fromShipment($shipment));
+
+        return $event;
     }
 
     public function findServiceAreaForAddress(string $provinceCode, string $municipalityCode, string $barangayCode, ?LogisticsCenter $center = null): ?ServiceArea
@@ -510,12 +521,11 @@ class ShipmentWorkflowService
 
         $this->recordScan($shipment, $actor, 'PICKUP_COLLECTED', strtoupper((string) ($payload['scan_method'] ?? 'MANUAL')), $scannedCode, 'SUCCESS', null, $assignment);
 
+        $shipment->update(['current_status' => 'PICKED_UP']);
         $assignment->update([
             'status' => 'COMPLETED',
             'completed_at' => now(),
         ]);
-
-        $shipment->update(['current_status' => 'PICKED_UP']);
         $shipment->pickupRequests()->where('status', 'APPROVED')->update(['status' => 'FULFILLED']);
         $this->recordEvent($shipment, 'PICKED_UP', $actor, 'Pickup rider collected the parcel from seller.', $assignment);
         $this->createEarning($assignment, '50.00');

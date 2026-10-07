@@ -238,6 +238,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         }
 
+        steps.push({
+            name:
+                'profile-picture',
+
+            title:
+                'Profile Picture',
+        });
 
         steps.push({
             name:
@@ -470,8 +477,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             verificationNumber.textContent =
                 seller || logistics || rider
-                    ? '05'
-                    : '04';
+                    ? '06'
+                    : '05';
 
         }
 
@@ -480,8 +487,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             verificationStepNumber.textContent =
                 seller || logistics || rider
-                    ? '5'
-                    : '4';
+                    ? '6'
+                    : '5';
 
         }
 
@@ -1486,6 +1493,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         fileName.textContent =
                             `${file.name} · ${fileSize} MB`;
+
+                        // Handle profile picture preview
+                        if (input.id === 'profile_picture') {
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                const preview = document.getElementById('profilePicturePreview');
+                                const defaultIcon = document.getElementById('profilePictureDefault');
+                                if (preview && defaultIcon) {
+                                    preview.src = e.target.result;
+                                    preview.style.display = 'block';
+                                    defaultIcon.style.display = 'none';
+                                }
+                            };
+                            reader.readAsDataURL(file);
+                        }
 
                     }
                 );

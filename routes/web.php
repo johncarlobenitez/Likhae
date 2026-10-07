@@ -33,6 +33,7 @@ Route::get('/guest-account', [GuestMarketplaceController::class, 'products'])->n
 Route::get('/products', [GuestMarketplaceController::class, 'products'])->name('products');
 Route::get('/products/{slug}', [GuestMarketplaceController::class, 'show'])->name('products.show');
 Route::get('/track/{trackingCode}', [TrackingController::class, 'show'])->middleware('throttle:30,1')->name('tracking.show');
+Route::get('/track/{trackingCode}/live', [TrackingController::class, 'live'])->middleware('throttle:120,1')->name('tracking.live');
 Route::get('/delivery-events/{event}/proof', [TrackingController::class, 'proof'])->middleware('auth')->name('delivery-events.proof');
 
 Route::middleware(['auth', 'verified'])->group(function (): void {

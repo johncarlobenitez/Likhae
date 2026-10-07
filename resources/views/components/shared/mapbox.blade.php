@@ -3,8 +3,9 @@
     'center' => null,
     'zoom' => null,
     'title' => 'Location map',
-    'height' => '300px',
+    'height' => '220px',
     'allowUserLocation' => true,
+    'userLocationTarget' => null,
     'class' => '',
 ])
 
@@ -16,6 +17,8 @@
     data-map-markers="{{ json_encode(array_values($markers), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}"
     data-map-center="{{ json_encode($center ?: config('mapbox.default_center')) }}"
     data-map-zoom="{{ $zoom ?: config('mapbox.default_zoom') }}"
+    data-map-user-target="{{ $userLocationTarget }}"
+    data-map-live="{{ auth()->check() ? 'true' : 'false' }}"
     style="--lk-map-height: {{ $height }}"
 >
     <div class="lk-map-toolbar">

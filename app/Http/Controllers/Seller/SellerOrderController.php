@@ -19,7 +19,7 @@ class SellerOrderController extends Controller
 
         $orders = SellerOrder::query()
             ->where('seller_profile_id', $seller->id)
-            ->with(['order.buyer', 'order.address', 'order.payments', 'items.product.images', 'shipment.events', 'shipment.pickupRequests', 'shipment.riderAssignments.riderProfile.user', 'shipment.riderAssignments.liveLocation', 'shipment.logisticsCenter.address'])
+            ->with(['order.buyer', 'order.address', 'order.payments', 'items.product.images', 'shipment.events', 'shipment.pickupRequests', 'shipment.riderAssignments.riderProfile.user', 'shipment.riderAssignments.liveLocation', 'shipment.logisticsCenter.address', 'shipment.sellerOrder.sellerProfile.businessAddress'])
             ->latest()
             ->get();
 
@@ -104,7 +104,7 @@ class SellerOrderController extends Controller
             'status' => str($order->status)->replace('_', ' ')->title()->toString(),
             'status_key' => $this->statusKey($order->status),
             'delivery' => $order->shipment,
-            'map_markers' => app(MapDataService::class)->forShipment($order->shipment),
+            'map_markers' => app(MapDataService::class)->forShipment($order->shipment, true, true),
         ];
     }
 

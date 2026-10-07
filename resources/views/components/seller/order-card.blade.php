@@ -38,4 +38,3 @@
         @endif
     </footer>
 </article>
-<x-shared.mapbox :markers="data_get($order, 'map_markers', [])" title="Order {{ $id }} location" height="240px" class="sl-map-seller" />

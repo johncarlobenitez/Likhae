@@ -113,7 +113,7 @@ class RiderController extends Controller
         $rider = $this->rider($request);
         abort_unless((int) $assignment->rider_profile_id === (int) $rider->id && $assignment->assignment_type === 'PICKUP', 403);
 
-        $assignment->load(['shipment.sellerOrder.items.product.images', 'shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user', 'shipment.events', 'shipment.scans', 'shipment.riderAssignments.liveLocation', 'shipment.logisticsCenter.address', 'liveLocation']);
+        $assignment->load(['shipment.sellerOrder.items.product.images', 'shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user', 'shipment.sellerOrder.sellerProfile.businessAddress', 'shipment.events', 'shipment.scans', 'shipment.riderAssignments.liveLocation', 'shipment.logisticsCenter.address', 'liveLocation']);
 
         $shipment = $assignment->shipment;
         $order = $shipment->sellerOrder->order;
@@ -130,7 +130,7 @@ class RiderController extends Controller
         $verified = $request->filled('tracking') && hash_equals($shipment->tracking_number, (string) $request->query('tracking'));
         $delivery = $assignment;
 
-        $mapMarkers = app(MapDataService::class)->forShipment($shipment);
+        $mapMarkers = app(MapDataService::class)->forShipment($shipment, true, true);
         return view('Rider.pickups.show', compact('assignment', 'rider', 'pickup', 'verified', 'delivery', 'mapMarkers'));
     }
 
@@ -176,7 +176,7 @@ class RiderController extends Controller
         $rider = $this->rider($request);
         abort_unless((int) $assignment->rider_profile_id === (int) $rider->id && $assignment->assignment_type === 'DELIVERY', 403);
 
-        $assignment->load(['shipment.sellerOrder.items.product.images', 'shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user', 'shipment.events', 'shipment.deliveryAttempts', 'shipment.riderAssignments.liveLocation', 'shipment.logisticsCenter.address', 'liveLocation']);
+        $assignment->load(['shipment.sellerOrder.items.product.images', 'shipment.sellerOrder.order.address', 'shipment.sellerOrder.sellerProfile.user', 'shipment.sellerOrder.sellerProfile.businessAddress', 'shipment.events', 'shipment.deliveryAttempts', 'shipment.riderAssignments.liveLocation', 'shipment.logisticsCenter.address', 'liveLocation']);
 
         $shipment = $assignment->shipment;
         $order = $shipment->sellerOrder->order;
@@ -191,7 +191,7 @@ class RiderController extends Controller
         ];
         $delivery = $assignment;
 
-        $mapMarkers = app(MapDataService::class)->forShipment($shipment);
+        $mapMarkers = app(MapDataService::class)->forShipment($shipment, true, true);
         return view('Rider.deliveries.show', compact('assignment', 'rider', 'parcel', 'delivery', 'mapMarkers'));
     }
 

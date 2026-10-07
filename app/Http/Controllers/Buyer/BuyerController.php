@@ -135,6 +135,13 @@ class BuyerController extends Controller
             return redirect()->route('buyer.checkout');
         }
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Product added to cart.',
+                'cart_item_id' => $item->id,
+            ]);
+        }
+
         return back()->with('buyer_notice', 'Product added to cart.');
     }
 

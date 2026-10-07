@@ -23,13 +23,17 @@ class LogisticsCenter extends Model
         'business_registration_number',
         'dti_registration_number',
         'status',
+        'shipping_fee',
         'approved_by_user_id',
         'approved_at',
     ];
 
     protected function casts(): array
     {
-        return ['approved_at' => 'datetime'];
+        return [
+            'approved_at' => 'datetime',
+            'shipping_fee' => 'decimal:2',
+        ];
     }
 
     public function owner(): BelongsTo

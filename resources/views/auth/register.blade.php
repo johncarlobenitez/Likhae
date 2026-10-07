@@ -723,6 +723,7 @@
                                     id="birthday"
                                     name="birthday"
                                     type="date"
+                                    max="{{ now()->subYears(18)->toDateString() }}"
                                     value="{{ old('birthday') }}"
                                     required
                                 >
@@ -749,8 +750,7 @@
                                 >
 
                                 <small>
-                                    Automatically calculated from
-                                    your birthday.
+                                    Minimum age: 18 years old. Age is automatically calculated from your birthday.
                                 </small>
 
                             </div>
@@ -1073,7 +1073,7 @@
                                 >
 
                                     <option value="">
-                                        Select category
+                                        Select main business category
                                     </option>
 
 
@@ -1132,6 +1132,57 @@
                                 <label for="drivers_license_number">Driver's License Number <span>*</span></label>
                                 <input id="drivers_license_number" name="drivers_license_number" value="{{ old('drivers_license_number') }}" maxlength="100" data-rider-required>
                             </div>
+                        </div>
+                    </div>
+                </section>
+
+                {{-- =================================================
+                    PROFILE PICTURE
+                ================================================== --}}
+                <section class="register-step" data-form-step data-step="profile-picture" hidden>
+                    <div class="register-section">
+                        <div class="register-section__head">
+                            <span class="register-section__number">
+                                <span data-profile-picture-number>05</span>
+                            </span>
+                            <div>
+                                <h3>Profile Picture</h3>
+                                <p>Add a profile picture to personalize your account (optional).</p>
+                            </div>
+                        </div>
+
+                        <div class="profile-picture-container">
+                            <div class="profile-picture-preview">
+                                <img id="profilePicturePreview" src="#" alt="Profile Preview" style="display: none;">
+                                <div id="profilePictureDefault" class="profile-picture-default">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                        <circle cx="12" cy="8" r="4"/>
+                                        <path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/>
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <div class="upload-box profile-upload">
+                                <input
+                                    id="profile_picture"
+                                    name="profile_picture"
+                                    type="file"
+                                    accept=".jpg,.jpeg,.png,.gif,.webp"
+                                    data-file-input
+                                >
+                                <label for="profile_picture" class="upload-box__label">
+                                    <span class="upload-box__icon">↑</span>
+                                    <strong>Upload Profile Picture</strong>
+                                    <span>JPG, JPEG, PNG, GIF or WEBP (Max 2 MB)</span>
+                                    <small data-file-name>No file selected</small>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 1.5rem; text-align: center;">
+                            <p style="color: #666; font-size: 14px; margin-bottom: 0.5rem;">
+                                You can add your profile picture later from your account settings.
+                            </p>
                         </div>
                     </div>
                 </section>

@@ -47,6 +47,14 @@ class RiderAssignment extends Model
     {
         static::updated(function (RiderAssignment $assignment): void {
             if ($assignment->wasChanged('status') && $assignment->status !== 'IN_PROGRESS') {
+                // A completed pickup rider continues to the sorting center
+                // until the logistics receive scan is recorded.
+                if ($assignment->assignment_type === self::TYPE_PICKUP
+                    && $assignment->status === 'COMPLETED'
+                    && $assignment->shipment?->current_status === 'PICKED_UP') {
+                    return;
+                }
+
                 $assignment->liveLocation()->delete();
             }
         });

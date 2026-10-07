@@ -17,7 +17,9 @@ class StoreRegistrationRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $google = $this->session()->get('google_buyer_registration');
+        $google = $this->hasSession()
+            ? $this->session()->get('google_buyer_registration')
+            : null;
         $googleEmail = is_array($google) ? ($google['email'] ?? null) : null;
 
         $this->merge([
@@ -68,7 +70,12 @@ class StoreRegistrationRequest extends FormRequest
                 'regex:/^(?:\+63|0)9\d{9}$/',
                 Rule::unique('users', 'contact_number'),
             ],
-            'birthday' => ['required', 'date', 'before:today'],
+            'birthday' => [
+                'required',
+                'date',
+                'before:today',
+                'before_or_equal:'.now()->subYears(18)->toDateString(),
+            ],
             'age' => ['required', 'integer', 'between:18,120'],
 
             'region' => ['required', 'string', 'max:150'],
@@ -85,7 +92,14 @@ class StoreRegistrationRequest extends FormRequest
             'landmark' => ['nullable', 'string', 'max:255'],
 
             'business_name' => [Rule::requiredIf($isSeller || $isLogistics), 'nullable', 'string', 'max:200'],
-            'line_of_business' => [Rule::requiredIf($isSeller), 'nullable', 'integer', Rule::exists('categories', 'id')->where('is_active', true)],
+            'line_of_business' => [
+                Rule::requiredIf($isSeller),
+                'nullable',
+                'integer',
+                Rule::exists('categories', 'id')->where(fn ($query) => $query
+                    ->where('is_active', true)
+                    ->whereNull('parent_id')),
+            ],
             'business_registration_number' => $businessRegistrationRules,
             'dti_registration_number' => ['nullable', 'string', 'max:100', Rule::unique('logistics_centers', 'dti_registration_number')],
 
@@ -115,6 +129,7 @@ class StoreRegistrationRequest extends FormRequest
             'business_permit' => [Rule::requiredIf($isSeller || $isLogistics), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'or_cr' => [Rule::requiredIf($isRider), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'drivers_license' => [Rule::requiredIf($isRider), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'profile_picture' => ['nullable', 'file', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'],
 
             'password' => ['required', 'confirmed', 'max:72', Password::min(8)->mixedCase()->numbers()],
             'terms' => ['accepted'],
@@ -138,6 +153,14 @@ class StoreRegistrationRequest extends FormRequest
                 $validator->errors()->add('age', 'The age must match the selected birthday.');
             }
         }];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'birthday.before_or_equal' => 'You must be at least 18 years old to register as a Buyer, Seller, Rider, or Logistics account.',
+            'age.between' => 'The minimum age requirement is 18 years old.',
+        ];
     }
 
     public function accountTypeConstant(): string

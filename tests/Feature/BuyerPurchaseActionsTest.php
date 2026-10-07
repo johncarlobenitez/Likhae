@@ -66,6 +66,22 @@ class BuyerPurchaseActionsTest extends TestCase
         ]);
     }
 
+    public function test_ajax_add_to_cart_returns_confirmation_without_redirecting(): void
+    {
+        [$buyer, $product, $variantId] = $this->purchaseFixture();
+
+        $this->actingAs($buyer)
+            ->postJson(route('buyer.cart.add', $product), [
+                'product_variant_id' => $variantId,
+                'quantity' => 1,
+            ])
+            ->assertOk()
+            ->assertJson([
+                'message' => 'Product added to cart.',
+            ])
+            ->assertSessionMissing('checkout_cart_item_ids');
+    }
+
     public function test_buy_now_opens_checkout_for_only_the_purchased_item(): void
     {
         [$buyer, $product, $variantId] = $this->purchaseFixture();

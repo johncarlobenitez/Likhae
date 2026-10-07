@@ -9,6 +9,7 @@ use App\Models\Rider\RiderEarning;
 use App\Models\Rider\RiderProfile;
 use App\Models\User;
 use App\Services\Communication\ConversationService;
+use App\Services\Maps\RiderLocationService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,11 +21,12 @@ class RiderApiController extends Controller
     {
         $rider = $this->rider($request);
         $assignments = RiderAssignment::query()->where('rider_profile_id', $rider->id);
+        $deliveries = (clone $assignments)->delivery();
         $stats = [
-            ['label' => 'Assigned Parcels', 'value' => (clone $assignments)->whereIn('status', ['ASSIGNED', 'ACCEPTED'])->count()],
-            ['label' => 'In Transit', 'value' => (clone $assignments)->where('status', 'IN_PROGRESS')->count()],
-            ['label' => 'Out for Delivery', 'value' => (clone $assignments)->delivery()->where('status', 'IN_PROGRESS')->whereHas('shipment', fn ($query) => $query->where('current_status', 'OUT_FOR_DELIVERY'))->count()],
-            ['label' => 'Completed Today', 'value' => (clone $assignments)->where('status', 'COMPLETED')->whereDate('completed_at', today())->count()],
+            ['label' => 'Assigned Parcels', 'value' => (clone $deliveries)->whereIn('status', ['ASSIGNED', 'ACCEPTED'])->count()],
+            ['label' => 'In Transit', 'value' => (clone $deliveries)->where('status', 'IN_PROGRESS')->count()],
+            ['label' => 'Out for Delivery', 'value' => (clone $deliveries)->where('status', 'IN_PROGRESS')->whereHas('shipment', fn ($query) => $query->where('current_status', 'OUT_FOR_DELIVERY'))->count()],
+            ['label' => 'Completed Today', 'value' => (clone $deliveries)->where('status', 'COMPLETED')->whereDate('completed_at', today())->count()],
         ];
 
         $recent = RiderAssignment::query()
@@ -85,20 +87,14 @@ class RiderApiController extends Controller
         return response()->json(['success' => true, 'data' => ['verified' => $verified]]);
     }
 
-    public function updateLocation(Request $request, RiderAssignment $assignment): JsonResponse
+    public function updateLocation(Request $request, RiderAssignment $assignment, RiderLocationService $locations): JsonResponse
     {
-        $this->assertAssignment($request, $assignment, RiderAssignment::TYPE_DELIVERY);
-        $assignment->loadMissing('shipment');
-        abort_unless($assignment->status === 'IN_PROGRESS' && $assignment->shipment?->current_status === 'OUT_FOR_DELIVERY', 409, 'Live location is only accepted during an active delivery.');
         $data = $request->validate([
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
         ]);
-        $location = $assignment->liveLocation()->updateOrCreate([], [
-            'latitude' => $data['latitude'],
-            'longitude' => $data['longitude'],
-            'recorded_at' => now(),
-        ]);
+        $this->assertAssignment($request, $assignment, $assignment->assignment_type);
+        $location = $locations->update($assignment, $request->user(), (float) $data['latitude'], (float) $data['longitude']);
 
         return response()->json(['success' => true, 'data' => [
             'latitude' => (float) $location->latitude,
@@ -166,6 +162,43 @@ class RiderApiController extends Controller
                 'service_areas' => $rider->areaAssignments->where('is_active', true)->pluck('serviceArea.name')->filter()->values(),
             ],
         ]]);
+    }
+
+    public function notifications(Request $request): JsonResponse
+    {
+        $this->rider($request);
+        $rows = $request->user()->notifications()->latest()->paginate(
+            min(max($request->integer('per_page', 20), 1), 50),
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => $rows->getCollection()->map(fn ($notification): array => [
+                'id' => $notification->id,
+                'type' => $notification->type,
+                'title' => $notification->title,
+                'message' => $notification->message,
+                'action_url' => $notification->action_url,
+                'reference_type' => $notification->reference_type,
+                'reference_id' => $notification->reference_id,
+                'read_at' => $notification->read_at?->toIso8601String(),
+                'created_at' => $notification->created_at?->toIso8601String(),
+            ])->values(),
+            'unread_count' => $request->user()->notifications()->whereNull('read_at')->count(),
+            'meta' => [
+                'current_page' => $rows->currentPage(),
+                'last_page' => $rows->lastPage(),
+                'total' => $rows->total(),
+            ],
+        ]);
+    }
+
+    public function markNotificationsRead(Request $request): JsonResponse
+    {
+        $this->rider($request);
+        $request->user()->notifications()->whereNull('read_at')->update(['read_at' => now()]);
+
+        return response()->json(['success' => true]);
     }
 
     public function conversations(Request $request, ConversationService $service): JsonResponse

@@ -219,7 +219,44 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     };
 
-    all('[data-test-add-cart], [data-test-buy-now]').forEach((button) => button.addEventListener('click', (event) => {
+    const cartJsonHeaders = {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+
+    const cartErrorMessage = (payload) => {
+        const validationMessage = payload?.errors
+            ? Object.values(payload.errors).flat()[0]
+            : null;
+
+        return validationMessage || payload?.message || 'Could not add this product to your cart.';
+    };
+
+    const addCartWithConfirmation = async (url, fields, button = null) => {
+        if (!url) return;
+
+        if (button) button.disabled = true;
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: cartJsonHeaders,
+                body: new URLSearchParams(fields),
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) throw new Error(cartErrorMessage(payload));
+
+            showToast(payload.message || 'Product added to cart.');
+            window.dispatchEvent(new CustomEvent('buyer:cart-added', {detail: payload}));
+        } catch (error) {
+            showToast(error?.message || 'Could not add this product to your cart.');
+        } finally {
+            if (button) button.disabled = false;
+        }
+    };
+
+    all('[data-test-add-cart], [data-test-buy-now]').forEach((button) => button.addEventListener('click', async (event) => {
         const scope = event.currentTarget.closest('.lk-detail-info-card') || document;
         const variation = selectedVariation(scope);
         const cartUrl = event.currentTarget.dataset.cartUrl;
@@ -240,6 +277,11 @@ document.addEventListener('DOMContentLoaded', () => {
             quantity: one('[data-quantity-input]', scope)?.value || 1,
         };
 
+        if (event.currentTarget.dataset.checkout !== '1') {
+            await addCartWithConfirmation(cartUrl, fields, event.currentTarget);
+            return;
+        }
+
         if (event.currentTarget.dataset.checkout === '1') fields.checkout = '1';
 
         Object.entries(fields).forEach(([name, value]) => {
@@ -253,6 +295,16 @@ document.addEventListener('DOMContentLoaded', () => {
         event.currentTarget.disabled = true;
         document.body.appendChild(form);
         form.submit();
+    }));
+
+    all('[data-cart-add-form]').forEach((form) => form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const button = one('button[type="submit"]', form);
+        if (!button || button.disabled) return;
+
+        const fields = Object.fromEntries(new FormData(form).entries());
+        await addCartWithConfirmation(form.action, fields, button);
     }));
 
     all('[data-variant-stock-product]').forEach((product) => {

@@ -33,6 +33,7 @@ class CheckoutController extends Controller
         return view('Buyer.checkout', [
             'cartItems' => $items,
             'addresses' => $request->user()->addresses()->orderByDesc('is_default')->latest()->get(),
+            'logisticsProviders' => $this->checkoutService->availableLogisticsProviders(),
             'preview' => $preview,
             'voucherCodes' => $voucherCodes,
         ]);
@@ -66,6 +67,7 @@ class CheckoutController extends Controller
     {
         $data = $request->validate([
             'address_id' => ['required', 'integer', Rule::exists('addresses', 'id')->where('user_id', $request->user()->id)],
+            'logistics_center_id' => ['required', 'integer', Rule::exists('logistics_centers', 'id')->where('status', 'ACTIVE')],
             'payment_method' => ['required', Rule::in(['COD', 'ONLINE'])],
             'voucher_codes' => ['nullable', 'array'],
             'voucher_codes.*' => ['nullable', 'string', 'max:80'],
@@ -79,7 +81,14 @@ class CheckoutController extends Controller
             ->filter()
             ->all();
 
-        $order = $this->checkoutService->placeOrder($request->user(), $address, $items, $data['payment_method'], $voucherCodes);
+        $order = $this->checkoutService->placeOrder(
+            $request->user(),
+            $address,
+            $items,
+            $data['payment_method'],
+            $voucherCodes,
+            (int) $data['logistics_center_id'],
+        );
 
         $request->session()->forget(['checkout_cart_item_ids', 'checkout_voucher_codes']);
 
