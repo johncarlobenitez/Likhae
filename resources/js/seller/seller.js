@@ -323,6 +323,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const previewGallery = select('[data-preview-gallery]', productForm);
             const previewOptions = select('[data-preview-options]', productForm);
             const imageItems = imageLibraryItems().filter((item) => item.dataset.imageUrl);
+            const previewItems = previewGallery
+                ? selectAll('[data-preview-saved-image]', previewGallery).filter((item) => item.dataset.imageUrl)
+                : [];
+            const galleryItems = imageItems.length ? imageItems : previewItems;
             const primaryFile = filesFrom('[data-image-input]')[0];
 
             if (previewImage && !primaryFile && previewImage.dataset.previewFromUpload === 'true') {
@@ -331,12 +335,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (previewGallery) {
-                const selectedPreviewUrl = previewImage?.dataset.previewSelected && imageItems.some((item) => item.dataset.imageUrl === previewImage.dataset.previewSelected)
+                const selectedPreviewUrl = previewImage?.dataset.previewSelected && galleryItems.some((item) => item.dataset.imageUrl === previewImage.dataset.previewSelected)
                     ? previewImage.dataset.previewSelected
-                    : imageItems[0]?.dataset.imageUrl;
+                    : galleryItems[0]?.dataset.imageUrl;
                 previewGallery.innerHTML = '';
-                previewGallery.hidden = imageItems.length === 0;
-                imageItems.forEach((item, index) => {
+                previewGallery.hidden = galleryItems.length === 0;
+                galleryItems.forEach((item, index) => {
                     const button = document.createElement('button');
                     button.type = 'button';
                     button.className = 'sl-preview-gallery-button';
