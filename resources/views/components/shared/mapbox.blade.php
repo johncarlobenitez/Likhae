@@ -5,6 +5,7 @@
     'title' => 'Location map',
     'height' => '220px',
     'allowUserLocation' => true,
+    'riderGps' => false,
     'userLocationTarget' => null,
     'navigation' => false,
     'class' => '',
@@ -19,6 +20,7 @@
     data-map-center="{{ json_encode($center ?: config('mapbox.default_center')) }}"
     data-map-zoom="{{ $zoom ?: config('mapbox.default_zoom') }}"
     data-map-user-target="{{ $userLocationTarget }}"
+    data-map-rider-gps="{{ $riderGps ? 'true' : 'false' }}"
     data-map-live="{{ auth()->check() ? 'true' : 'false' }}"
     data-map-navigation="{{ $navigation ? 'true' : 'false' }}"
     style="--lk-map-height: {{ $height }}"
@@ -30,7 +32,7 @@
         </div>
         <div class="lk-map-actions">
             @if($allowUserLocation)
-                <button type="button" class="lk-map-button lk-map-location" data-map-location>Use my location</button>
+                <button type="button" class="lk-map-button lk-map-location" data-map-location>{{ $riderGps ? 'Refresh rider GPS current device' : 'Use my location' }}</button>
             @endif
             <button type="button" class="lk-map-button" data-map-rider-sharing hidden>Start rider GPS sharing</button>
             <button type="button" class="lk-map-button lk-map-fullscreen" data-map-fullscreen aria-pressed="false">Open full map</button>

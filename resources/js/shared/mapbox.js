@@ -370,7 +370,7 @@ function addUserLocation(shell, map, mapboxgl, markers) {
 
     const syncRiderGpsButton = () => {
         if (!window.LikhaeRiderLocationTracker?.refresh) return;
-        button.textContent = 'Refresh rider GPS';
+        button.textContent = 'Refresh rider GPS current device';
         button.dataset.mapRiderGps = 'true';
     };
     syncRiderGpsButton();

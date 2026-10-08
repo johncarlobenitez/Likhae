@@ -18,7 +18,7 @@
         <p class="mt-3 text-sm text-muted">{{ $pickup['status_label'] }} - Seller: {{ $pickup['seller'] }}</p>
     </section>
 
-    <x-shared.mapbox :markers="$mapMarkers" title="Route to seller pickup" height="220px" user-location-target="seller" :navigation="true" />
+    <x-shared.mapbox :markers="$mapMarkers" title="Route to seller pickup" height="220px" user-location-target="seller" :rider-gps="true" :navigation="true" />
 
     <section class="grid gap-6 lg:grid-cols-2">
         <article class="rounded-3xl border border-line bg-surface p-8">
