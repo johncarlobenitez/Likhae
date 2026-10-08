@@ -368,7 +368,24 @@ function addUserLocation(shell, map, mapboxgl, markers) {
     const button = shell.querySelector('[data-map-location]');
     if (!button) return;
 
+    const syncRiderGpsButton = () => {
+        if (!window.LikhaeRiderLocationTracker?.refresh) return;
+        button.textContent = 'Refresh rider GPS';
+        button.dataset.mapRiderGps = 'true';
+    };
+    syncRiderGpsButton();
+    window.addEventListener('likhae:rider-location-status', syncRiderGpsButton);
+
     button.addEventListener('click', () => {
+        // On an active Rider page this is intentionally not a local map-only
+        // pin. It requests a fresh, high-accuracy GPS fix that is sent to the
+        // existing protected Rider endpoint and can create navigation.
+        if (window.LikhaeRiderLocationTracker?.refresh) {
+            window.LikhaeRiderLocationTracker.refresh();
+            updateStatus(shell, 'Requesting a fresh Rider device GPS fix…');
+            return;
+        }
+
         if (!navigator.geolocation) {
             updateStatus(shell, 'Location is not supported by this browser.', true);
             return;

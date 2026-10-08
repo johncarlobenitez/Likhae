@@ -228,6 +228,25 @@ function initializeRiderLocationTracker() {
         syncControls();
     };
 
+    const refresh = () => {
+        if (!assignments.length) return;
+        if (!navigator.geolocation) {
+            setStatus('This browser does not support device GPS.', 'error');
+            return;
+        }
+
+        setStatus('Requesting a fresh Rider device GPS fix…', 'ready');
+        navigator.geolocation.getCurrentPosition(send, (error) => {
+            if (error.code === 1) {
+                setStatus('GPS permission was denied. Enable precise location access in browser settings.', 'error');
+            } else if (error.code === 2) {
+                setStatus('Device GPS is unavailable. Move outdoors and try refreshing Rider GPS again.', 'error');
+            } else {
+                setStatus('The fresh GPS request timed out. Check your signal and try again.', 'error');
+            }
+        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+    };
+
     const toggle = () => {
         if (watchId === undefined) {
             stoppedByRider = false;
@@ -240,6 +259,7 @@ function initializeRiderLocationTracker() {
 
     const tracker = {
         start,
+        refresh,
         stop,
         toggle,
         isRunning: () => watchId !== undefined,
