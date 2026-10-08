@@ -9,9 +9,13 @@ use App\Models\User;
 
 class MapDataService
 {
+    private const LOCATION_FRESHNESS_MINUTES = 2;
+
     /**
      * Return a deliberately small, role-safe marker payload for the browser.
-     * Do not add names, phone numbers, tokens, or full customer addresses here.
+     * Navigation details are scoped to the authenticated viewer's authorized
+     * shipment destination. No viewer receives a different user's shipment
+     * coordinates through this service.
      */
     public function forShipment(?Shipment $shipment, bool $includeDestination = true, bool $includeSeller = false, ?User $viewer = null): array
     {
@@ -81,15 +85,88 @@ class MapDataService
             $markers[] = $marker;
         }
 
+        $markers = $this->addNavigationDetails($markers, $shipment, $tracking, $viewer);
+
         return collect($markers)
             ->map(fn (array $marker): array => array_merge($marker, [
                 'tracking_endpoint' => $tracking['endpoint'],
                 'tracking_channel' => $tracking['channel'],
                 'tracking_status' => $tracking['status'],
+                'tracking_location_state' => $tracking['location_state'],
                 'active_destination_kind' => $tracking['active_destination_kind'],
             ]))
             ->values()
             ->all();
+    }
+
+    private function addNavigationDetails(array $markers, Shipment $shipment, array $tracking, ?User $viewer): array
+    {
+        if (! $viewer || ! $tracking['active_assignment_id']) {
+            return $markers;
+        }
+
+        $assignment = collect($shipment->riderAssignments ?? [])
+            ->first(fn (RiderAssignment $candidate): bool => (int) $candidate->id === (int) $tracking['active_assignment_id']);
+        if (! $assignment || ! $this->canViewNavigationDestination($shipment, $assignment, $viewer)) {
+            return $markers;
+        }
+
+        $destinationKind = $tracking['active_destination_kind'] ?? null;
+        $destination = match ($destinationKind) {
+            'seller' => $shipment->sellerOrder?->sellerProfile?->businessAddress,
+            'logistics' => ($shipment->logisticsCenter ?: $shipment->serviceArea?->logisticsCenter)?->address,
+            'buyer' => $shipment->sellerOrder?->order?->address,
+            default => null,
+        };
+        if (! $destination) {
+            return $markers;
+        }
+
+        $markerIndex = collect($markers)->search(fn (array $marker): bool => ($marker['target_kind'] ?? null) === $destinationKind);
+        if ($markerIndex === false) {
+            return $markers;
+        }
+
+        $markers[$markerIndex]['navigation_destination'] = [
+            'name' => match ($destinationKind) {
+                'seller' => $shipment->sellerOrder?->sellerProfile?->business_name ?: 'Seller pickup address',
+                'logistics' => ($shipment->logisticsCenter ?: $shipment->serviceArea?->logisticsCenter)?->business_name ?: 'Logistics sorting center',
+                'buyer' => $destination->recipient_name ?: 'Buyer delivery address',
+                default => 'Active destination',
+            },
+            'address' => method_exists($destination, 'formatted') ? $destination->formatted() : ($markers[$markerIndex]['popup'] ?? 'Saved destination'),
+        ];
+
+        return $markers;
+    }
+
+    private function canViewNavigationDestination(Shipment $shipment, RiderAssignment $assignment, User $viewer): bool
+    {
+        if ($viewer->isAccountType(User::TYPE_ADMIN)) {
+            return true;
+        }
+
+        if ($viewer->isAccountType(User::TYPE_RIDER)) {
+            return (int) $assignment->riderProfile?->user_id === (int) $viewer->id;
+        }
+
+        if ($viewer->isAccountType(User::TYPE_BUYER)) {
+            return $shipment->current_status === 'OUT_FOR_DELIVERY'
+                && (int) $shipment->sellerOrder?->order?->buyer_user_id === (int) $viewer->id;
+        }
+
+        if ($viewer->isAccountType(User::TYPE_SELLER)) {
+            return $shipment->current_status === 'READY_FOR_PICKUP'
+                && (int) $shipment->sellerOrder?->sellerProfile?->user_id === (int) $viewer->id;
+        }
+
+        if ($viewer->isAccountType(User::TYPE_LOGISTICS)) {
+            $center = $shipment->logisticsCenter ?: $shipment->serviceArea?->logisticsCenter;
+
+            return (int) $center?->owner_user_id === (int) $viewer->id;
+        }
+
+        return false;
     }
 
     public function trackingPayload(?Shipment $shipment, ?User $viewer = null): array
@@ -128,7 +205,8 @@ class MapDataService
 
     public function addressMarker(?object $address, string $id, string $label): ?array
     {
-        if (! $address || ! is_numeric($address->latitude) || ! is_numeric($address->longitude)) {
+        $coordinates = $this->coordinatePair($address);
+        if (! $coordinates) {
             return null;
         }
 
@@ -137,8 +215,8 @@ class MapDataService
             'kind' => 'destination',
             'label' => $label,
             'title' => $label,
-            'latitude' => round((float) $address->latitude, 7),
-            'longitude' => round((float) $address->longitude, 7),
+            'latitude' => round($coordinates['latitude'], 7),
+            'longitude' => round($coordinates['longitude'], 7),
             'popup' => collect([
                 $address->barangay_name,
                 $address->municipality_name,
@@ -159,9 +237,12 @@ class MapDataService
     public function assignmentMarker(?RiderAssignment $assignment): ?array
     {
         $location = $assignment?->liveLocation;
-        if (! $assignment || ! $location || ! is_numeric($location->latitude) || ! is_numeric($location->longitude)) {
+        $coordinates = $this->coordinatePair($location);
+        if (! $assignment || ! $coordinates) {
             return null;
         }
+
+        $fresh = $location->recorded_at?->greaterThanOrEqualTo(now()->subMinutes(self::LOCATION_FRESHNESS_MINUTES)) ?? false;
 
         return [
             'id' => 'rider-assignment-'.$assignment->id,
@@ -170,10 +251,15 @@ class MapDataService
             'shipment_id' => $assignment->shipment_id,
             'assignment_type' => $assignment->assignment_type,
             'label' => $assignment->assignment_type === RiderAssignment::TYPE_PICKUP ? 'Pickup rider' : 'Delivery rider',
-            'title' => 'Current rider location',
-            'latitude' => round((float) $location->latitude, 7),
-            'longitude' => round((float) $location->longitude, 7),
-            'popup' => $location->recorded_at?->diffForHumans() ? 'Updated '.$location->recorded_at->diffForHumans() : 'Live assignment location',
+            'title' => $fresh ? 'Current rider location' : 'Last known rider location',
+            'latitude' => round($coordinates['latitude'], 7),
+            'longitude' => round($coordinates['longitude'], 7),
+            'location_fresh' => $fresh,
+            'location_state' => $fresh ? 'live' : 'stale',
+            'location_recorded_at' => $location->recorded_at?->toIso8601String(),
+            'popup' => $location->recorded_at?->diffForHumans()
+                ? ($fresh ? 'Updated '.$location->recorded_at->diffForHumans() : 'Last updated '.$location->recorded_at->diffForHumans())
+                : 'Assignment location unavailable',
         ];
     }
 
@@ -215,6 +301,8 @@ class MapDataService
         };
         $visible = $assignment && $this->canSeeLive($shipment, $assignment, $viewer);
         $location = $visible ? $this->assignmentMarker($assignment) : null;
+        $locationState = $location['location_state'] ?? 'unavailable';
+        $destinationCoordinates = $this->coordinatePair($destination);
 
         return [
             'shipment_id' => $shipment->id,
@@ -223,22 +311,41 @@ class MapDataService
             'active_destination_kind' => $destinationKind,
             'active_assignment_id' => $assignment?->id,
             'active_assignment_type' => $assignment?->assignment_type,
-            'live' => (bool) $location,
+            'live' => $locationState === 'live',
+            'location_state' => $locationState,
             'last_location' => $location ? [
                 'latitude' => $location['latitude'],
                 'longitude' => $location['longitude'],
                 'recorded_at' => $assignment->liveLocation?->recorded_at?->toIso8601String(),
             ] : null,
-            'destination' => $destination && is_numeric($destination->latitude) && is_numeric($destination->longitude) ? [
+            'destination' => $destinationCoordinates ? [
                 'kind' => $destinationKind,
-                'latitude' => (float) $destination->latitude,
-                'longitude' => (float) $destination->longitude,
+                'latitude' => $destinationCoordinates['latitude'],
+                'longitude' => $destinationCoordinates['longitude'],
             ] : null,
             'endpoint' => filled($shipment->tracking_number)
                 ? route('tracking.live', ['trackingCode' => $shipment->tracking_number])
                 : null,
             'channel' => 'shipments.'.$shipment->id,
         ];
+    }
+
+    private function coordinatePair(?object $location): ?array
+    {
+        if (! $location || ! is_numeric($location->latitude) || ! is_numeric($location->longitude)) {
+            return null;
+        }
+
+        $latitude = (float) $location->latitude;
+        $longitude = (float) $location->longitude;
+
+        if (! is_finite($latitude) || ! is_finite($longitude)
+            || $latitude < -90 || $latitude > 90
+            || $longitude < -180 || $longitude > 180) {
+            return null;
+        }
+
+        return ['latitude' => $latitude, 'longitude' => $longitude];
     }
 
     private function destinationKind(Shipment $shipment, ?RiderAssignment $assignment): ?string

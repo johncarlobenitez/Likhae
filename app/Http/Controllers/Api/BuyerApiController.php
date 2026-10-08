@@ -10,7 +10,6 @@ use App\Models\Buyer\Order;
 use App\Models\Buyer\WishlistItem;
 use App\Models\Communication\Conversation;
 use App\Models\Communication\ConversationParticipant;
-use App\Models\Logistics\ServiceAreaLocation;
 use App\Models\Logistics\Shipment;
 use App\Models\Rider\RiderAssignment;
 use App\Models\Seller\Product;
@@ -23,6 +22,8 @@ use App\Services\Marketplace\CartService;
 use App\Services\Marketplace\CheckoutService;
 use App\Services\Marketplace\ProductCatalogService;
 use App\Services\Media\ImageOptimizationService;
+use App\Support\AddressCoordinateValidator;
+use App\Support\PhilippineAddressValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -206,39 +207,18 @@ class BuyerApiController extends Controller
             'label' => ['nullable', 'string', 'max:50'],
             'recipient_name' => ['required', 'string', 'max:200'],
             'contact_number' => ['required', 'string', 'max:30'],
-            'province_code' => ['nullable', 'string', 'max:50'],
-            'province_name' => ['required', 'string', 'max:150'],
-            'municipality_code' => ['nullable', 'string', 'max:50'],
-            'municipality_name' => ['required', 'string', 'max:150'],
-            'barangay_code' => ['nullable', 'string', 'max:50'],
-            'barangay_name' => ['required', 'string', 'max:150'],
-            'postal_code' => ['nullable', 'string', 'max:20'],
-            'house_number' => ['nullable', 'string', 'max:100'],
-            'street_address' => ['required', 'string', 'max:255'],
-            'landmark' => ['nullable', 'string', 'max:255'],
+            ...PhilippineAddressValidator::rules(),
+            ...AddressCoordinateValidator::rules(),
             'is_default' => ['sometimes', 'boolean'],
         ]);
-        foreach (['province', 'municipality', 'barangay'] as $location) {
-            $codeKey = $location.'_code';
-            $nameKey = $location.'_name';
-            $data[$codeKey] = $data[$codeKey] ?? Str::upper(Str::slug($data[$nameKey], '_'));
-        }
-        $serviceLocation = ServiceAreaLocation::query()
-            ->whereHas('serviceArea', fn ($query) => $query->where('is_active', true))
-            ->whereRaw('LOWER(province_name) = ?', [mb_strtolower($data['province_name'])])
-            ->whereRaw('LOWER(municipality_name) = ?', [mb_strtolower($data['municipality_name'])])
-            ->whereRaw('LOWER(barangay_name) = ?', [mb_strtolower($data['barangay_name'])])
-            ->first();
-        if ($serviceLocation) {
-            $data['province_code'] = $serviceLocation->province_code;
-            $data['municipality_code'] = $serviceLocation->municipality_code;
-            $data['barangay_code'] = $serviceLocation->barangay_code;
-        }
+        PhilippineAddressValidator::assertValid($data);
+        AddressCoordinateValidator::assertValid($data);
 
         if ($request->boolean('is_default')) {
             $request->user()->addresses()->update(['is_default' => false]);
         }
-        $address = $request->user()->addresses()->create($data + ['is_default' => $request->boolean('is_default')]);
+        $addressData = $data + ['is_default' => $request->boolean('is_default')];
+        $address = $request->user()->addresses()->create($addressData);
 
         return response()->json(['success' => true, 'data' => $this->addressPayload($address)], 201);
     }
@@ -278,6 +258,7 @@ class BuyerApiController extends Controller
             'first_name' => ['required', 'string', 'max:100'],
             'middle_initial' => ['nullable', 'string', 'max:10'],
             'last_name' => ['required', 'string', 'max:100'],
+            'name_extension' => ['nullable', 'string', 'max:20'],
             'contact_number' => ['required', 'string', 'max:30', Rule::unique('users', 'contact_number')->ignore($request->user()->id)],
             'birthday' => ['sometimes', 'nullable', 'date', 'before_or_equal:today'],
             'sex' => ['sometimes', 'nullable', Rule::in(['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY'])],
@@ -624,6 +605,8 @@ class BuyerApiController extends Controller
             'house_number' => $address->house_number,
             'street_address' => $address->street_address,
             'landmark' => $address->landmark,
+            'latitude' => $address->latitude !== null ? (float) $address->latitude : null,
+            'longitude' => $address->longitude !== null ? (float) $address->longitude : null,
             'is_default' => (bool) $address->is_default,
             'formatted_address' => $address->formatted(),
         ];
@@ -637,6 +620,7 @@ class BuyerApiController extends Controller
             'first_name' => $user->first_name,
             'middle_initial' => $user->middle_initial,
             'last_name' => $user->last_name,
+            'name_extension' => $user->name_extension,
             'email' => $user->email,
             'contact_number' => $user->contact_number,
             'birthday' => $user->birthday?->toDateString(),
@@ -696,6 +680,8 @@ class BuyerApiController extends Controller
                 'municipality' => $order->address->municipality_name,
                 'province' => $order->address->province_name,
                 'postal_code' => $order->address->postal_code,
+                'latitude' => $order->address->latitude !== null ? (float) $order->address->latitude : null,
+                'longitude' => $order->address->longitude !== null ? (float) $order->address->longitude : null,
                 'formatted_address' => $order->address->formatted(),
             ] : null,
             'tracking_number' => $shipment?->tracking_number,

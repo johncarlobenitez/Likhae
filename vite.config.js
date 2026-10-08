@@ -58,6 +58,7 @@ export default defineConfig(({ mode }) => {
                     'resources/js/rider/app.js',
                     'resources/js/shared/likhae-workspace-ai.js',
                     'resources/js/shared/mapbox.js',
+                    'resources/js/shared/address-pin.js',
                 ],
                 refresh: [
                     'resources/views/**',

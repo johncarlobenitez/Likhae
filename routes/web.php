@@ -92,13 +92,13 @@ Route::get('/register', [RegistrationController::class, 'create'])
     ->middleware('guest')
     ->name('register');
 Route::post('/register/email-verification/send', [RegistrationController::class, 'sendEmailVerificationCode'])
-    ->middleware(['guest', 'throttle:3,10'])
+    ->middleware('guest')
     ->name('register.email-verification.send');
 Route::post('/register/email-verification/verify', [RegistrationController::class, 'verifyEmailCode'])
-    ->middleware(['guest', 'throttle:10,1'])
+    ->middleware('guest')
     ->name('register.email-verification.verify');
 Route::post('/register', [RegistrationController::class, 'store'])
-    ->middleware(['guest', 'throttle:10,1'])
+    ->middleware('guest')
     ->name('register.store');
 
 // Compatibility links from the existing navigation now open the correct

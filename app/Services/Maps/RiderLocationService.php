@@ -6,13 +6,54 @@ use App\Events\RiderLocationUpdated;
 use App\Models\Rider\RiderAssignment;
 use App\Models\Rider\RiderAssignmentLocation;
 use App\Models\User;
+use Carbon\CarbonInterface;
+use Illuminate\Validation\ValidationException;
 
 class RiderLocationService
 {
-    public function update(RiderAssignment $assignment, User $user, float $latitude, float $longitude): RiderAssignmentLocation
+    private const MAX_ACCURACY_METERS = 250;
+
+    private const MAX_TIMESTAMP_SKEW_SECONDS = 120;
+
+    public function update(
+        RiderAssignment $assignment,
+        User $user,
+        float $latitude,
+        float $longitude,
+        float $accuracy,
+        CarbonInterface $recordedAt,
+    ): RiderAssignmentLocation
     {
+        if (! is_finite($latitude) || ! is_finite($longitude)
+            || $latitude < -90 || $latitude > 90
+            || $longitude < -180 || $longitude > 180) {
+            throw ValidationException::withMessages([
+                'latitude' => 'Latitude and longitude must be finite coordinates within their valid ranges.',
+                'longitude' => 'Latitude and longitude must be finite coordinates within their valid ranges.',
+            ]);
+        }
+
+        if (! is_finite($accuracy) || $accuracy < 0 || $accuracy > self::MAX_ACCURACY_METERS) {
+            throw ValidationException::withMessages([
+                'accuracy' => 'The device GPS accuracy is too poor for live tracking.',
+            ]);
+        }
+
+        $now = now();
+        if (abs($recordedAt->diffInSeconds($now, false)) > self::MAX_TIMESTAMP_SKEW_SECONDS) {
+            throw ValidationException::withMessages([
+                'recorded_at' => 'The device location timestamp is stale or invalid.',
+            ]);
+        }
+
         $assignment->loadMissing('riderProfile', 'shipment');
-        abort_unless((int) $assignment->riderProfile?->user_id === (int) $user->id, 403, 'This assignment does not belong to the rider.');
+        abort_unless(
+            $user->isActive()
+            && $user->riderProfile?->status === 'ACTIVE'
+            && (int) $assignment->riderProfile?->user_id === (int) $user->id,
+            403,
+            'An active rider account with ownership of this assignment is required.',
+        );
 
         $shipment = $assignment->shipment;
         $allowed = in_array($assignment->status, ['ACCEPTED', 'IN_PROGRESS'], true)
@@ -27,10 +68,17 @@ class RiderLocationService
             abort(409, 'Live location is only accepted while the rider is traveling to the seller, sorting center, or buyer delivery address.');
         }
 
+        $latest = $assignment->liveLocation()->first();
+        if ($latest?->recorded_at && $recordedAt->lt($latest->recorded_at)) {
+            throw ValidationException::withMessages([
+                'recorded_at' => 'This location update is older than the latest accepted rider location.',
+            ]);
+        }
+
         $location = $assignment->liveLocation()->updateOrCreate([], [
             'latitude' => $latitude,
             'longitude' => $longitude,
-            'recorded_at' => now(),
+            'recorded_at' => $recordedAt,
         ]);
 
         RiderLocationUpdated::dispatch($location->load('riderAssignment.shipment'));

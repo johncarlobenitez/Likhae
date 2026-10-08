@@ -36,6 +36,7 @@ class RegistrationWorkflowService
                     'first_name' => trim($data['first_name']),
                     'middle_initial' => filled($data['middle_initial'] ?? null) ? trim((string) $data['middle_initial']) : null,
                     'last_name' => trim($data['last_name']),
+                    'name_extension' => filled($data['name_extension'] ?? null) ? trim((string) $data['name_extension']) : null,
                     'sex' => $this->normalizeSex((string) $data['sex']),
                     'email' => mb_strtolower(trim($data['email'])),
                     'contact_number' => trim($data['contact_number']),
@@ -45,7 +46,7 @@ class RegistrationWorkflowService
                     'status' => User::STATUS_PENDING,
                 ]);
 
-                $address = Address::create([
+                $addressData = [
                     'user_id' => $user->id,
                     'label' => 'Primary',
                     'recipient_name' => $user->name,
@@ -60,8 +61,11 @@ class RegistrationWorkflowService
                     'house_number' => $data['house_number'] ?? null,
                     'street_address' => trim($data['street']),
                     'landmark' => $data['landmark'] ?? null,
+                    'latitude' => $data['latitude'] ?? null,
+                    'longitude' => $data['longitude'] ?? null,
                     'is_default' => true,
-                ]);
+                ];
+                $address = Address::create($addressData);
 
                 $application = RegistrationApplication::create([
                     'application_number' => $this->newApplicationNumber(),

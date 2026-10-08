@@ -1,4 +1,4 @@
-import { initPostalAddressForm } from '../address/postal-code.js';
+import '../address/forms.js';
 import './hero-carousel.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -15,8 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const accountMenu = one('[data-account-menu]');
     const accountMenuToggle = one('[data-account-menu-toggle]', accountMenu || document);
     const accountMenuPanel = one('[data-account-menu-panel]', accountMenu || document);
-
-    all('[data-postal-address]').forEach(initPostalAddressForm);
 
     const showToast = (message) => {
         if (!toast || !message) return;

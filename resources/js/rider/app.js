@@ -1,4 +1,6 @@
 import { initializeParcelScanners } from '../shared/parcel-scanner';
+import '../shared/rider-location';
+import '../address/forms.js';
 
 /*
 |--------------------------------------------------------------------------

@@ -6,6 +6,7 @@
     'height' => '220px',
     'allowUserLocation' => true,
     'userLocationTarget' => null,
+    'navigation' => false,
     'class' => '',
 ])
 
@@ -19,6 +20,7 @@
     data-map-zoom="{{ $zoom ?: config('mapbox.default_zoom') }}"
     data-map-user-target="{{ $userLocationTarget }}"
     data-map-live="{{ auth()->check() ? 'true' : 'false' }}"
+    data-map-navigation="{{ $navigation ? 'true' : 'false' }}"
     style="--lk-map-height: {{ $height }}"
 >
     <div class="lk-map-toolbar">
@@ -30,9 +32,30 @@
             @if($allowUserLocation)
                 <button type="button" class="lk-map-button lk-map-location" data-map-location>Use my location</button>
             @endif
+            <button type="button" class="lk-map-button" data-map-rider-sharing hidden>Start rider GPS sharing</button>
             <button type="button" class="lk-map-button lk-map-fullscreen" data-map-fullscreen aria-pressed="false">Open full map</button>
         </div>
     </div>
     <div class="lk-map-canvas" data-map-canvas role="application" aria-label="{{ $title }}"></div>
+    @if($navigation)
+        <div class="lk-map-navigation" data-map-navigation-panel hidden>
+            <div class="lk-map-navigation__head">
+                <div>
+                    <span class="lk-map-kicker">ACTIVE NAVIGATION</span>
+                    <strong data-map-navigation-assignment>Waiting for assignment</strong>
+                </div>
+                <span class="lk-map-navigation__status" data-map-navigation-status>Waiting for live GPS</span>
+            </div>
+            <div class="lk-map-navigation__metrics">
+                <div><strong data-map-navigation-eta>—</strong><span>estimated time</span></div>
+                <div><strong data-map-navigation-distance>—</strong><span>road distance</span></div>
+                <div><strong data-map-navigation-arrival>—</strong><span>estimated arrival</span></div>
+            </div>
+            <div class="lk-map-navigation__destination">
+                <strong data-map-navigation-destination>Active destination</strong>
+                <span data-map-navigation-address>Waiting for saved destination coordinates.</span>
+            </div>
+        </div>
+    @endif
     <p class="lk-map-status" data-map-status aria-live="polite">Shipment and rider coordinates are shown when available.</p>
 </section>

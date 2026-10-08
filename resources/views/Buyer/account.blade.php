@@ -10,6 +10,10 @@
     $user = auth()->user();
 
     $buyerName = data_get($user, 'name', 'Buyer Name');
+    $buyerFirstName = data_get($user, 'first_name', '');
+    $buyerMiddleName = data_get($user, 'middle_initial', '');
+    $buyerLastName = data_get($user, 'last_name', '');
+    $buyerNameExtension = data_get($user, 'name_extension', '');
     $buyerEmail = data_get($user, 'email', 'buyer@example.com');
     $buyerPhone = data_get($user, 'contact_number', '');
     $buyerBirthday = data_get($user, 'birthday', '');
@@ -229,17 +233,25 @@
                                 </div>
 
                                 <div class="sm:col-span-2">
-                                    <label for="profile-name" class="mb-1.5 block text-xs font-semibold text-stone-700">
-                                        Full name
-                                    </label>
-
-                                    <input
-                                        id="profile-name"
-                                        type="text"
-                                        name="name"
-                                        value="{{ old('name', $buyerName) }}"
-                                        class="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-red-800 focus:ring-4 focus:ring-red-100"
-                                    >
+                                    <p class="mb-2 text-xs font-semibold text-stone-700">Name</p>
+                                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                        <label for="profile-first-name" class="block">
+                                            <span class="mb-1.5 block text-xs font-semibold text-stone-700">First name</span>
+                                            <input id="profile-first-name" type="text" name="first_name" value="{{ old('first_name', $buyerFirstName) }}" required class="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-red-800 focus:ring-4 focus:ring-red-100">
+                                        </label>
+                                        <label for="profile-middle-name" class="block">
+                                            <span class="mb-1.5 block text-xs font-semibold text-stone-700">Middle name</span>
+                                            <input id="profile-middle-name" type="text" name="middle_initial" value="{{ old('middle_initial', $buyerMiddleName) }}" maxlength="10" class="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-red-800 focus:ring-4 focus:ring-red-100">
+                                        </label>
+                                        <label for="profile-last-name" class="block">
+                                            <span class="mb-1.5 block text-xs font-semibold text-stone-700">Last name</span>
+                                            <input id="profile-last-name" type="text" name="last_name" value="{{ old('last_name', $buyerLastName) }}" required class="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-red-800 focus:ring-4 focus:ring-red-100">
+                                        </label>
+                                        <label for="profile-name-extension" class="block">
+                                            <span class="mb-1.5 block text-xs font-semibold text-stone-700">Extension / suffix</span>
+                                            <input id="profile-name-extension" type="text" name="name_extension" value="{{ old('name_extension', $buyerNameExtension) }}" maxlength="20" placeholder="Jr., Sr., III" class="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-red-800 focus:ring-4 focus:ring-red-100">
+                                        </label>
+                                    </div>
                                 </div>
 
                                 <div>
@@ -331,32 +343,21 @@
                                         <p class="mt-2 text-xs font-medium text-stone-600">{{ $address->contact_number }}</p>
                                         <p class="mt-2 text-sm leading-6 text-stone-600">{{ $address->formatted() }}</p>
                                     </div>
-                                    <form method="POST" action="{{ route('buyer.account.addresses.destroy', ['address' => $address->id]) }}">@csrf @method('DELETE')<button type="submit" class="text-xs font-semibold text-red-700">Delete</button></form>
+<div class="flex gap-3"><details><summary class="cursor-pointer text-xs font-semibold text-red-800">Edit</summary><form method="POST" action="{{ route('buyer.account.addresses.update', ['address' => $address->id]) }}" class="mt-3 grid gap-3 rounded-lg border border-stone-200 bg-white p-3 sm:grid-cols-2">@csrf @method('PUT')<input required name="label" value="{{ old('label', $address->label) }}" placeholder="Label" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm"><input required name="recipient_name" value="{{ old('recipient_name', $address->recipient_name) }}" placeholder="Recipient name" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm"><input required name="contact_number" value="{{ old('contact_number', $address->contact_number) }}" placeholder="Contact number" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm"><x-shared.philippine-address-fields :address="$address" wrapper-class="contents" /><x-shared.address-pin :address="$address" class="sm:col-span-2" /><label class="flex items-center gap-2 text-xs font-semibold text-stone-700 sm:col-span-2"><input type="checkbox" name="is_default" value="1" @checked($address->is_default)> Set as default address</label><div class="sm:col-span-2"><button type="submit" class="rounded-xl bg-red-900 px-4 py-2 text-xs font-semibold text-white">Save changes</button></div></form></details><form method="POST" action="{{ route('buyer.account.addresses.destroy', ['address' => $address->id]) }}">@csrf @method('DELETE')<button type="submit" class="text-xs font-semibold text-red-700">Delete</button></form></div>
                                 </div>
                             </article>
                         @empty
                             <p class="text-sm text-stone-500">No saved delivery address yet.</p>
                         @endforelse
 
-                        <form method="POST" action="{{ route('buyer.account.addresses.store') }}" class="grid gap-4 rounded-xl border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2" data-postal-address data-postal-base="{{ \Illuminate\Support\Str::beforeLast(route('address.philippines.regions', [], false), '/regions') }}">
+                        <form method="POST" action="{{ route('buyer.account.addresses.store') }}" class="grid gap-4 rounded-xl border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2">
                             @csrf
                             <div class="sm:col-span-2"><h3 class="text-sm font-semibold text-stone-900">Add delivery address</h3></div>
                             <input required name="label" value="{{ old('label','Home') }}" placeholder="Label (Home, Work)" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
                             <input required name="recipient_name" value="{{ old('recipient_name',$buyerName) }}" placeholder="Recipient name" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
                             <input required name="contact_number" value="{{ old('contact_number',$buyerPhone) }}" placeholder="Contact number" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
-                            <input name="house_number" value="{{ old('house_number') }}" placeholder="House / unit number" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
-                            <input name="street" value="{{ old('street') }}" placeholder="Street" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
-                            <input type="hidden" name="region_code" value="{{ old('region_code') }}" data-postal-region-code>
-                            <select required name="region" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm" data-postal-region data-old-value="{{ old('region') }}" data-old-code="{{ old('region_code') }}"><option value="">Loading regions...</option></select>
-                            <input type="hidden" name="province_code" value="{{ old('province_code') }}" data-postal-province-code>
-                            <select required name="province" disabled class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm" data-postal-province data-old-value="{{ old('province') }}" data-old-code="{{ old('province_code') }}"><option value="">Select province</option></select>
-                            <input type="hidden" name="municipality_code" value="{{ old('municipality_code') }}" data-postal-municipality-code>
-                            <select required name="municipality" disabled class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm" data-postal-municipality data-old-value="{{ old('municipality') }}" data-old-code="{{ old('municipality_code') }}"><option value="">Select municipality / city</option></select>
-                            <input type="hidden" name="barangay_code" value="{{ old('barangay_code') }}" data-postal-barangay-code>
-                            <select required name="barangay" disabled class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm" data-postal-barangay data-old-value="{{ old('barangay') }}" data-old-code="{{ old('barangay_code') }}"><option value="">Select barangay</option></select>
-                            <input readonly required name="postal_code" value="{{ old('postal_code') }}" placeholder="Auto-filled after barangay selection" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm" data-postal-code>
-                            <p class="text-xs text-stone-500 sm:col-span-2" data-postal-status aria-live="polite">Postal code will fill after you select a barangay.</p>
-                            <input name="landmark" value="{{ old('landmark') }}" placeholder="Landmark" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm sm:col-span-2">
+                            <x-shared.philippine-address-fields wrapper-class="contents" />
+                            <x-shared.address-pin class="sm:col-span-2" />
                             <label class="flex items-center gap-2 text-xs font-semibold text-stone-700 sm:col-span-2"><input type="checkbox" name="is_default" value="1"> Set as default address</label>
                             <div class="sm:col-span-2"><button type="submit" class="rounded-xl bg-red-900 px-5 py-2.5 text-xs font-semibold text-white">Save Address</button></div>
                         </form>

@@ -1,5 +1,9 @@
 const MAPBOX_SCRIPT = 'https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.js';
 const MAPBOX_CSS = 'https://api.mapbox.com/mapbox-gl-js/v3.15.0/mapbox-gl.css';
+const ROUTE_RECALCULATION_DISTANCE_METERS = 100;
+const ROUTE_OFF_PATH_DISTANCE_METERS = 100;
+const ROUTE_MAX_AGE_MS = 120000;
+const ROUTE_RETRY_DELAY_MS = 30000;
 
 let mapboxPromise;
 
@@ -27,6 +31,8 @@ function loadMapbox() {
     return mapboxPromise;
 }
 
+export { loadMapbox };
+
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>'"]/g, (character) => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;',
@@ -40,8 +46,13 @@ function parseJson(value, fallback) {
 function updateStatus(shell, message, isError = false) {
     const status = shell.querySelector('[data-map-status]');
     if (!status) return;
-    status.textContent = message;
-    status.classList.toggle('is-error', isError);
+    const notice = shell._likhaeRealtimeNotice;
+    status.textContent = notice ? `${message} ${notice}` : message;
+    status.classList.toggle('is-error', isError || shell._likhaeRealtimeNoticeError === true);
+}
+
+function updateTrackingStatus(shell, message, isError = false) {
+    updateStatus(shell, message, isError);
 }
 
 function toggleFullscreen(shell, map) {
@@ -58,7 +69,9 @@ function toggleFullscreen(shell, map) {
 function markerCoordinates(marker) {
     const lat = Number(marker?.latitude);
     const lng = Number(marker?.longitude);
-    return Number.isFinite(lat) && Number.isFinite(lng) ? [lng, lat] : null;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)
+        || lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    return [lng, lat];
 }
 
 function drawRouteGeometry(map, id, geometry, color = '#800000', dash = false) {
@@ -96,9 +109,114 @@ async function fetchRoadGeometry(token, from, to) {
     const response = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!response.ok) throw new Error(`Directions request failed (${response.status}).`);
     const payload = await response.json();
-    const geometry = payload.routes?.[0]?.geometry;
-    if (!geometry?.coordinates?.length) throw new Error('No driving route was returned.');
-    return geometry;
+    const route = payload.routes?.[0];
+    if (!route?.geometry?.coordinates?.length) throw new Error('No driving route was returned.');
+    if (!Number.isFinite(Number(route.distance)) || !Number.isFinite(Number(route.duration))) {
+        throw new Error('The driving route did not include distance and duration.');
+    }
+    return {
+        geometry: route.geometry,
+        distance: Number(route.distance),
+        duration: Number(route.duration),
+    };
+}
+
+function distancePointToSegmentMeters(point, start, end) {
+    const latitudeScale = 110540;
+    const longitudeScale = 111320 * Math.cos((point[1] * Math.PI) / 180);
+    const project = (coordinate) => [coordinate[0] * longitudeScale, coordinate[1] * latitudeScale];
+    const projectedPoint = project(point);
+    const projectedStart = project(start);
+    const projectedEnd = project(end);
+    const vector = [projectedEnd[0] - projectedStart[0], projectedEnd[1] - projectedStart[1]];
+    const lengthSquared = (vector[0] ** 2) + (vector[1] ** 2);
+    const ratio = lengthSquared === 0
+        ? 0
+        : Math.max(0, Math.min(1, ((projectedPoint[0] - projectedStart[0]) * vector[0]
+            + (projectedPoint[1] - projectedStart[1]) * vector[1]) / lengthSquared));
+    const closest = [projectedStart[0] + (vector[0] * ratio), projectedStart[1] + (vector[1] * ratio)];
+    return Math.hypot(projectedPoint[0] - closest[0], projectedPoint[1] - closest[1]);
+}
+
+function distanceToRouteMeters(point, geometry) {
+    const coordinates = geometry?.coordinates;
+    if (!point || !Array.isArray(coordinates) || coordinates.length < 2) return Number.POSITIVE_INFINITY;
+    let nearest = Number.POSITIVE_INFINITY;
+    for (let index = 1; index < coordinates.length; index += 1) {
+        nearest = Math.min(nearest, distancePointToSegmentMeters(point, coordinates[index - 1], coordinates[index]));
+    }
+    return nearest;
+}
+
+function formatRoadDistance(distance) {
+    if (!Number.isFinite(distance)) return '—';
+    if (distance < 1000) return `${Math.max(0, Math.round(distance))} m`;
+    return `${(distance / 1000).toFixed(distance >= 10000 ? 0 : 1)} km`;
+}
+
+function formatRouteDuration(duration) {
+    if (!Number.isFinite(duration)) return '—';
+    const minutes = Math.max(0, Math.ceil(duration / 60));
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const remainder = minutes % 60;
+    return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
+}
+
+function formatArrivalTime(duration, arrivalAt = null) {
+    if (!Number.isFinite(duration)) return '—';
+    const parts = new Intl.DateTimeFormat('en-PH', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+    }).formatToParts(new Date(Number.isFinite(arrivalAt) ? arrivalAt : Date.now() + (duration * 1000)));
+    const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+    return `${values.month} ${values.day}, ${values.year}, ${values.hour}:${values.minute} ${values.dayPeriod} PHT`;
+}
+
+function navigationDestination(target) {
+    return target?.navigation_destination || {
+        name: target?.title || target?.label || 'Active destination',
+        address: target?.popup || 'Saved destination coordinates',
+    };
+}
+
+function updateNavigationPanel(shell, { rider = null, target = null, route = null, status = null } = {}) {
+    const panel = shell.querySelector('[data-map-navigation-panel]');
+    if (!panel) return;
+
+    shell._likhaeNavigationSnapshot = { rider, target, route, status };
+    panel.hidden = false;
+    const destination = navigationDestination(target);
+    const assignmentLabel = rider?.assignment_type === 'PICKUP' ? 'Pickup navigation' : 'Delivery navigation';
+    const setText = (selector, value) => {
+        const element = panel.querySelector(selector);
+        if (element) element.textContent = value;
+    };
+
+    setText('[data-map-navigation-assignment]', rider ? assignmentLabel : 'Waiting for active Rider GPS');
+    setText('[data-map-navigation-destination]', destination.name || 'Active destination');
+    setText('[data-map-navigation-address]', destination.address || 'Saved destination coordinates');
+    const remainingDuration = route
+        ? (Number.isFinite(route.arrivalAt)
+            ? Math.max(0, (route.arrivalAt - Date.now()) / 1000)
+            : route.duration)
+        : null;
+    setText('[data-map-navigation-eta]', route ? formatRouteDuration(remainingDuration) : '—');
+    setText('[data-map-navigation-distance]', route ? formatRoadDistance(route.distance) : '—');
+    setText('[data-map-navigation-arrival]', route ? formatArrivalTime(route.duration, route.arrivalAt) : '—');
+    setText('[data-map-navigation-status]', status || (rider ? 'Live GPS position available' : 'Waiting for live GPS'));
+}
+
+function removeRouteLayer(map, routeId) {
+    const layerId = `likhae-route-layer-${routeId}`;
+    const sourceId = `likhae-route-source-${routeId}`;
+    if (map.getLayer(layerId)) map.removeLayer(layerId);
+    if (map.getSource(sourceId)) map.removeSource(sourceId);
 }
 
 async function drawPersistedRoutes(map, markers, shell, token) {
@@ -111,9 +229,49 @@ async function drawPersistedRoutes(map, markers, shell, token) {
     }, {});
     shell._likhaeRouteState ||= {};
     const activeRouteIds = new Set();
+    const navigationEnabled = shell.dataset.mapNavigation === 'true';
+    const activeRider = markers.find((marker) => marker.kind === 'rider' && marker.active_rider);
+    const liveNavigationRider = activeRider?.location_fresh === true ? activeRider : null;
+    const activeDestinationKind = activeRider?.active_destination_kind;
+    const activeNavigationTarget = markers.find((marker) => marker.target_kind === activeDestinationKind);
+    const previousNavigation = shell._likhaeNavigationSnapshot;
+    const sameNavigationTarget = previousNavigation?.target?.id
+        && previousNavigation.target.id === activeNavigationTarget?.id
+        && previousNavigation.rider?.assignment_id === activeRider?.assignment_id;
+
+    if (navigationEnabled) {
+        updateNavigationPanel(shell, {
+            rider: activeRider,
+            target: activeNavigationTarget,
+            route: sameNavigationTarget && liveNavigationRider ? previousNavigation.route : null,
+            status: !activeRider
+                ? 'Waiting for the active assignment.'
+                : !liveNavigationRider
+                    ? 'Waiting for a fresh live GPS fix.'
+                    : sameNavigationTarget && liveNavigationRider && previousNavigation.route
+                        ? 'Road route active'
+                    : !markerCoordinates(activeNavigationTarget)
+                        ? 'Saved destination coordinates are unavailable.'
+                        : 'Calculating driving route…',
+        });
+
+        const riderCoordinates = markerCoordinates(liveNavigationRider);
+        const destinationCoordinates = markerCoordinates(activeNavigationTarget);
+        const fitKey = `${activeRider?.assignment_id || ''}:${activeNavigationTarget?.id || ''}`;
+        if (riderCoordinates && destinationCoordinates && shell._likhaeNavigationFitKey !== fitKey) {
+            const west = Math.min(riderCoordinates[0], destinationCoordinates[0]);
+            const east = Math.max(riderCoordinates[0], destinationCoordinates[0]);
+            const south = Math.min(riderCoordinates[1], destinationCoordinates[1]);
+            const north = Math.max(riderCoordinates[1], destinationCoordinates[1]);
+            map.fitBounds([[west, south], [east, north]], { padding: 64, maxZoom: 15, duration: 350 });
+            shell._likhaeNavigationFitKey = fitKey;
+        }
+    }
 
     Object.entries(grouped).forEach(([shipmentId, shipmentMarkers]) => {
-        const riders = shipmentMarkers.filter((marker) => marker.kind === 'rider' && marker.active_rider);
+        const riders = shipmentMarkers.filter((marker) => marker.kind === 'rider'
+            && marker.active_rider
+            && (!navigationEnabled || marker.location_fresh === true));
         const targets = shipmentMarkers.filter((marker) => ['seller', 'center', 'destination'].includes(marker.kind));
 
         riders.forEach((rider) => {
@@ -128,19 +286,58 @@ async function drawPersistedRoutes(map, markers, shell, token) {
             const routeId = `${shipmentId}-${rider.assignment_id || 'rider'}-${destinationKind}`;
             activeRouteIds.add(routeId);
             const previous = shell._likhaeRouteState?.[routeId];
-            if (previous && distanceMeters(previous.from, from) < 75
-                && previous.to[0] === to[0] && previous.to[1] === to[1]) return;
-            const routeState = { from, to };
+            const sameDestination = previous && previous.to[0] === to[0] && previous.to[1] === to[1];
+            const pending = previous?.pending === true;
+            const routeFresh = previous?.fetchedAt && Date.now() - previous.fetchedAt < ROUTE_MAX_AGE_MS;
+            const routeOnPath = previous?.geometry
+                ? distanceToRouteMeters(from, previous.geometry) <= ROUTE_OFF_PATH_DISTANCE_METERS
+                : false;
+            if (previous && sameDestination && (pending
+                || (routeFresh && distanceMeters(previous.from, from) < ROUTE_RECALCULATION_DISTANCE_METERS && routeOnPath)
+                || (previous.failedAt && Date.now() - previous.failedAt < ROUTE_RETRY_DELAY_MS))) return;
+
+            removeRouteLayer(map, routeId);
+            const routeState = { from, to, pending: true };
             shell._likhaeRouteState[routeId] = routeState;
+            if (navigationEnabled && rider.active_rider) {
+                updateNavigationPanel(shell, {
+                    rider,
+                    target,
+                    status: 'Calculating driving route…',
+                });
+            }
 
             fetchRoadGeometry(token, from, to)
-                .then((geometry) => {
+                .then((route) => {
                     if (shell._likhaeRouteState?.[routeId] !== routeState) return;
-                    drawRouteGeometry(map, routeId, geometry, '#800000');
+                    routeState.pending = false;
+                    routeState.geometry = route.geometry;
+                    routeState.fetchedAt = Date.now();
+                    routeState.route = {
+                        ...route,
+                        arrivalAt: Date.now() + (route.duration * 1000),
+                    };
+                    drawRouteGeometry(map, routeId, route.geometry, '#800000');
+                    if (navigationEnabled && rider.active_rider) {
+                        updateNavigationPanel(shell, {
+                            rider,
+                            target,
+                            route: routeState.route,
+                            status: 'Road route updated from live GPS',
+                        });
+                    }
                 })
                 .catch(() => {
                     if (shell._likhaeRouteState?.[routeId] !== routeState) return;
-                    delete shell._likhaeRouteState[routeId];
+                    routeState.pending = false;
+                    routeState.failedAt = Date.now();
+                    if (navigationEnabled && rider.active_rider) {
+                        updateNavigationPanel(shell, {
+                            rider,
+                            target,
+                            status: 'Driving route unavailable. Retrying shortly.',
+                        });
+                    }
                     updateStatus(shell, 'Live rider location is available, but the road route is temporarily unavailable.', true);
                 });
         });
@@ -149,10 +346,7 @@ async function drawPersistedRoutes(map, markers, shell, token) {
     Object.keys(shell._likhaeRouteState)
         .filter((routeId) => !activeRouteIds.has(routeId))
         .forEach((routeId) => {
-            const layerId = `likhae-route-layer-${routeId}`;
-            const sourceId = `likhae-route-source-${routeId}`;
-            if (map.getLayer(layerId)) map.removeLayer(layerId);
-            if (map.getSource(sourceId)) map.removeSource(sourceId);
+            removeRouteLayer(map, routeId);
             delete shell._likhaeRouteState[routeId];
         });
 }
@@ -260,10 +454,11 @@ async function refreshTracking(shell, map, mapboxgl, payload) {
     if (channels.length) shell._likhaeTrackingChannels = [...new Set(channels)];
     shell._likhaeCurrentMarkers = markers;
     renderMarkers(shell, map, mapboxgl, markers);
-    startRiderLocationUpdates(shell);
+    configureRiderLocationUpdates(shell);
     await drawPersistedRoutes(map, markers, shell, shell.dataset.mapToken);
 
     const tracking = payload?.tracking || {};
+    shell._likhaeCurrentTracking = tracking;
     const fitKey = `${tracking.status || ''}:${tracking.active_assignment_id || ''}:${tracking.active_destination_kind || ''}`;
     if (tracking.live && shell._likhaeFitKey !== fitKey) {
         const rider = markers.find((marker) => marker.kind === 'rider' && marker.active_rider);
@@ -280,6 +475,11 @@ async function refreshTracking(shell, map, mapboxgl, payload) {
     }
     if (tracking.live) {
         updateStatus(shell, `Rider live location updated · ${tracking.status || 'Active shipment'}.`);
+    } else if (tracking.location_state === 'stale') {
+        const lastSeen = tracking.last_location?.recorded_at
+            ? new Date(tracking.last_location.recorded_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila', timeZoneName: 'short' })
+            : 'an earlier time';
+        updateStatus(shell, `Showing the rider's last known location from ${lastSeen}. Waiting for a fresh GPS update.`, true);
     } else if (['READY_FOR_PICKUP', 'PICKED_UP', 'ASSIGNED_TO_RIDER', 'OUT_FOR_DELIVERY'].includes(tracking.status)) {
         updateStatus(shell, `Waiting for the active rider location · ${tracking.status.replaceAll('_', ' ')}.`);
     } else if (markers.length) {
@@ -289,81 +489,201 @@ async function refreshTracking(shell, map, mapboxgl, payload) {
     }
 }
 
-function startRiderLocationUpdates(shell) {
-    const ownMarker = shell._likhaeCurrentMarkers?.find((marker) => marker.active_rider && marker.location_update_endpoint);
-    const endpoint = ownMarker?.location_update_endpoint || null;
-    if (shell._likhaeLocationWatchEndpoint === endpoint) return;
+function configureRiderLocationUpdates(shell) {
+    const button = shell.querySelector('[data-map-rider-sharing]');
+    if (!button) return;
 
-    if (shell._likhaeLocationWatchId !== undefined && navigator.geolocation) {
-        navigator.geolocation.clearWatch(shell._likhaeLocationWatchId);
-        shell._likhaeLocationWatchId = undefined;
+    const sync = () => {
+        const tracker = window.LikhaeRiderLocationTracker;
+        button.hidden = !tracker;
+        if (tracker) button.setAttribute('aria-pressed', String(tracker.isRunning()));
+    };
+    sync();
+    if (!button.dataset.locationStatusBound) {
+        button.dataset.locationStatusBound = 'true';
+        window.addEventListener('likhae:rider-location-status', sync);
     }
-    shell._likhaeLocationWatchEndpoint = endpoint;
-    if (!endpoint || !navigator.geolocation) return;
-
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-    const send = (position) => fetch(endpoint, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': csrf,
-            'X-Requested-With': 'XMLHttpRequest',
-        },
-        body: JSON.stringify({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-        }),
-    }).catch(() => null);
-
-    shell._likhaeLocationWatchId = navigator.geolocation.watchPosition(send, () => {
-        // The rider can continue using the page if location permission is denied.
-    }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
 }
 
-async function pollTracking(shell, map, mapboxgl) {
+function validLiveEventCoordinates(event) {
+    const latitude = Number(event?.latitude);
+    const longitude = Number(event?.longitude);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)
+        || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+        return null;
+    }
+
+    const recordedAt = event?.recorded_at ? Date.parse(event.recorded_at) : Date.now();
+    if (!Number.isFinite(recordedAt) || recordedAt > Date.now() + 30000) return null;
+
+    return { latitude, longitude, recordedAt };
+}
+
+async function applyRiderLocationEvent(shell, map, mapboxgl, event) {
+    const shipmentId = String(event?.shipment_id || '');
+    const assignmentId = String(event?.assignment_id || '');
+    if (!shipmentId || !assignmentId) return false;
+
+    const marker = (shell._likhaeCurrentMarkers || []).find((candidate) =>
+        String(candidate.shipment_id || '') === shipmentId
+        && String(candidate.assignment_id || '') === assignmentId
+        && candidate.kind === 'rider');
+    if (!marker) return false;
+
+    const coordinates = validLiveEventCoordinates(event);
+    if (!coordinates) return false;
+
+    const previousRecordedAt = marker.location_recorded_at ? Date.parse(marker.location_recorded_at) : 0;
+    if (Number.isFinite(previousRecordedAt) && coordinates.recordedAt < previousRecordedAt) return false;
+
+    const fresh = Date.now() - coordinates.recordedAt <= 120000;
+    marker.latitude = coordinates.latitude;
+    marker.longitude = coordinates.longitude;
+    marker.location_recorded_at = new Date(coordinates.recordedAt).toISOString();
+    marker.location_fresh = fresh;
+    marker.location_state = fresh ? 'live' : 'stale';
+    marker.title = fresh ? 'Current rider location' : 'Last known rider location';
+    marker.popup = fresh ? 'Updated just now' : 'Last known rider location';
+
+    const tracking = shell._likhaeCurrentTracking || {};
+    if (String(tracking.shipment_id || '') === shipmentId
+        && String(tracking.active_assignment_id || '') === assignmentId) {
+        shell._likhaeCurrentTracking = {
+            ...tracking,
+            live: fresh,
+            location_state: fresh ? 'live' : 'stale',
+            last_location: {
+                latitude: coordinates.latitude,
+                longitude: coordinates.longitude,
+                recorded_at: marker.location_recorded_at,
+            },
+        };
+    }
+
+    renderMarkers(shell, map, mapboxgl, shell._likhaeCurrentMarkers || []);
+    await drawPersistedRoutes(map, shell._likhaeCurrentMarkers || [], shell, shell.dataset.mapToken);
+    updateStatus(shell, fresh
+        ? 'Rider live location updated from the active assignment.'
+        : 'A delayed rider location was received; waiting for a fresh GPS update.', !fresh);
+    return true;
+}
+
+async function pollTracking(shell, map, mapboxgl, { fallback = false } = {}) {
     const endpoints = shell._likhaeTrackingEndpoints || [];
     if (!endpoints.length) return;
+    if (shell._likhaeTrackingPollPromise) return shell._likhaeTrackingPollPromise;
 
-    try {
-        const payloads = await Promise.all(endpoints.map(async (endpoint) => {
-            const response = await fetch(endpoint, {
-                credentials: 'same-origin',
-                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    const request = (async () => {
+        try {
+            const payloads = await Promise.all(endpoints.map(async (endpoint) => {
+                const response = await fetch(endpoint, {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                return response.ok ? response.json() : null;
+            }));
+            const valid = payloads.filter(Boolean);
+            if (!valid.length) return;
+            const mergedMarkers = valid.flatMap((payload) => payload.markers || []);
+            await refreshTracking(shell, map, mapboxgl, {
+                markers: [...new Map(mergedMarkers.map((marker) => [marker.id, marker])).values()],
+                tracking: valid[0].tracking || {},
             });
-            return response.ok ? response.json() : null;
-        }));
-        const valid = payloads.filter(Boolean);
-        if (!valid.length) return;
-        const mergedMarkers = valid.flatMap((payload) => payload.markers || []);
-        await refreshTracking(shell, map, mapboxgl, {
-            markers: [...new Map(mergedMarkers.map((marker) => [marker.id, marker])).values()],
-            tracking: valid[0].tracking || {},
-        });
-    } catch {
-        // The initial map remains usable when polling is temporarily offline.
-    }
+        } catch {
+            if (fallback) {
+                shell._likhaeRealtimeNotice = 'Realtime updates unavailable; polling fallback is active.';
+                shell._likhaeRealtimeNoticeError = true;
+                updateStatus(shell, 'The live tracking check could not reach the server.');
+            }
+        }
+    })();
+
+    shell._likhaeTrackingPollPromise = request;
+    request.finally(() => {
+        if (shell._likhaeTrackingPollPromise === request) shell._likhaeTrackingPollPromise = null;
+    });
+    return request;
+}
+
+function setRealtimeConnectionState(shell, state) {
+    shell._likhaeRealtimeConnectionState = state;
+    const connected = state === 'connected';
+    shell._likhaeRealtimeNotice = connected ? '' : 'Realtime updates unavailable; polling fallback is active.';
+    shell._likhaeRealtimeNoticeError = !connected;
+    updateStatus(shell, connected
+        ? 'Realtime tracking connected; waiting for the next location update.'
+        : 'Realtime tracking is reconnecting; polling fallback is active.', !connected);
+}
+
+function leaveEchoChannels(shell) {
+    const channels = shell._likhaeTrackingChannels || [];
+    channels.forEach((channel) => {
+        try { window.Echo?.leave(channel); } catch { /* The fallback poll remains active. */ }
+    });
+    shell._likhaeEchoChannels = null;
 }
 
 function connectLiveTracking(shell, map, mapboxgl) {
     if (shell.dataset.mapLive !== 'true' || !shell._likhaeTrackingChannels?.length) return;
 
     const subscribe = () => {
-        if (!window.Echo || shell._likhaeEchoChannels) return;
+        if (!window.Echo || shell._likhaeEchoChannels) {
+            if (!window.Echo) setRealtimeConnectionState(shell, 'unavailable');
+            return;
+        }
 
         try {
             shell._likhaeEchoChannels = shell._likhaeTrackingChannels.map((channel) => window.Echo.private(channel)
-                .listen('.rider.location.updated', () => pollTracking(shell, map, mapboxgl))
-                .listen('.shipment.tracking.updated', () => pollTracking(shell, map, mapboxgl)));
+                .listen('.rider.location.updated', (event) => {
+                    shell._likhaeRealtimeNotice = '';
+                    shell._likhaeRealtimeNoticeError = false;
+                    applyRiderLocationEvent(shell, map, mapboxgl, event)
+                        .finally(() => pollTracking(shell, map, mapboxgl));
+                })
+                .listen('.shipment.tracking.updated', () => {
+                    shell._likhaeRealtimeNotice = '';
+                    shell._likhaeRealtimeNoticeError = false;
+                    pollTracking(shell, map, mapboxgl);
+                }));
+            const connectionState = window.Echo?.connector?.pusher?.connection?.state;
+            setRealtimeConnectionState(shell, connectionState === 'connected' ? 'connected' : 'connecting');
         } catch {
-            shell._likhaeEchoChannels = null;
+            leaveEchoChannels(shell);
+            setRealtimeConnectionState(shell, 'unavailable');
         }
     };
 
+    const bindConnection = () => {
+        const connection = window.Echo?.connector?.pusher?.connection;
+        if (!connection || shell._likhaeEchoConnection === connection) return;
+
+        shell._likhaeEchoConnection = connection;
+        connection.bind('state_change', (states) => {
+            if (states.current === 'connected') {
+                shell._likhaeRealtimeNotice = '';
+                shell._likhaeRealtimeNoticeError = false;
+                leaveEchoChannels(shell);
+                subscribe();
+                return;
+            }
+
+            leaveEchoChannels(shell);
+            setRealtimeConnectionState(shell, states.current || 'unavailable');
+        });
+        setRealtimeConnectionState(shell, connection.state === 'connected' ? 'connected' : 'connecting');
+    };
+
+    bindConnection();
     subscribe();
-    window.setTimeout(subscribe, 1200);
-    shell._likhaeTrackingTimer = window.setInterval(() => pollTracking(shell, map, mapboxgl), 5000);
+    shell._likhaeEchoRetryTimer = window.setInterval(() => {
+        if (!window.Echo) {
+            setRealtimeConnectionState(shell, 'unavailable');
+            return;
+        }
+        bindConnection();
+        subscribe();
+    }, 2000);
+    shell._likhaeTrackingTimer = window.setInterval(() => pollTracking(shell, map, mapboxgl, { fallback: true }), 5000);
 }
 
 function initMap(shell, mapboxgl) {
@@ -397,9 +717,16 @@ function initMap(shell, mapboxgl) {
     addUserLocation(shell, map, mapboxgl, markers);
     map.on('load', () => {
         drawPersistedRoutes(map, markers, shell, token);
-        startRiderLocationUpdates(shell);
+        configureRiderLocationUpdates(shell);
         updateStatus(shell, markers.length ? `${markers.length} location${markers.length === 1 ? '' : 's'} loaded.` : 'No saved coordinates yet.');
         connectLiveTracking(shell, map, mapboxgl);
+        if (shell.dataset.mapNavigation === 'true') {
+            shell._likhaeNavigationTimer = window.setInterval(() => {
+                if (shell._likhaeNavigationSnapshot?.route) {
+                    updateNavigationPanel(shell, shell._likhaeNavigationSnapshot);
+                }
+            }, 1000);
+        }
     });
 }
 

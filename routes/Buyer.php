@@ -69,6 +69,7 @@ Route::prefix('buyer')
         Route::put('/account/profile', [BuyerController::class, 'saveProfile'])->name('account.profile.update');
         Route::put('/account/password', [BuyerController::class, 'savePassword'])->name('account.password.update');
         Route::post('/account/addresses', [BuyerController::class, 'saveAddress'])->name('account.addresses.store');
+        Route::put('/account/addresses/{address}', [BuyerController::class, 'updateAddress'])->name('account.addresses.update');
         Route::delete('/account/addresses/{address}', [BuyerController::class, 'deleteAddress'])->name('account.addresses.destroy');
         Route::delete('/account', [BuyerController::class, 'destroyAccount'])->name('account.destroy');
     });

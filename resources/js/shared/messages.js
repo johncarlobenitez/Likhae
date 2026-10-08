@@ -2,7 +2,11 @@ import './echo.js';
 
 const formatMessageTime = (payload) => {
     if (payload.time) return payload.time;
-    if (payload.sent_at) return new Date(payload.sent_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (payload.sent_at) return new Date(payload.sent_at).toLocaleTimeString('en-PH', {
+        timeZone: 'Asia/Manila',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
     return 'Just now';
 };
 

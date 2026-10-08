@@ -75,6 +75,7 @@ Route::prefix('logistics')->name('logistics.')->group(function (): void {
         Route::get('/profile', [LogisticsPortalController::class, 'profile'])->name('profile');
         Route::get('/account', [LogisticsPortalController::class, 'profile'])->name('account');
         Route::patch('/account/profile', [LogisticsPortalController::class, 'updateAccount'])->name('account.profile.update');
+        Route::patch('/account/address', [LogisticsPortalController::class, 'updateCenterAddress'])->name('account.address.update');
         Route::patch('/account/password', [LogisticsPortalController::class, 'updatePassword'])->name('account.password.update');
     });
 });

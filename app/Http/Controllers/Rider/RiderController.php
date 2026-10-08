@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Rider;
 
 use App\Http\Controllers\Controller;
 use App\Models\Rider\RiderAssignment;
+use App\Models\Buyer\Address;
 use App\Models\User;
 use App\Services\Account\ProfilePhotoService;
 use App\Services\Communication\ConversationService;
+use App\Support\PhilippineAddressValidator;
+use App\Support\AddressCoordinateValidator;
 use App\Services\Maps\MapDataService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -247,8 +250,9 @@ class RiderController extends Controller
     public function profile(Request $request): View
     {
         $rider = $this->rider($request)->load(['user', 'logisticsCenter', 'areaAssignments.serviceArea.locations']);
+        $residentialAddress = $rider->user->addresses()->orderByDesc('is_default')->latest()->first();
 
-        return view('Rider.profile.index', compact('rider'));
+        return view('Rider.profile.index', compact('rider', 'residentialAddress'));
     }
 
     public function updateAccount(Request $request, ProfilePhotoService $profilePhotos): RedirectResponse
@@ -271,6 +275,34 @@ class RiderController extends Controller
         }
 
         return back()->with('status', 'Account profile updated.');
+    }
+
+    public function updateResidentialAddress(Request $request): RedirectResponse
+    {
+        $rider = $this->rider($request);
+        $data = $request->validate(PhilippineAddressValidator::rules() + AddressCoordinateValidator::rules());
+        PhilippineAddressValidator::assertValid($data);
+        AddressCoordinateValidator::assertValid($data);
+
+        $address = $rider->user->addresses()->orderByDesc('is_default')->latest()->first()
+            ?: new Address([
+                'user_id' => $rider->user_id,
+                'label' => 'Rider residence',
+                'is_default' => true,
+            ]);
+        AddressCoordinateValidator::assertFreshForAddress($address->exists ? $address : null, $data);
+
+        $address->fill([
+            'label' => $address->label ?: 'Rider residence',
+            'recipient_name' => $rider->user->name,
+            'contact_number' => $rider->user->contact_number,
+            ...PhilippineAddressValidator::storageAttributes($data),
+            'latitude' => $data['latitude'],
+            'longitude' => $data['longitude'],
+        ]);
+        $address->save();
+
+        return back()->with('status', 'Registered residential address updated.');
     }
 
     public function updatePassword(Request $request): RedirectResponse

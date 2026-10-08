@@ -28,7 +28,9 @@
 
     @vite([
         'resources/css/auth/register.css',
-        'resources/js/auth/register.js'
+        'resources/css/shared/mapbox.css',
+        'resources/js/auth/register.js',
+        'resources/js/shared/address-pin.js'
     ])
 </head>
 
@@ -586,11 +588,11 @@
                             </div>
 
 
-                            {{-- MIDDLE INITIAL --}}
+                            {{-- MIDDLE NAME --}}
                             <div class="register-field">
 
                                 <label for="middle_initial">
-                                    Middle Name / Initial
+                                    Middle Name
                                 </label>
 
                                 <input
@@ -622,6 +624,26 @@
                                     placeholder="Dela Cruz"
                                     autocomplete="family-name"
                                     required
+                                >
+
+                            </div>
+
+
+                            {{-- NAME EXTENSION --}}
+                            <div class="register-field">
+
+                                <label for="name_extension">
+                                    Name Extension / Suffix
+                                </label>
+
+                                <input
+                                    id="name_extension"
+                                    name="name_extension"
+                                    type="text"
+                                    value="{{ old('name_extension') }}"
+                                    maxlength="20"
+                                    placeholder="Jr., Sr., III"
+                                    autocomplete="honorific-suffix"
                                 >
 
                             </div>
@@ -906,9 +928,13 @@
 
                             {{-- LANDMARK --}}
                             <div class="register-field">
-                                <label for="landmark">Landmark / Additional Details</label>
+                                <label for="landmark">Building / Subdivision, Landmark / Additional Details</label>
                                 <input id="landmark" name="landmark" type="text"
                                     value="{{ old('landmark') }}" placeholder="e.g. Near barangay hall">
+                            </div>
+
+                            <div class="register-field register-field--full">
+                                <x-shared.address-pin height="240px" />
                             </div>
 
                         </div>

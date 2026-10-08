@@ -3,9 +3,13 @@
 @php
     $user = auth()->user();
     $demoUser = session('demo_user');
-    $buyerName = data_get($user, 'name')
-        ?? data_get($demoUser, 'name')
-        ?? (data_get($demoUser, 'role') === 'buyer' || !$guest ? 'Buyer Account' : 'Guest Shopper');
+    $buyerName = trim(collect([
+        data_get($user, 'first_name'),
+        data_get($user, 'last_name'),
+    ])->filter()->implode(' '));
+    $buyerName = $buyerName
+        ?: data_get($demoUser, 'name')
+        ?: (data_get($demoUser, 'role') === 'buyer' || !$guest ? 'Buyer Account' : 'Guest Shopper');
     $initials = collect(explode(' ', trim($buyerName)))->filter()->take(2)->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode('') ?: 'BA';
     $searchRoute = $guest ? route('home') : route('buyer.products');
     $cartCount = (int) data_get($buyerUiCounts ?? [], 'cart', 0);

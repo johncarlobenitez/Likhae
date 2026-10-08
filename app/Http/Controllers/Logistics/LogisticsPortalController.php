@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Logistics;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Auth\PhilippineAddressController;
 use App\Models\Auth\RegistrationApplication;
+use App\Models\Buyer\Address;
 use App\Models\Logistics\ServiceArea;
 use App\Models\Logistics\ServiceAreaLocation;
 use App\Models\Logistics\Shipment;
@@ -16,6 +17,8 @@ use App\Services\Communication\ConversationService;
 use App\Services\RegistrationWorkflowService;
 use App\Services\RiderRatingService;
 use App\Services\Maps\MapDataService;
+use App\Support\PhilippineAddressValidator;
+use App\Support\AddressCoordinateValidator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -389,6 +392,37 @@ class LogisticsPortalController extends Controller
         }
 
         return back()->with('status', 'Account profile updated.');
+    }
+
+    public function updateCenterAddress(Request $request): RedirectResponse
+    {
+        $center = $request->user()->logisticsCenter?->load('address');
+        abort_unless($center, 403);
+
+        $data = $request->validate(PhilippineAddressValidator::rules() + AddressCoordinateValidator::rules());
+        PhilippineAddressValidator::assertValid($data);
+        AddressCoordinateValidator::assertValid($data);
+        AddressCoordinateValidator::assertFreshForAddress($center->address, $data);
+
+        $address = $center->address ?: new Address([
+            'user_id' => $request->user()->id,
+            'label' => 'Logistics center',
+            'is_default' => false,
+        ]);
+        $address->fill([
+            'recipient_name' => $center->business_name,
+            'contact_number' => $request->user()->contact_number,
+            ...PhilippineAddressValidator::storageAttributes($data),
+            'latitude' => $data['latitude'],
+            'longitude' => $data['longitude'],
+        ]);
+        $address->save();
+
+        if ((int) $center->address_id !== (int) $address->id) {
+            $center->update(['address_id' => $address->id]);
+        }
+
+        return back()->with('status', 'Sorting center address updated.');
     }
 
     public function updatePassword(Request $request): RedirectResponse

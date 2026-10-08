@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,7 +34,8 @@
         'resources/css/shared/mapbox.css',
         'resources/js/rider/app.js',
         'resources/js/shared/likhae-workspace-ai.js',
-        'resources/js/shared/mapbox.js'
+        'resources/js/shared/mapbox.js',
+        'resources/js/shared/address-pin.js'
     ])
 
     <style>
@@ -714,6 +716,8 @@
             <div class="rider-content">
                 @yield('content')
             </div>
+
+            <x-rider.live-location />
 
         </main>
 

@@ -1,3 +1,5 @@
+import '../address/forms.js';
+
 document.addEventListener('DOMContentLoaded', () => {
     const select = (selector, root = document) => root.querySelector(selector);
     const selectAll = (selector, root = document) => Array.from(root.querySelectorAll(selector));

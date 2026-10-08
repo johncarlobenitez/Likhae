@@ -73,11 +73,6 @@ class ShipmentWorkflowService
             (string) $address->province_code,
             (string) $address->municipality_code,
             (string) $address->barangay_code,
-            names: [
-                'province' => $address->province_name,
-                'municipality' => $address->municipality_name,
-                'barangay' => $address->barangay_name,
-            ],
         );
 
         $shipment = Shipment::create([
@@ -155,7 +150,8 @@ class ShipmentWorkflowService
                 throw new RuntimeException('Assignment type must be PICKUP or DELIVERY.');
             }
 
-            if ($rider->status !== 'ACTIVE') {
+            $rider->loadMissing('user');
+            if ($rider->status !== 'ACTIVE' || $rider->user?->status !== User::STATUS_ACTIVE) {
                 throw new RuntimeException('Only active riders can receive assignments.');
             }
 
@@ -169,8 +165,11 @@ class ShipmentWorkflowService
                 $this->requireShipmentStatus($shipment, ['READY_FOR_PICKUP'], 'assign a pickup rider');
 
                 $pickupArea = $this->sellerPickupServiceArea($shipment);
-                if ($pickupArea
-                    && ! $this->riderCoversSellerPickupArea($shipment, $rider)
+                if (! $pickupArea) {
+                    throw new RuntimeException('The seller pickup address is not covered by an active service area.');
+                }
+
+                if (! $this->riderCoversSellerPickupArea($shipment, $rider)
                     && ! $allowPickupAreaOverride) {
                     throw new RuntimeException('The selected rider is not assigned to the seller pickup area. Assign that area to the rider or choose another rider.');
                 }
@@ -263,11 +262,6 @@ class ShipmentWorkflowService
                 (string) $shipment->destination_municipality_code,
                 (string) $shipment->destination_barangay_code,
                 $center,
-                [
-                    'province' => $shipment->destination_province_name,
-                    'municipality' => $shipment->destination_municipality_name,
-                    'barangay' => $shipment->destination_barangay_name,
-                ],
             );
 
             if (! $area || (int) $area->logistics_center_id !== (int) $center->id) {
@@ -275,7 +269,7 @@ class ShipmentWorkflowService
             }
 
             $area->loadMissing('locations');
-            $matchesDestination = $this->serviceAreaMatchesDestination($area, $shipment);
+            $matchesDestination = $this->serviceAreaMatchesDestinationCodes($area, $shipment);
 
             if (! $matchesDestination) {
                 throw new RuntimeException('The selected delivery area does not match the parcel destination.');
@@ -367,7 +361,6 @@ class ShipmentWorkflowService
         string $municipalityCode,
         string $barangayCode,
         ?LogisticsCenter $center = null,
-        ?array $names = null,
     ): ?ServiceArea
     {
         $query = ServiceAreaLocation::query()
@@ -392,20 +385,7 @@ class ShipmentWorkflowService
             return null;
         }
 
-        return ServiceArea::query()
-            ->where('is_active', true)
-            ->when($center, fn ($areaQuery) => $areaQuery->where('logistics_center_id', $center->id))
-            ->with('locations')
-            ->get()
-            ->first(fn (ServiceArea $area): bool => $this->serviceAreaMatchesParts(
-                $area,
-                $provinceCode,
-                $names['province'] ?? null,
-                $municipalityCode,
-                $names['municipality'] ?? null,
-                $barangayCode,
-                $names['barangay'] ?? null,
-            ));
+        return null;
     }
 
     public function pickupServiceArea(Shipment $shipment, ?LogisticsCenter $center = null): ?ServiceArea
@@ -427,11 +407,6 @@ class ShipmentWorkflowService
                 (string) $address->municipality_code,
                 (string) $address->barangay_code,
                 $center,
-                [
-                    'province' => $address->province_name,
-                    'municipality' => $address->municipality_name,
-                    'barangay' => $address->barangay_name,
-                ],
             );
 
             if ($area) {
@@ -442,113 +417,70 @@ class ShipmentWorkflowService
         return null;
     }
 
-    /**
-     * Match pickup coverage by API codes first, then by normalized address names.
-     * This prevents equivalent API/manual values such as LAG vs 0403400000 from
-     * rejecting a rider whose area is visibly the same province, municipality,
-     * and barangay.
-     */
+    /** Match pickup coverage using the saved PSGC codes only. */
     public function riderCoversSellerPickupArea(Shipment $shipment, RiderProfile $rider): bool
     {
         $shipment->loadMissing('sellerOrder.sellerProfile.businessAddress');
         $rider->loadMissing('areaAssignments.serviceArea.locations');
 
-        $pickupArea = $this->sellerPickupServiceArea($shipment);
         $activeAssignments = $rider->areaAssignments->where('is_active', true);
-
-        if ($pickupArea && $activeAssignments->contains(fn ($assignment) => (int) $assignment->service_area_id === (int) $pickupArea->id)) {
-            return true;
-        }
 
         $address = $shipment->sellerOrder?->sellerProfile?->businessAddress;
         if (! $address) {
             return false;
         }
 
-        return $activeAssignments->contains(fn ($assignment) => $this->serviceAreaMatchesAddress($assignment->serviceArea, $address));
+        return $activeAssignments->contains(fn ($assignment) => $this->serviceAreaMatchesAddressCodes($assignment->serviceArea, $address));
     }
 
-    /**
-     * Match final-mile coverage by the shipment service-area id first, then
-     * by normalized province, municipality, and barangay names. This keeps
-     * older/manual service-area records compatible with newer PSGC codes.
-     */
+    /** Match final-mile coverage using the order snapshot PSGC codes only. */
     public function riderCoversShipmentDestinationArea(Shipment $shipment, RiderProfile $rider): bool
     {
-        $shipment->loadMissing('serviceArea');
         $rider->loadMissing('areaAssignments.serviceArea.locations');
 
         $activeAssignments = $rider->areaAssignments->where('is_active', true);
-        if ($shipment->service_area_id && $activeAssignments->contains(fn ($assignment) => (int) $assignment->service_area_id === (int) $shipment->service_area_id)) {
-            return true;
-        }
-
-        return $activeAssignments->contains(fn ($assignment) => $this->serviceAreaMatchesDestination($assignment->serviceArea, $shipment));
+        return $activeAssignments->contains(fn ($assignment) => $this->serviceAreaMatchesDestinationCodes($assignment->serviceArea, $shipment));
     }
 
-    private function serviceAreaMatchesAddress(?ServiceArea $area, object $address): bool
+    private function serviceAreaMatchesAddressCodes(?ServiceArea $area, object $address): bool
     {
-        return $this->serviceAreaMatchesParts(
+        return $this->serviceAreaMatchesCodes(
             $area,
             $address->province_code,
-            $address->province_name,
             $address->municipality_code,
-            $address->municipality_name,
             $address->barangay_code,
-            $address->barangay_name,
         );
     }
 
-    private function serviceAreaMatchesDestination(ServiceArea $area, Shipment $shipment): bool
+    private function serviceAreaMatchesDestinationCodes(?ServiceArea $area, Shipment $shipment): bool
     {
-        return $this->serviceAreaMatchesParts(
+        return $this->serviceAreaMatchesCodes(
             $area,
             $shipment->destination_province_code,
-            $shipment->destination_province_name,
             $shipment->destination_municipality_code,
-            $shipment->destination_municipality_name,
             $shipment->destination_barangay_code,
-            $shipment->destination_barangay_name,
         );
     }
 
-    private function serviceAreaMatchesParts(
+    private function serviceAreaMatchesCodes(
         ?ServiceArea $area,
         ?string $provinceCode,
-        ?string $provinceName,
         ?string $municipalityCode,
-        ?string $municipalityName,
         ?string $barangayCode,
-        ?string $barangayName,
     ): bool {
+        if (! $area?->is_active) {
+            return false;
+        }
+
         foreach ($area?->locations ?? [] as $location) {
-            if ($this->addressPartMatches($provinceCode, $provinceName, $location->province_code, $location->province_name)
-                && $this->addressPartMatches($municipalityCode, $municipalityName, $location->municipality_code, $location->municipality_name)
-                && $this->addressPartMatches($barangayCode, $barangayName, $location->barangay_code, $location->barangay_name)) {
+            if (trim((string) $provinceCode) === trim((string) $location->province_code)
+                && trim((string) $municipalityCode) === trim((string) $location->municipality_code)
+                && trim((string) $barangayCode) === trim((string) $location->barangay_code)) {
                 return true;
             }
         }
 
         return false;
-    }
-
-    private function addressPartMatches(?string $leftCode, ?string $leftName, ?string $rightCode, ?string $rightName): bool
-    {
-        $leftCode = $this->normalizeAddressPart($leftCode);
-        $rightCode = $this->normalizeAddressPart($rightCode);
-        if ($leftCode !== '' && $rightCode !== '' && $leftCode === $rightCode) {
-            return true;
-        }
-
-        $leftName = $this->normalizeAddressPart($leftName);
-        $rightName = $this->normalizeAddressPart($rightName);
-
-        return $leftName !== '' && $rightName !== '' && $leftName === $rightName;
-    }
-
-    private function normalizeAddressPart(?string $value): string
-    {
-        return preg_replace('/[^a-z0-9]/', '', Str::ascii(strtolower(trim((string) $value)))) ?? '';
     }
 
     private function confirmSellerOrder(SellerOrder $sellerOrder, Shipment $shipment, User $actor): void

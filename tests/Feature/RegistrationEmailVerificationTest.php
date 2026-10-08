@@ -45,6 +45,8 @@ class RegistrationEmailVerificationTest extends TestCase
             'barangay' => 'Barangay',
             'barangay_code' => 'barangay',
             'street' => 'Test Street',
+            'latitude' => '14.5995',
+            'longitude' => '120.9842',
             'valid_id' => UploadedFile::fake()->create('valid-id.pdf', 10, 'application/pdf'),
             'password' => 'StrongPass123',
             'password_confirmation' => 'StrongPass123',
@@ -116,6 +118,8 @@ class RegistrationEmailVerificationTest extends TestCase
             'barangay' => 'Barangay',
             'barangay_code' => 'barangay',
             'street' => 'Test Street',
+            'latitude' => '14.5995',
+            'longitude' => '120.9842',
             'valid_id' => UploadedFile::fake()->create('valid-id.pdf', 10, 'application/pdf'),
             'password' => 'StrongPass123',
             'password_confirmation' => 'StrongPass123',
@@ -140,5 +144,51 @@ class RegistrationEmailVerificationTest extends TestCase
             'email' => $email,
             'code' => $wrongCode,
         ])->assertUnprocessable();
+    }
+
+    public function test_registration_code_remains_usable_after_many_incorrect_attempts(): void
+    {
+        Mail::fake();
+        $email = 'retrying.buyer@example.com';
+
+        $this->postJson(route('register.email-verification.send'), ['email' => $email])->assertOk();
+        $mailable = Mail::sent(RegistrationEmailVerificationCode::class)->first();
+        $this->assertNotNull($mailable);
+        $wrongCode = str_pad((string) (((int) $mailable->code + 1) % 1_000_000), 6, '0', STR_PAD_LEFT);
+
+        for ($attempt = 0; $attempt < 12; $attempt++) {
+            $this->postJson(route('register.email-verification.verify'), [
+                'email' => $email,
+                'code' => $wrongCode,
+            ])->assertUnprocessable()
+                ->assertJsonPath('message', 'That verification code is incorrect.');
+        }
+
+        $this->postJson(route('register.email-verification.verify'), [
+            'email' => $email,
+            'code' => $mailable->code,
+        ])->assertOk();
+
+        $this->assertSame($email, session('registration_email_verified'));
+    }
+
+    public function test_registration_code_can_be_resent_more_than_three_times(): void
+    {
+        Mail::fake();
+        $email = 'resending.buyer@example.com';
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->postJson(route('register.email-verification.send'), [
+                'email' => $email,
+            ])->assertOk();
+        }
+
+        Mail::assertSent(RegistrationEmailVerificationCode::class, 5);
+
+        $latestCode = Mail::sent(RegistrationEmailVerificationCode::class)->last()->code;
+        $this->postJson(route('register.email-verification.verify'), [
+            'email' => $email,
+            'code' => $latestCode,
+        ])->assertOk();
     }
 }

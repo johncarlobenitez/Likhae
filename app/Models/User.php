@@ -65,6 +65,7 @@ class User extends Authenticatable
         'first_name',
         'middle_initial',
         'last_name',
+        'name_extension',
         'sex',
         'email',
         'contact_number',
@@ -98,6 +99,7 @@ class User extends Authenticatable
             $this->first_name,
             $this->middle_initial,
             $this->last_name,
+            $this->name_extension,
         ])->filter()->implode(' '));
     }
 

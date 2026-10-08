@@ -1,7 +1,5 @@
 import { initializeParcelScanners } from '../shared/parcel-scanner';
-
-import './delivery-areas.js';
-import './delivery-area-form.js';
+import '../address/forms.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 

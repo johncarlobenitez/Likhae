@@ -86,6 +86,8 @@ class RiderMobileApiTest extends TestCase
             ->postJson(route('api.v1.rider.assignments.location', $assignment), [
                 'latitude' => 14.5995,
                 'longitude' => 120.9842,
+                'accuracy' => 12.5,
+                'recorded_at' => now()->toIso8601String(),
             ])
             ->assertOk()
             ->assertJsonPath('data.latitude', 14.5995)
@@ -95,6 +97,8 @@ class RiderMobileApiTest extends TestCase
             ->postJson(route('api.v1.rider.assignments.location', $assignment), [
                 'latitude' => 14.6001,
                 'longitude' => 120.9851,
+                'accuracy' => 10.2,
+                'recorded_at' => now()->addSecond()->toIso8601String(),
             ])
             ->assertOk()
             ->assertJsonPath('data.latitude', 14.6001);
@@ -131,10 +135,70 @@ class RiderMobileApiTest extends TestCase
             ->postJson(route('api.v1.rider.assignments.location', $assignment), [
                 'latitude' => 14.601,
                 'longitude' => 120.986,
+                'accuracy' => 8.8,
+                'recorded_at' => now()->addSeconds(2)->toIso8601String(),
             ])
             ->assertOk()
             ->assertJsonPath('data.latitude', 14.601)
             ->assertJsonPath('data.longitude', 120.986);
+    }
+
+    public function test_live_location_rejects_poor_accuracy_stale_timestamps_and_inactive_assignments(): void
+    {
+        $rider = $this->createRider();
+        [$assignment] = $this->createDeliveryAssignment($rider->riderProfile);
+        $token = $this->issueToken($rider);
+
+        $this->withToken($token)
+            ->postJson(route('api.v1.rider.assignments.location', $assignment), [
+                'latitude' => 14.5995,
+                'longitude' => 120.9842,
+                'accuracy' => 251,
+                'recorded_at' => now()->toIso8601String(),
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('accuracy');
+
+        $this->withToken($token)
+            ->postJson(route('api.v1.rider.assignments.location', $assignment), [
+                'latitude' => 14.5995,
+                'longitude' => 120.9842,
+                'accuracy' => 12,
+                'recorded_at' => now()->subMinutes(3)->toIso8601String(),
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('recorded_at');
+
+        $assignment->update(['status' => 'ASSIGNED']);
+        $this->withToken($token)
+            ->postJson(route('api.v1.rider.assignments.location', $assignment), [
+                'latitude' => 14.5995,
+                'longitude' => 120.9842,
+                'accuracy' => 12,
+                'recorded_at' => now()->toIso8601String(),
+            ])
+            ->assertStatus(409);
+
+        $otherRider = User::factory()->create([
+            'account_type' => User::TYPE_RIDER,
+            'status' => User::STATUS_ACTIVE,
+        ]);
+        RiderProfile::create([
+            'user_id' => $otherRider->id,
+            'logistics_center_id' => $rider->riderProfile->logistics_center_id,
+            'vehicle_type' => 'motorcycle',
+            'plate_number' => 'OTHER-RIDER-PLATE',
+            'drivers_license_number' => 'OTHER-RIDER-LICENSE',
+            'status' => 'ACTIVE',
+        ]);
+        $this->withToken($this->issueToken($otherRider))
+            ->postJson(route('api.v1.rider.assignments.location', $assignment), [
+                'latitude' => 14.5995,
+                'longitude' => 120.9842,
+                'accuracy' => 12,
+                'recorded_at' => now()->toIso8601String(),
+            ])
+            ->assertForbidden();
     }
 
     private function createRider(): User

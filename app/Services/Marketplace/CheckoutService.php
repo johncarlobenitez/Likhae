@@ -15,6 +15,7 @@ use App\Models\Seller\ProductVariant;
 use App\Models\Seller\SellerOrder;
 use App\Models\Seller\Voucher;
 use App\Models\User;
+use App\Support\AddressCoordinateValidator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -145,6 +146,11 @@ class CheckoutService
         ?int $logisticsCenterId = null,
     ): Order
     {
+        AddressCoordinateValidator::assertValid([
+            'latitude' => $address->latitude,
+            'longitude' => $address->longitude,
+        ]);
+
         if ($items->isEmpty()) {
             throw ValidationException::withMessages([
                 'cart' => 'Select at least one cart item before checkout.',

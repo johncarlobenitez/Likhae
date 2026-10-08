@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Buyer\Address;
 use App\Models\Seller\SellerProfile;
 use App\Services\Account\ProfilePhotoService;
+use App\Support\PhilippineAddressValidator;
+use App\Support\AddressCoordinateValidator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -55,6 +57,7 @@ class SellerAccountController extends Controller
             'tab' => $request->input('tab', 'profile'),
             'seller' => $shop->user,
             'storeProfile' => $this->profile($shop),
+            'businessAddress' => $shop->businessAddress,
         ]);
     }
 
@@ -90,12 +93,11 @@ class SellerAccountController extends Controller
             'dti_sec_number' => ['nullable', 'string', 'max:100'],
             'tin' => ['nullable', 'string', 'max:80'],
             'contact_number' => ['nullable', 'string', 'max:30'],
-            'province' => ['nullable', 'string', 'max:150'],
-            'municipality' => ['nullable', 'string', 'max:150'],
-            'barangay' => ['nullable', 'string', 'max:150'],
-            'street' => ['nullable', 'string', 'max:255'],
-            'house_number' => ['nullable', 'string', 'max:100'],
-        ]);
+        ] + PhilippineAddressValidator::rules() + AddressCoordinateValidator::rules());
+
+        PhilippineAddressValidator::assertValid($data);
+        AddressCoordinateValidator::assertValid($data);
+        AddressCoordinateValidator::assertFreshForAddress($shop->businessAddress, $data);
 
         if (filled($data['contact_number'] ?? null)) {
             $shop->user->update(['contact_number' => $data['contact_number']]);
@@ -107,45 +109,20 @@ class SellerAccountController extends Controller
             $profileChanges['business_registration_number'] = $data['dti_sec_number'];
         }
 
-        $addressInputPresent = collect([
-            $data['province'] ?? null,
-            $data['municipality'] ?? null,
-            $data['barangay'] ?? null,
-            $data['street'] ?? null,
-            $data['house_number'] ?? null,
-        ])->contains(fn ($value): bool => filled($value));
-
-        if ($addressInputPresent) {
-            $address = $shop->businessAddress ?: new Address([
-                'user_id' => $shop->user_id,
-                'label' => 'Seller business',
-                'recipient_name' => $shop->business_name,
-                'contact_number' => $data['contact_number'] ?? $shop->user->contact_number,
-                'is_default' => false,
-            ]);
-
-            $province = $data['province'] ?? $address->province_name ?? 'N/A';
-            $municipality = $data['municipality'] ?? $address->municipality_name ?? 'N/A';
-            $barangay = $data['barangay'] ?? $address->barangay_name ?? 'N/A';
-
-            $address->fill([
-                'recipient_name' => $shop->business_name,
-                'contact_number' => $data['contact_number'] ?? $shop->user->contact_number,
-                'province_code' => $address->province_code ?: $this->stableCode($province),
-                'province_name' => $province,
-                'municipality_code' => $address->municipality_code ?: $this->stableCode($municipality),
-                'municipality_name' => $municipality,
-                'barangay_code' => $address->barangay_code ?: $this->stableCode($barangay),
-                'barangay_name' => $barangay,
-                'postal_code' => $address->postal_code,
-                'house_number' => $data['house_number'] ?? $address->house_number,
-                'street_address' => $data['street'] ?? $address->street_address ?? 'N/A',
-                'landmark' => $address->landmark,
-            ]);
-
-            $address->save();
-            $profileChanges['business_address_id'] = $address->id;
-        }
+        $address = $shop->businessAddress ?: new Address([
+            'user_id' => $shop->user_id,
+            'label' => 'Seller business',
+            'is_default' => false,
+        ]);
+        $address->fill([
+            'recipient_name' => $shop->business_name,
+            'contact_number' => $data['contact_number'] ?? $shop->user->contact_number,
+            ...PhilippineAddressValidator::storageAttributes($data),
+            'latitude' => $data['latitude'],
+            'longitude' => $data['longitude'],
+        ]);
+        $address->save();
+        $profileChanges['business_address_id'] = $address->id;
 
         if ($profileChanges !== []) {
             $shop->update($profileChanges);
@@ -233,10 +210,4 @@ class SellerAccountController extends Controller
         ];
     }
 
-    private function stableCode(string $value): string
-    {
-        $clean = trim($value) !== '' ? trim($value) : 'N/A';
-
-        return strtoupper(substr(preg_replace('/[^A-Za-z0-9]+/', '-', $clean) ?: 'NA', 0, 50));
-    }
 }

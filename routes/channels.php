@@ -20,8 +20,14 @@ Broadcast::channel('shipments.{shipment}', function ($user, Shipment $shipment) 
         'sellerOrder.sellerProfile',
         'logisticsCenter',
         'serviceArea.logisticsCenter',
-        'riderAssignments.riderProfile',
+        'riderAssignments.riderProfile.user',
     ]);
+
+    // A previously authenticated browser session must not retain access after
+    // the account has been suspended or deactivated.
+    if (! $user->isActive()) {
+        return false;
+    }
 
     if ($user->isAccountType('ADMIN')) {
         return true;
@@ -42,7 +48,24 @@ Broadcast::channel('shipments.{shipment}', function ($user, Shipment $shipment) 
 
     if ($user->isAccountType('RIDER')) {
         return $shipment->riderAssignments
-            ->contains(fn ($assignment) => (int) $assignment->riderProfile?->user_id === (int) $user->id);
+            ->contains(function ($assignment) use ($shipment, $user): bool {
+                if ((int) $assignment->riderProfile?->user_id !== (int) $user->id
+                    || $assignment->riderProfile?->status !== 'ACTIVE'
+                    || $assignment->riderProfile?->user?->status !== 'ACTIVE') {
+                    return false;
+                }
+
+                if ($assignment->assignment_type === 'PICKUP') {
+                    return ($shipment->current_status === 'READY_FOR_PICKUP'
+                            && in_array($assignment->status, ['ACCEPTED', 'IN_PROGRESS'], true))
+                        || ($shipment->current_status === 'PICKED_UP'
+                            && $assignment->status === 'COMPLETED');
+                }
+
+                return $assignment->assignment_type === 'DELIVERY'
+                    && in_array($shipment->current_status, ['ASSIGNED_TO_RIDER', 'OUT_FOR_DELIVERY'], true)
+                    && in_array($assignment->status, ['ACCEPTED', 'IN_PROGRESS'], true);
+            });
     }
 
     return false;

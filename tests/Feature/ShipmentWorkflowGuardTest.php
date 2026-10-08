@@ -52,6 +52,16 @@ class ShipmentWorkflowGuardTest extends TestCase
         app(ShipmentWorkflowService::class)->riderTransition($assignment, 'reject', $user, ['reason' => 'too late']);
     }
 
+    public function test_stale_rider_accept_request_returns_a_validation_error_instead_of_a_server_error(): void
+    {
+        [$user, $shipment, $assignment] = $this->pickupFixture('ACCEPTED');
+
+        $this->actingAs($user)
+            ->patch(route('rider.shipments.transition', $assignment), ['action' => 'accept'])
+            ->assertRedirect()
+            ->assertSessionHasErrors('action');
+    }
+
     public function test_center_receipt_requires_tracking_code_and_correct_center(): void
     {
         $centerUser = User::factory()->create(['account_type' => User::TYPE_LOGISTICS]);
@@ -82,7 +92,7 @@ class ShipmentWorkflowGuardTest extends TestCase
         }
     }
 
-    public function test_sorting_accepts_matching_area_names_when_address_codes_differ(): void
+    public function test_sorting_rejects_an_area_when_address_codes_differ(): void
     {
         $centerUser = User::factory()->create(['account_type' => User::TYPE_LOGISTICS]);
         $center = LogisticsCenter::create([
@@ -119,20 +129,45 @@ class ShipmentWorkflowGuardTest extends TestCase
             'current_status' => 'AT_SORTING_CENTER',
         ]);
 
-        $result = app(ShipmentWorkflowService::class)->sortShipment($shipment, $center, $centerUser, $area);
+        $this->expectException(\RuntimeException::class);
+        app(ShipmentWorkflowService::class)->sortShipment($shipment, $center, $centerUser, $area);
+    }
 
-        $this->assertSame('SORTED', $result->current_status);
-        $this->assertSame($area->id, $result->service_area_id);
-
-        $riderUser = User::factory()->create(['account_type' => User::TYPE_RIDER]);
-        $rider = RiderProfile::create([
-            'user_id' => $riderUser->id,
+    public function test_delivery_assignment_rejects_a_rider_from_the_wrong_service_area(): void
+    {
+        [$center, $centerUser, $shipment, $area] = $this->deliveryAssignmentFixture();
+        $wrongArea = ServiceArea::create([
             'logistics_center_id' => $center->id,
-            'vehicle_type' => 'motorcycle',
-            'plate_number' => 'SORT-NAME-'.uniqid(),
-            'drivers_license_number' => 'SORT-LICENSE-'.uniqid(),
-            'status' => 'ACTIVE',
+            'code' => 'AREA-WRONG-'.uniqid(),
+            'name' => 'Wrong Area',
+            'is_active' => true,
         ]);
+        ServiceAreaLocation::create([
+            'service_area_id' => $wrongArea->id,
+            'province_code' => 'WRONG-P',
+            'province_name' => 'Target Province',
+            'municipality_code' => 'WRONG-M',
+            'municipality_name' => 'Target Municipality',
+            'barangay_code' => 'WRONG-B',
+            'barangay_name' => 'Target Barangay',
+        ]);
+        $rider = $this->riderFor($center, 'ACTIVE');
+        RiderAreaAssignment::create([
+            'rider_profile_id' => $rider->id,
+            'service_area_id' => $wrongArea->id,
+            'assigned_by_user_id' => $centerUser->id,
+            'is_active' => true,
+            'assigned_at' => now(),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        app(ShipmentWorkflowService::class)->assignRider($shipment, $rider, 'DELIVERY', $centerUser);
+    }
+
+    public function test_delivery_assignment_rejects_an_unavailable_rider_even_when_area_matches(): void
+    {
+        [$center, $centerUser, $shipment, $area] = $this->deliveryAssignmentFixture();
+        $rider = $this->riderFor($center, 'SUSPENDED');
         RiderAreaAssignment::create([
             'rider_profile_id' => $rider->id,
             'service_area_id' => $area->id,
@@ -141,10 +176,41 @@ class ShipmentWorkflowGuardTest extends TestCase
             'assigned_at' => now(),
         ]);
 
-        $assignment = app(ShipmentWorkflowService::class)->assignRider($result, $rider, 'DELIVERY', $centerUser);
+        $this->expectException(\RuntimeException::class);
+        app(ShipmentWorkflowService::class)->assignRider($shipment, $rider, 'DELIVERY', $centerUser);
+    }
 
-        $this->assertSame('DELIVERY', $assignment->assignment_type);
-        $this->assertSame('ASSIGNED_TO_RIDER', $shipment->fresh()->current_status);
+    public function test_delivery_assignment_does_not_trust_a_matching_service_area_id_when_codes_differ(): void
+    {
+        [$center, $centerUser, $shipment, $area] = $this->deliveryAssignmentFixture();
+        $rider = $this->riderFor($center, 'ACTIVE');
+        RiderAreaAssignment::create([
+            'rider_profile_id' => $rider->id,
+            'service_area_id' => $area->id,
+            'assigned_by_user_id' => $centerUser->id,
+            'is_active' => true,
+            'assigned_at' => now(),
+        ]);
+        $shipment->update([
+            'destination_province_code' => 'DIFFERENT-P',
+            'destination_municipality_code' => 'DIFFERENT-M',
+            'destination_barangay_code' => 'DIFFERENT-B',
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        app(ShipmentWorkflowService::class)->assignRider($shipment->fresh(), $rider, 'DELIVERY', $centerUser);
+    }
+
+    public function test_pickup_assignment_rejects_a_shipment_without_a_covered_seller_address(): void
+    {
+        [$riderUser, $shipment] = $this->pickupFixture('ASSIGNED');
+        $centerUser = User::factory()->create(['account_type' => User::TYPE_LOGISTICS]);
+        $center = $shipment->logisticsCenter;
+        $rider = RiderProfile::query()->whereKey($shipment->riderAssignments()->first()->rider_profile_id)->firstOrFail();
+        $shipment->riderAssignments()->delete();
+
+        $this->expectException(\RuntimeException::class);
+        app(ShipmentWorkflowService::class)->assignRider($shipment, $rider, 'PICKUP', $centerUser);
     }
 
     private function pickupFixture(string $assignmentStatus = 'IN_PROGRESS'): array
@@ -188,6 +254,64 @@ class ShipmentWorkflowGuardTest extends TestCase
         ]);
 
         return [$riderUser, $shipment, $assignment];
+    }
+
+    private function deliveryAssignmentFixture(): array
+    {
+        $centerUser = User::factory()->create(['account_type' => User::TYPE_LOGISTICS]);
+        $center = LogisticsCenter::create([
+            'owner_user_id' => $centerUser->id,
+            'code' => 'CENTER-DELIVERY-'.uniqid(),
+            'business_name' => 'Delivery Test Center',
+            'status' => 'ACTIVE',
+        ]);
+        $area = ServiceArea::create([
+            'logistics_center_id' => $center->id,
+            'code' => 'AREA-DELIVERY-'.uniqid(),
+            'name' => 'Delivery Area',
+            'is_active' => true,
+        ]);
+        ServiceAreaLocation::create([
+            'service_area_id' => $area->id,
+            'province_code' => 'TARGET-P',
+            'province_name' => 'Target Province',
+            'municipality_code' => 'TARGET-M',
+            'municipality_name' => 'Target Municipality',
+            'barangay_code' => 'TARGET-B',
+            'barangay_name' => 'Target Barangay',
+        ]);
+        $shipment = Shipment::create([
+            'seller_order_id' => $this->sellerOrder()->id,
+            'tracking_number' => 'TRACK-DELIVERY-'.uniqid(),
+            'logistics_center_id' => $center->id,
+            'service_area_id' => $area->id,
+            'destination_province_code' => 'TARGET-P',
+            'destination_province_name' => 'Target Province',
+            'destination_municipality_code' => 'TARGET-M',
+            'destination_municipality_name' => 'Target Municipality',
+            'destination_barangay_code' => 'TARGET-B',
+            'destination_barangay_name' => 'Target Barangay',
+            'current_status' => 'SORTED',
+        ]);
+
+        return [$center, $centerUser, $shipment, $area];
+    }
+
+    private function riderFor(LogisticsCenter $center, string $status): RiderProfile
+    {
+        $riderUser = User::factory()->create([
+            'account_type' => User::TYPE_RIDER,
+            'status' => $status,
+        ]);
+
+        return RiderProfile::create([
+            'user_id' => $riderUser->id,
+            'logistics_center_id' => $center->id,
+            'vehicle_type' => 'motorcycle',
+            'plate_number' => 'DELIVERY-'.uniqid(),
+            'drivers_license_number' => 'DELIVERY-LICENSE-'.uniqid(),
+            'status' => $status,
+        ]);
     }
 
     private function sellerOrder(): SellerOrder

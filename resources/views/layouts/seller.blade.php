@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    @vite(['resources/css/seller/seller.css', 'resources/css/shared/likhae-workspace-ai.css', 'resources/css/shared/mapbox.css', 'resources/js/seller/seller.js', 'resources/js/shared/likhae-workspace-ai.js', 'resources/js/shared/mapbox.js'])
+    @vite(['resources/css/seller/seller.css', 'resources/css/shared/likhae-workspace-ai.css', 'resources/css/shared/mapbox.css', 'resources/js/seller/seller.js', 'resources/js/shared/likhae-workspace-ai.js', 'resources/js/shared/mapbox.js', 'resources/js/shared/address-pin.js'])
     <script>
         (function(){var t=localStorage.getItem('likhae-theme')||'light';document.documentElement.classList.toggle('dark',t==='dark')} )();
     </script></head>

@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Carbon\Carbon;
+use RuntimeException;
 use Throwable;
 
 class RiderShipmentController extends Controller
@@ -23,13 +25,18 @@ class RiderShipmentController extends Controller
         $data = $request->validate([
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'accuracy' => ['required', 'numeric', 'min:0', 'max:250'],
+            'recorded_at' => ['required', 'date'],
         ]);
+        abort_unless(is_finite((float) $data['latitude']) && is_finite((float) $data['longitude']), 422, 'Coordinates must be finite numeric values.');
 
         $location = $locations->update(
             $assignment,
             $request->user(),
             (float) $data['latitude'],
             (float) $data['longitude'],
+            (float) $data['accuracy'],
+            Carbon::parse($data['recorded_at']),
         );
 
         return response()->json([
@@ -37,6 +44,7 @@ class RiderShipmentController extends Controller
             'data' => [
                 'latitude' => (float) $location->latitude,
                 'longitude' => (float) $location->longitude,
+                'accuracy' => (float) $data['accuracy'],
                 'recorded_at' => $location->recorded_at?->toIso8601String(),
             ],
         ]);
@@ -113,6 +121,14 @@ class RiderShipmentController extends Controller
 
         try {
             $workflow->riderTransition($assignment, $data['action'], $request->user(), $data);
+        } catch (RuntimeException $exception) {
+            if ($proofPath) {
+                Storage::disk('public')->delete($proofPath);
+            }
+
+            throw ValidationException::withMessages([
+                'action' => $exception->getMessage(),
+            ]);
         } catch (Throwable $exception) {
             if ($proofPath) {
                 Storage::disk('public')->delete($proofPath);

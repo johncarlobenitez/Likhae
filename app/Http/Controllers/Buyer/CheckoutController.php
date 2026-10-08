@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Buyer\Address;
 use App\Services\Marketplace\CartService;
 use App\Services\Marketplace\CheckoutService;
+use App\Support\AddressCoordinateValidator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -76,6 +77,10 @@ class CheckoutController extends Controller
         $selectedIds = array_map('intval', (array) $request->session()->get('checkout_cart_item_ids', []));
         $items = $this->cartService->selectedItems($request->user(), $selectedIds);
         $address = Address::query()->where('user_id', $request->user()->id)->findOrFail((int) $data['address_id']);
+        AddressCoordinateValidator::assertValid([
+            'latitude' => $address->latitude,
+            'longitude' => $address->longitude,
+        ]);
         $voucherCodes = collect((array) $request->input('voucher_codes', []))
             ->mapWithKeys(fn ($value, $key) => [(int) $key => mb_strtoupper(trim((string) $value))])
             ->filter()

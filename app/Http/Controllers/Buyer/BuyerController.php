@@ -16,6 +16,8 @@ use App\Services\Communication\ConversationService;
 use App\Services\Marketplace\CartService;
 use App\Services\Marketplace\CheckoutService;
 use App\Services\Marketplace\ProductCatalogService;
+use App\Support\PhilippineAddressValidator;
+use App\Support\AddressCoordinateValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -499,7 +501,10 @@ class BuyerController extends Controller
     public function saveProfile(Request $request, ProfilePhotoService $profilePhotos): RedirectResponse
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:201'],
+            'first_name' => ['required', 'string', 'max:100'],
+            'middle_initial' => ['nullable', 'string', 'max:10'],
+            'last_name' => ['required', 'string', 'max:100'],
+            'name_extension' => ['nullable', 'string', 'max:20'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($request->user()->id)],
             'phone' => ['required', 'string', 'max:30', Rule::unique('users', 'contact_number')->ignore($request->user()->id)],
             'birthday' => ['nullable', 'date', 'before_or_equal:today'],
@@ -508,10 +513,11 @@ class BuyerController extends Controller
         ]);
 
         $user = $request->user();
-        $nameParts = preg_split('/\s+/', trim($data['name']), 2);
         $changes = [
-            'first_name' => $nameParts[0],
-            'last_name' => $nameParts[1] ?? $user->last_name,
+            'first_name' => trim($data['first_name']),
+            'middle_initial' => filled($data['middle_initial'] ?? null) ? trim($data['middle_initial']) : null,
+            'last_name' => trim($data['last_name']),
+            'name_extension' => filled($data['name_extension'] ?? null) ? trim($data['name_extension']) : null,
             'email' => $data['email'],
             'contact_number' => $data['phone'],
             'birthday' => $data['birthday'] ?? $user->birthday,
@@ -541,30 +547,64 @@ class BuyerController extends Controller
 
     public function saveAddress(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'label' => ['nullable', 'string', 'max:50'],
-            'recipient_name' => ['required', 'string', 'max:200'],
-            'contact_number' => ['required', 'string', 'max:30'],
-            'province_code' => ['required', 'string', 'max:50'],
-            'province_name' => ['required', 'string', 'max:150'],
-            'municipality_code' => ['required', 'string', 'max:50'],
-            'municipality_name' => ['required', 'string', 'max:150'],
-            'barangay_code' => ['required', 'string', 'max:50'],
-            'barangay_name' => ['required', 'string', 'max:150'],
-            'postal_code' => ['nullable', 'string', 'max:20'],
-            'house_number' => ['nullable', 'string', 'max:100'],
-            'street_address' => ['required', 'string', 'max:255'],
-            'landmark' => ['nullable', 'string', 'max:255'],
-            'is_default' => ['nullable', 'boolean'],
-        ]);
+        $data = $this->validatedAddress($request);
 
         if ($request->boolean('is_default')) {
             $request->user()->addresses()->update(['is_default' => false]);
         }
 
-        $request->user()->addresses()->create($data + ['is_default' => $request->boolean('is_default')]);
+        $request->user()->addresses()->create($this->addressAttributes($data) + [
+            'is_default' => $request->boolean('is_default'),
+        ]);
 
         return back()->with('buyer_notice', 'Address saved.');
+    }
+
+    public function updateAddress(Request $request, Address $address): RedirectResponse
+    {
+        abort_unless((int) $address->user_id === (int) $request->user()->id, 403);
+
+        $data = $this->validatedAddress($request, $address);
+
+        if ($request->boolean('is_default')) {
+            $request->user()->addresses()->whereKeyNot($address->id)->update(['is_default' => false]);
+        }
+
+        $address->update($this->addressAttributes($data, $address) + [
+            'is_default' => $request->boolean('is_default'),
+        ]);
+
+        return back()->with('buyer_notice', 'Address updated.');
+    }
+
+    private function validatedAddress(Request $request, ?Address $existing = null): array
+    {
+        $data = $request->validate([
+            'label' => ['nullable', 'string', 'max:50'],
+            'recipient_name' => ['required', 'string', 'max:200'],
+            'contact_number' => ['required', 'string', 'max:30'],
+            'latitude' => ['nullable', 'required_with:longitude', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'required_with:latitude', 'numeric', 'between:-180,180'],
+            'is_default' => ['nullable', 'boolean'],
+        ] + PhilippineAddressValidator::rules() + AddressCoordinateValidator::rules());
+
+        PhilippineAddressValidator::assertValid($data);
+        AddressCoordinateValidator::assertValid($data);
+        AddressCoordinateValidator::assertFreshForAddress($existing, $data);
+
+        return $data;
+    }
+
+    private function addressAttributes(array $data, ?Address $existing = null): array
+    {
+        return [
+            'label' => $data['label'] ?? 'Home',
+            'recipient_name' => $data['recipient_name'],
+            'contact_number' => $data['contact_number'],
+            ...PhilippineAddressValidator::storageAttributes($data),
+            'latitude' => $data['latitude'] ?? $existing?->latitude,
+            'longitude' => $data['longitude'] ?? $existing?->longitude,
+        ];
     }
 
     public function deleteAddress(Request $request, Address $address): RedirectResponse

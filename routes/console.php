@@ -2,5 +2,11 @@
 
 use Illuminate\Support\Facades\Schedule;
 
-Schedule::command('likhae:publish-announcements')->everyMinute()->withoutOverlapping();
-Schedule::command('likhae:purge-expired-soft-deletes')->daily()->withoutOverlapping();
+Schedule::command('likhae:publish-announcements')
+    ->everyMinute()
+    ->timezone('Asia/Manila')
+    ->withoutOverlapping();
+Schedule::command('likhae:purge-expired-soft-deletes')
+    ->daily()
+    ->timezone('Asia/Manila')
+    ->withoutOverlapping();

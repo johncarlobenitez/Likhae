@@ -80,7 +80,7 @@ export function initPostalAddressForm(form) {
     const municipalityCodeField = form.querySelector('[data-postal-municipality-code]');
     const barangayCodeField = form.querySelector('[data-postal-barangay-code]');
 
-    if (!municipality || !postal) return;
+    if (!municipality) return;
 
     if ([region, province, municipality, barangay].some((field) => field?.tagName === 'SELECT')) {
         initPostalAddressDropdowns({
@@ -89,6 +89,8 @@ export function initPostalAddressForm(form) {
         });
         return;
     }
+
+    if (!postal) return;
 
     let requestVersion = 0;
     let fallbackTimer;
@@ -165,7 +167,7 @@ function initPostalAddressDropdowns({
 
     const clearPostal = (message = 'Postal code will fill after you select a barangay.') => {
         postalRequest += 1;
-        postal.value = '';
+        if (postal) postal.value = '';
         setStatus(message);
     };
 
@@ -314,7 +316,7 @@ function initPostalAddressDropdowns({
             barangay: selectedBarangay.textContent,
         });
         if (packageCode) {
-            postal.value = packageCode;
+            if (postal) postal.value = packageCode;
             setStatus(`Postal code: ${packageCode}`);
             return;
         }
@@ -336,7 +338,7 @@ function initPostalAddressDropdowns({
             const result = response.ok ? await response.json() : null;
             if (currentRequest !== postalRequest) return;
             if (result?.postal_code) {
-                postal.value = result.postal_code;
+                if (postal) postal.value = result.postal_code;
                 setStatus(`Postal code: ${result.postal_code}`);
             } else {
                 setStatus('Postal code was not found for this city. Try selecting the address again.', true);

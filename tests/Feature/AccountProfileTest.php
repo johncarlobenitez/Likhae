@@ -12,12 +12,17 @@ class AccountProfileTest extends TestCase
         $user = new User();
         $user->account_type = User::TYPE_BUYER;
         $user->status = User::STATUS_ACTIVE;
+        $user->first_name = 'Marc';
+        $user->middle_initial = 'Carlo';
+        $user->last_name = 'Articona';
+        $user->name_extension = 'Jr.';
 
         $this->assertContains('account_type', $user->getFillable());
         $this->assertContains('status', $user->getFillable());
         $this->assertTrue($user->isAccountType(User::TYPE_BUYER));
         $this->assertTrue($user->isActive());
         $this->assertSame('buyer.home', $user->workspaceRoute());
+        $this->assertSame('Marc Carlo Articona Jr.', $user->name);
     }
 
     public function test_laravel_routes_boot_for_current_workspace_names(): void

@@ -10,6 +10,7 @@ use App\Models\Logistics\LogisticsCenter;
 use App\Models\Seller\Category;
 use App\Models\User;
 use App\Services\RegistrationWorkflowService;
+use App\Support\AddressCoordinateValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,8 +24,6 @@ use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 class RegistrationController extends Controller
 {
     private const EMAIL_CODE_TTL_MINUTES = 10;
-
-    private const EMAIL_CODE_MAX_ATTEMPTS = 5;
 
     public function __construct(
         private readonly RegistrationWorkflowService $workflow,
@@ -89,7 +88,6 @@ class RegistrationController extends Controller
             $this->emailCodeCacheKey($email),
             [
                 'hash' => Hash::make($code),
-                'attempts' => 0,
                 'expires_at' => now()->addMinutes(self::EMAIL_CODE_TTL_MINUTES)->timestamp,
             ],
             now()->addMinutes(self::EMAIL_CODE_TTL_MINUTES),
@@ -112,7 +110,7 @@ class RegistrationController extends Controller
         $cacheKey = $this->emailCodeCacheKey($email);
         $challenge = Cache::get($cacheKey);
 
-        if (! is_array($challenge) || ! isset($challenge['hash'], $challenge['attempts'], $challenge['expires_at'])) {
+        if (! is_array($challenge) || ! isset($challenge['hash'], $challenge['expires_at'])) {
             return response()->json([
                 'message' => 'This code has expired. Request a new verification code.',
             ], 422);
@@ -126,35 +124,7 @@ class RegistrationController extends Controller
             ], 422);
         }
 
-        if ((int) $challenge['attempts'] >= self::EMAIL_CODE_MAX_ATTEMPTS) {
-            Cache::forget($cacheKey);
-
-            return response()->json([
-                'message' => 'Too many incorrect attempts. Request a new verification code.',
-            ], 429);
-        }
-
         if (! Hash::check($data['code'], $challenge['hash'])) {
-            $attempts = (int) $challenge['attempts'] + 1;
-
-            if ($attempts >= self::EMAIL_CODE_MAX_ATTEMPTS) {
-                Cache::forget($cacheKey);
-
-                return response()->json([
-                    'message' => 'Too many incorrect attempts. Request a new verification code.',
-                ], 429);
-            }
-
-            Cache::put(
-                $cacheKey,
-                [
-                    'hash' => $challenge['hash'],
-                    'attempts' => $attempts,
-                    'expires_at' => $challenge['expires_at'],
-                ],
-                now()->addSeconds(max(1, (int) $challenge['expires_at'] - now()->timestamp)),
-            );
-
             return response()->json([
                 'message' => 'That verification code is incorrect.',
                 'errors' => ['code' => ['That verification code is incorrect.']],
@@ -219,6 +189,8 @@ class RegistrationController extends Controller
                 ->withErrors(['postal_code' => 'The postal code does not match the selected Philippine address.'])
                 ->withInput();
         }
+
+        AddressCoordinateValidator::assertValid($data);
 
         $application = $this->workflow->submit($request);
         $request->session()->forget(['google_buyer_registration', 'registration_email_verified']);

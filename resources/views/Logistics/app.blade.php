@@ -65,7 +65,8 @@
         'resources/css/shared/mapbox.css',
         'resources/js/logistic/app.js',
         'resources/js/shared/likhae-workspace-ai.js',
-        'resources/js/shared/mapbox.js'
+        'resources/js/shared/mapbox.js',
+        'resources/js/shared/address-pin.js'
     ])
 
     @stack('styles')

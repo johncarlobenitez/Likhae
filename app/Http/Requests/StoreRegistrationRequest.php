@@ -61,6 +61,7 @@ class StoreRegistrationRequest extends FormRequest
             'first_name' => ['required', 'string', 'max:100'],
             'middle_initial' => ['nullable', 'string', 'max:10'],
             'last_name' => ['required', 'string', 'max:100'],
+            'name_extension' => ['nullable', 'string', 'max:20'],
             'sex' => ['required', Rule::in(['male', 'female', 'other', 'prefer_not_to_say'])],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
             'contact_number' => [
@@ -90,6 +91,8 @@ class StoreRegistrationRequest extends FormRequest
             'house_number' => ['nullable', 'string', 'max:100'],
             'street' => ['required', 'string', 'max:255'],
             'landmark' => ['nullable', 'string', 'max:255'],
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
 
             'business_name' => [Rule::requiredIf($isSeller || $isLogistics), 'nullable', 'string', 'max:200'],
             'line_of_business' => [

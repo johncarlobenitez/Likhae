@@ -14,6 +14,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class RiderApiController extends Controller
 {
@@ -92,13 +93,24 @@ class RiderApiController extends Controller
         $data = $request->validate([
             'latitude' => ['required', 'numeric', 'between:-90,90'],
             'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'accuracy' => ['required', 'numeric', 'min:0', 'max:250'],
+            'recorded_at' => ['required', 'date'],
         ]);
+        abort_unless(is_finite((float) $data['latitude']) && is_finite((float) $data['longitude']), 422, 'Coordinates must be finite numeric values.');
         $this->assertAssignment($request, $assignment, $assignment->assignment_type);
-        $location = $locations->update($assignment, $request->user(), (float) $data['latitude'], (float) $data['longitude']);
+        $location = $locations->update(
+            $assignment,
+            $request->user(),
+            (float) $data['latitude'],
+            (float) $data['longitude'],
+            (float) $data['accuracy'],
+            Carbon::parse($data['recorded_at']),
+        );
 
         return response()->json(['success' => true, 'data' => [
             'latitude' => (float) $location->latitude,
             'longitude' => (float) $location->longitude,
+            'accuracy' => (float) $data['accuracy'],
             'recorded_at' => $location->recorded_at?->toIso8601String(),
         ]]);
     }
@@ -293,6 +305,9 @@ class RiderApiController extends Controller
         $sellerOrder = $shipment?->sellerOrder;
         $order = $sellerOrder?->order;
         $address = $order?->address;
+        $destination = $assignment->assignment_type === RiderAssignment::TYPE_PICKUP
+            ? $sellerOrder?->sellerProfile?->businessAddress
+            : $address;
         $current = strtolower((string) $shipment?->current_status);
         $status = match ($assignment->status) {
             'ASSIGNED' => 'assigned', 'ACCEPTED' => 'accepted',
@@ -315,8 +330,13 @@ class RiderApiController extends Controller
             'amount' => (float) ($sellerOrder?->grand_total ?? 0), 'items' => (int) ($sellerOrder?->items?->sum('quantity') ?? 0),
             'status' => $status, 'status_label' => str($status)->replace('_', ' ')->headline()->toString(),
             'image_url' => $this->assignmentImage($assignment), 'failure_reason' => $latestAttempt?->failure_reason,
-            'delivery_latitude' => $assignment->liveLocation?->latitude,
-            'delivery_longitude' => $assignment->liveLocation?->longitude,
+            'delivery_latitude' => $destination?->latitude !== null ? (float) $destination->latitude : null,
+            'delivery_longitude' => $destination?->longitude !== null ? (float) $destination->longitude : null,
+            'rider_location' => $assignment->liveLocation ? [
+                'latitude' => (float) $assignment->liveLocation->latitude,
+                'longitude' => (float) $assignment->liveLocation->longitude,
+                'recorded_at' => $assignment->liveLocation->recorded_at?->toIso8601String(),
+            ] : null,
         ];
     }
 

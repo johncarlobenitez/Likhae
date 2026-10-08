@@ -93,9 +93,21 @@ class RiderPickupScanTest extends TestCase
         ]);
 
         $this->actingAs($riderUser)
+            ->postJson(route('rider.assignments.location', $assignment), [
+                'latitude' => 14.5995,
+                'longitude' => 120.9842,
+                'accuracy' => 15,
+                'recorded_at' => now()->toIso8601String(),
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.accuracy', 15);
+
+        $this->actingAs($riderUser)
             ->get(route('rider.pickups.show', $assignment))
             ->assertOk()
             ->assertSee('Scan and verify the seller')
+            ->assertSee('data-rider-live-location', false)
+            ->assertSee('Foreground browser tracking only')
             ->assertDontSee('Confirm Picked Up');
 
         $this->get(route('rider.pickups.show', ['assignment' => $assignment, 'tracking' => 'WRONG-CODE']))

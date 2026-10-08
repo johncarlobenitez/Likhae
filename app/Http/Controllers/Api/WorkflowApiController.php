@@ -124,7 +124,14 @@ class WorkflowApiController extends Controller
             'assignment_type' => ['required', Rule::in(['PICKUP', 'DELIVERY'])],
         ]);
         $rider = RiderProfile::query()->where('logistics_center_id', $center->id)->findOrFail($data['rider_profile_id']);
-        $assignment = $workflow->assignRider($shipment, $rider, $data['assignment_type'], $request->user());
+        try {
+            $assignment = $workflow->assignRider($shipment, $rider, $data['assignment_type'], $request->user());
+        } catch (\RuntimeException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
 
         return response()->json(['success' => true, 'assignment' => $assignment->only(['id', 'assignment_type', 'status'])]);
     }

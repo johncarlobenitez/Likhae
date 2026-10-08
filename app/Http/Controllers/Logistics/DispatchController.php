@@ -81,6 +81,9 @@ class DispatchController extends Controller
 
         $riders = RiderProfile::query()
             ->where('status', 'ACTIVE')
+            ->whereHas('user', fn ($query) => $query
+                ->where('account_type', \App\Models\User::TYPE_RIDER)
+                ->where('status', \App\Models\User::STATUS_ACTIVE))
             ->when($center, fn ($query) => $query->where('logistics_center_id', $center->id))
             ->with(['user', 'areaAssignments.serviceArea.locations'])
             ->orderBy('id')
@@ -165,6 +168,9 @@ class DispatchController extends Controller
 
         $riders = RiderProfile::query()
             ->where('status', 'ACTIVE')
+            ->whereHas('user', fn ($query) => $query
+                ->where('account_type', \App\Models\User::TYPE_RIDER)
+                ->where('status', \App\Models\User::STATUS_ACTIVE))
             ->when($center, fn ($query) => $query->where('logistics_center_id', $center->id))
             ->with(['user', 'areaAssignments.serviceArea.locations'])
             ->orderBy('id')

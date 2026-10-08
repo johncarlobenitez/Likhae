@@ -49,6 +49,7 @@ Route::prefix('rider')
         Route::get('/profile', [RiderController::class, 'profile'])->name('profile');
         Route::get('/account', [RiderController::class, 'profile'])->name('account');
         Route::patch('/account/profile', [RiderController::class, 'updateAccount'])->name('account.profile.update');
+        Route::patch('/account/address', [RiderController::class, 'updateResidentialAddress'])->name('account.address.update');
         Route::patch('/account/password', [RiderController::class, 'updatePassword'])->name('account.password.update');
         Route::get('/messages', [RiderController::class, 'messages'])->name('messages');
         Route::post('/messages', [RiderController::class, 'sendMessage'])->name('messages.send');
