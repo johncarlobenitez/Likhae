@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -61,9 +62,11 @@ class StoreRegistrationRequest extends FormRequest
             'first_name' => ['required', 'string', 'max:100'],
             'middle_initial' => ['nullable', 'string', 'max:10'],
             'last_name' => ['required', 'string', 'max:100'],
-            'name_extension' => ['nullable', 'string', 'max:20'],
             'sex' => ['required', Rule::in(['male', 'female', 'other', 'prefer_not_to_say'])],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+            // Mobile registration consumes this one-time token after the
+            // email verification endpoint has confirmed ownership.
+            'email_verification_token' => ['sometimes', 'nullable', 'string', 'size:64'],
             'contact_number' => [
                 'required',
                 'string',
@@ -71,12 +74,7 @@ class StoreRegistrationRequest extends FormRequest
                 'regex:/^(?:\+63|0)9\d{9}$/',
                 Rule::unique('users', 'contact_number'),
             ],
-            'birthday' => [
-                'required',
-                'date',
-                'before:today',
-                'before_or_equal:'.now()->subYears(18)->toDateString(),
-            ],
+            'birthday' => ['required', 'date', 'before:today'],
             'age' => ['required', 'integer', 'between:18,120'],
 
             'region' => ['required', 'string', 'max:150'],
@@ -91,18 +89,12 @@ class StoreRegistrationRequest extends FormRequest
             'house_number' => ['nullable', 'string', 'max:100'],
             'street' => ['required', 'string', 'max:255'],
             'landmark' => ['nullable', 'string', 'max:255'],
-            'latitude' => ['required', 'numeric', 'between:-90,90'],
-            'longitude' => ['required', 'numeric', 'between:-180,180'],
+            // Location is not required to submit a registration. If a client
+            // provides it, still validate the coordinate range.
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
 
             'business_name' => [Rule::requiredIf($isSeller || $isLogistics), 'nullable', 'string', 'max:200'],
-            'line_of_business' => [
-                Rule::requiredIf($isSeller),
-                'nullable',
-                'integer',
-                Rule::exists('categories', 'id')->where(fn ($query) => $query
-                    ->where('is_active', true)
-                    ->whereNull('parent_id')),
-            ],
+            'line_of_business' => [Rule::requiredIf($isSeller), 'nullable', 'integer', Rule::exists('categories', 'id')->where('is_active', true)],
             'business_registration_number' => $businessRegistrationRules,
             'dti_registration_number' => ['nullable', 'string', 'max:100', Rule::unique('logistics_centers', 'dti_registration_number')],
 
@@ -132,7 +124,6 @@ class StoreRegistrationRequest extends FormRequest
             'business_permit' => [Rule::requiredIf($isSeller || $isLogistics), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'or_cr' => [Rule::requiredIf($isRider), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'drivers_license' => [Rule::requiredIf($isRider), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'profile_picture' => ['nullable', 'file', 'mimes:jpg,jpeg,png,gif,webp', 'max:2048'],
 
             'password' => ['required', 'confirmed', 'max:72', Password::min(8)->mixedCase()->numbers()],
             'terms' => ['accepted'],
@@ -147,7 +138,7 @@ class StoreRegistrationRequest extends FormRequest
             }
 
             try {
-                $calculated = \Carbon\Carbon::parse($this->input('birthday'))->age;
+                $calculated = Carbon::parse($this->input('birthday'))->age;
             } catch (\Throwable) {
                 return;
             }
@@ -156,14 +147,6 @@ class StoreRegistrationRequest extends FormRequest
                 $validator->errors()->add('age', 'The age must match the selected birthday.');
             }
         }];
-    }
-
-    public function messages(): array
-    {
-        return [
-            'birthday.before_or_equal' => 'You must be at least 18 years old to register as a Buyer, Seller, Rider, or Logistics account.',
-            'age.between' => 'The minimum age requirement is 18 years old.',
-        ];
     }
 
     public function accountTypeConstant(): string

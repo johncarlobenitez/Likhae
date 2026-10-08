@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ProductApiController;
 use App\Http\Controllers\Api\RiderApiController;
 use App\Http\Controllers\Api\TrackingApiController;
 use App\Http\Controllers\Api\WorkflowApiController;
+use App\Http\Controllers\Auth\PhilippineAddressController;
 use App\Http\Controllers\Buyer\BuyerOrderController;
 use App\Http\Middleware\AuthenticateApiToken;
 use Illuminate\Http\Request;
@@ -21,7 +22,23 @@ Route::prefix('v1')->group(function (): void {
         ]);
     })->name('api.v1.health');
 
+    Route::prefix('address/philippines')
+        ->name('api.v1.address.philippines.')
+        ->group(function (): void {
+            Route::get('/regions', [PhilippineAddressController::class, 'regions'])->name('regions');
+            Route::get('/regions/{region}/provinces', [PhilippineAddressController::class, 'provinces'])->name('provinces');
+            Route::get('/provinces/{province}/municipalities', [PhilippineAddressController::class, 'municipalities'])->name('municipalities');
+            Route::get('/municipalities/{municipality}/barangays', [PhilippineAddressController::class, 'barangays'])->name('barangays');
+            Route::get('/postal-code', [PhilippineAddressController::class, 'postalCode'])->name('postal-code');
+        });
+
     Route::post('/auth/login', [MobileAuthController::class, 'login'])->middleware('throttle:10,1')->name('api.v1.auth.login');
+    Route::post('/auth/register/email-verification/send', [MobileAuthController::class, 'sendRegistrationEmailVerificationCode'])
+        ->middleware('throttle:5,1')
+        ->name('api.v1.auth.register.email-verification.send');
+    Route::post('/auth/register/email-verification/verify', [MobileAuthController::class, 'verifyRegistrationEmailVerificationCode'])
+        ->middleware('throttle:10,1')
+        ->name('api.v1.auth.register.email-verification.verify');
     Route::post('/auth/register', [MobileAuthController::class, 'register'])->middleware('throttle:5,1')->name('api.v1.auth.register');
 
     Route::get('/categories', [LookupApiController::class, 'categories'])->name('api.v1.categories.index');

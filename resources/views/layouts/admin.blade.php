@@ -9,6 +9,27 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/css/admin/admin.css', 'resources/js/admin/admin.js'])
+    <style id="admin-header-critical">
+        /* Keep the shared Admin header visible even if a page stylesheet or a
+           stale compiled asset introduces a conflicting header rule. */
+        .ad-shell > [data-admin-header] {
+            visibility: visible !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 54 !important;
+            display: grid !important;
+            width: 100% !important;
+            min-height: 62px !important;
+            opacity: 1 !important;
+            transform: none !important;
+        }
+
+        @media (max-width: 760px) {
+            .ad-shell > [data-admin-header] {
+                display: flex !important;
+            }
+        }
+    </style>
     @stack('head')
     <script>
         (function(){var t=localStorage.getItem('likhae-theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}})();
@@ -57,4 +78,3 @@
     @stack('scripts')
 </body>
 </html>
-

@@ -20,9 +20,22 @@
     $filter = strtoupper((string) request('status', ''));
     $returnRefundReady = $returnRefundReady ?? false;
     $visibleOrders = in_array($filter, ['', 'ALL', 'RETURNS', 'DELIVERED'], true) ? $orderCollection : $orderCollection->where('status', $filter);
+    $liveOrders = $mode === 'show' && isset($selectedOrder) ? collect([$selectedOrder]) : $orderCollection;
+    $liveOrderIds = $liveOrders->pluck('id')->map(fn ($id) => (int) $id)->values();
+    $liveShipmentIds = $liveOrders->flatMap(fn ($order) => $order->sellerOrders->pluck('shipment')->filter()->pluck('id'))->map(fn ($id) => (int) $id)->unique()->values();
+    $liveOrderVersion = sha1($liveOrders->sortBy('id')->map(fn ($order) => [
+        'id' => (int) $order->id,
+        'status' => (string) $order->status,
+        'updated_at' => $order->updated_at?->toIso8601String(),
+        'shipments' => $order->sellerOrders->map(fn ($sellerOrder) => $sellerOrder->shipment ? [
+            'id' => (int) $sellerOrder->shipment->id,
+            'status' => (string) $sellerOrder->shipment->current_status,
+            'updated_at' => $sellerOrder->shipment->updated_at?->toIso8601String(),
+        ] : null)->filter()->sortBy('id')->values()->all(),
+    ])->values()->toJson());
 @endphp
 
-<div class="lk-page-narrow lk-order-page">
+<div class="lk-page-narrow lk-order-page" data-buyer-order-live data-order-stream-url="{{ route('buyer.orders.stream') }}" data-order-ids="{{ $liveOrderIds->toJson() }}" data-shipment-ids="{{ $liveShipmentIds->toJson() }}" data-order-version="{{ $liveOrderVersion }}">
     @if(session('buyer_notice'))<div class="mb-4 rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-semibold text-green-800">{{ session('buyer_notice') }}</div>@endif
 
     @if($mode === 'success')
@@ -38,7 +51,7 @@
         <section class="mt-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
             <h2 class="text-lg font-bold text-stone-900">Shipping information</h2>
             <div class="mt-4 grid gap-4 md:grid-cols-2">
-                <div><p class="text-xs font-semibold uppercase tracking-wide text-stone-500">Current status</p><strong class="mt-1 block text-red-900">{{ $selectedOrder->sellerOrders->pluck('shipment.current_status')->filter()->map(fn ($status) => str($status)->headline())->join(', ') }}</strong>@if($deliveryAssignment)<p class="mt-2 text-sm text-stone-600">Rider: {{ $deliveryAssignment->riderProfile?->user?->name ?? 'Assigned rider' }}</p>@endif</div>
+                <div><p class="text-xs font-semibold uppercase tracking-wide text-stone-500">Current status</p><strong class="mt-1 block text-red-900" data-order-detail-status>{{ $selectedOrder->sellerOrders->pluck('shipment.current_status')->filter()->map(fn ($status) => str($status)->headline())->join(', ') }}</strong>@if($deliveryAssignment)<p class="mt-2 text-sm text-stone-600">Rider: {{ $deliveryAssignment->riderProfile?->user?->name ?? 'Assigned rider' }}</p>@endif</div>
                 <div><p class="text-xs font-semibold uppercase tracking-wide text-stone-500">Delivery information</p><strong class="mt-1 block">{{ $selectedOrder->address?->recipient_name }}</strong><p class="text-sm text-stone-600">{{ $selectedOrder->address?->contact_number }}<br>{{ $selectedOrder->address?->formatted() }}</p></div>
             </div>
             @php
@@ -167,7 +180,7 @@
                     $itemCount = $order->sellerOrders->sum(fn ($sellerOrder) => $sellerOrder->items->sum('quantity'));
                     $returnRequest = $returnRefundReady ? $order->returnRefundRequests->sortByDesc('submitted_at')->first() : null;
                 @endphp
-                <article class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+                <article class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm" data-order-id="{{ $order->id }}">
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div class="flex min-w-0 items-center gap-4">
                             <x-product-thumbnail :item="$previewItem" size="72" />
@@ -177,7 +190,7 @@
                                 @if($previewItem)<p class="mt-1 truncate text-sm text-stone-500">{{ $previewItem->product_name }}@if($itemCount > 1) <span aria-label="and {{ $itemCount - 1 }} more item{{ $itemCount === 2 ? '' : 's' }}">+ {{ $itemCount - 1 }} more</span>@endif</p>@endif
                             </div>
                         </div>
-                        <span class="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold">{{ $returnRequest ? 'Return / Refund · '.str($returnRequest->status)->headline() : str($displayStatus)->headline() }}</span>
+                        <span class="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold" data-order-status-id="{{ $order->id }}">{{ $returnRequest ? 'Return / Refund · '.str($returnRequest->status)->headline() : str($displayStatus)->headline() }}</span>
                     </div>
                     <div class="mt-4 flex items-end justify-between border-t border-stone-100 pt-4">
                         <div><span class="block text-xs text-stone-500">{{ $itemCount }} item(s)</span><strong>&#8369;{{ number_format((float) $order->grand_total, 2) }}</strong></div>

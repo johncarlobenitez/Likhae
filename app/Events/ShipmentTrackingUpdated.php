@@ -4,14 +4,16 @@ namespace App\Events;
 
 use App\Models\Logistics\Shipment;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Events\ShouldDispatchAfterCommit;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class ShipmentTrackingUpdated implements ShouldBroadcastNow, ShouldDispatchAfterCommit
+class ShipmentTrackingUpdated implements ShouldBroadcast, ShouldDispatchAfterCommit
 {
     use Dispatchable, SerializesModels;
+
+    public string $connection = 'background';
 
     public function __construct(
         public int $shipmentId,

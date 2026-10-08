@@ -101,6 +101,19 @@
 
     $defaultVariant = $variants->firstWhere('is_default', true) ?? $variants->first();
 
+    $variationOptionGroups = $variants
+        ->flatMap(fn ($variant) => collect(data_get($variant, 'option_values', [])))
+        ->filter(fn ($option) => filled(data_get($option, 'option')) && filled(data_get($option, 'value')))
+        ->groupBy(fn ($option) => (string) data_get($option, 'option'))
+        ->map(fn ($options) => $options->pluck('value')->unique()->values())
+        ->sortBy(fn ($values, $option) => match (strtolower((string) $option)) {
+            'size' => 0,
+            'color', 'colour' => 1,
+            default => 2,
+        });
+    $hasStructuredVariations = $variationOptionGroups->isNotEmpty()
+        && $variants->every(fn ($variant) => collect(data_get($variant, 'option_values', []))->isNotEmpty());
+
     if ($defaultVariant) {
         $price = (float) data_get($defaultVariant, 'price', $price);
         $oldPrice = (float) data_get($defaultVariant, 'original_price', $oldPrice);
@@ -1389,10 +1402,35 @@
                 @if($variants->count() > 1)
                     <div>
                         <span class="lk-detail-option-label">Choose a variation</span>
-                        <div class="lk-detail-option-group" data-variation-group>
+                        @if($hasStructuredVariations)
+                            <div class="space-y-3" data-variation-picker>
+                                @foreach($variationOptionGroups as $optionName => $optionValues)
+                                    @php
+                                        $optionKey = strtolower((string) $optionName);
+                                    @endphp
+                                    <div data-variation-choice-group data-option-key="{{ $optionKey }}">
+                                        <span class="lk-detail-option-label">{{ $optionName }}</span>
+                                        <div class="lk-detail-option-group">
+                                            @foreach($optionValues as $optionValue)
+                                                @php
+                                                    $selectedChoice = false;
+                                                @endphp
+                                                <button type="button" class="lk-detail-option-btn {{ $selectedChoice ? 'is-selected' : '' }}" data-variation-choice data-option-key="{{ $optionKey }}" data-option-value="{{ $optionValue }}" aria-pressed="{{ $selectedChoice ? 'true' : 'false' }}">{{ $optionValue }}</button>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                        <div class="lk-detail-option-group" data-variation-group @if($hasStructuredVariations) hidden @endif>
                             @foreach($variants as $variant)
-                                @php $selected = (string) data_get($variant, 'id') === (string) data_get($defaultVariant, 'id'); @endphp
-                                <button type="button" class="lk-detail-option-btn {{ $selected ? 'is-selected' : '' }}" data-variation-option data-variation-id="{{ data_get($variant, 'id') }}" data-variation-value="{{ data_get($variant, 'description', data_get($variant, 'sku')) }}" data-variation-stock="{{ data_get($variant, 'stock', 0) }}" data-variation-price="{{ data_get($variant, 'price', 0) }}" data-variation-original-price="{{ data_get($variant, 'original_price', data_get($variant, 'price', 0)) }}" data-variation-discount-type="{{ data_get($variant, 'discount_type', 'none') }}" data-variation-discount-value="{{ data_get($variant, 'discount_value', 0) }}" data-variation-discount="{{ data_get($variant, 'discount_value', data_get($variant, 'discount_percentage', 0)) }}" data-variation-discount-amount="{{ data_get($variant, 'discount_amount', 0) }}" data-variation-images='@json(data_get($variant, "image_urls", []))' aria-pressed="{{ $selected ? 'true' : 'false' }}">{{ data_get($variant, 'description', data_get($variant, 'sku')) }}</button>
+                                @php
+                                    $selected = $variants->count() === 1 && (string) data_get($variant, 'id') === (string) data_get($defaultVariant, 'id');
+                                    $variantOptionValues = collect(data_get($variant, 'option_values', []))
+                                        ->mapWithKeys(fn ($option) => [strtolower((string) data_get($option, 'option')) => (string) data_get($option, 'value')])
+                                        ->all();
+                                @endphp
+                                <button type="button" class="lk-detail-option-btn {{ $selected ? 'is-selected' : '' }}" data-variation-option data-variation-id="{{ data_get($variant, 'id') }}" data-variation-value="{{ data_get($variant, 'description', data_get($variant, 'sku')) }}" data-variation-stock="{{ data_get($variant, 'stock', 0) }}" data-variation-price="{{ data_get($variant, 'price', 0) }}" data-variation-original-price="{{ data_get($variant, 'original_price', data_get($variant, 'price', 0)) }}" data-variation-discount-type="{{ data_get($variant, 'discount_type', 'none') }}" data-variation-discount-value="{{ data_get($variant, 'discount_value', 0) }}" data-variation-discount="{{ data_get($variant, 'discount_value', data_get($variant, 'discount_percentage', 0)) }}" data-variation-discount-amount="{{ data_get($variant, 'discount_amount', 0) }}" data-variation-images='@json(data_get($variant, "image_urls", []))' data-option-values='@json($variantOptionValues)' aria-pressed="{{ $selected ? 'true' : 'false' }}">{{ data_get($variant, 'description', data_get($variant, 'sku')) }}</button>
                             @endforeach
                         </div>
                     </div>
@@ -1481,16 +1519,21 @@
                         Add to Cart
                     </button>
 
-                    <button
-                        type="button"
-                        class="lk-btn lk-btn-red lk-btn-full"
-                        data-test-buy-now
-                        data-cart-url="{{ route('buyer.cart.add', ['product' => $productId]) }}"
-                        data-checkout="1"
-                        data-product-purchase
-                    >
-                        Buy Now
-                    </button>
+                    <form method="POST" action="{{ route('buyer.buy-now', ['product' => $productId]) }}" style="display: contents" data-buy-now-form>
+                        @csrf
+                        <input type="hidden" name="product_variant_id" value="{{ data_get($defaultVariant, 'id') }}">
+                        <input type="hidden" name="quantity" value="1">
+                        <button
+                            type="submit"
+                            class="lk-btn lk-btn-red lk-btn-full"
+                            data-test-buy-now
+                            data-cart-url="{{ route('buyer.buy-now', ['product' => $productId]) }}"
+                            data-checkout="1"
+                            data-product-purchase
+                        >
+                            Buy Now
+                        </button>
+                    </form>
 
                     <button
                         type="button"

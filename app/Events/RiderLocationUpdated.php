@@ -4,13 +4,16 @@ namespace App\Events;
 
 use App\Models\Rider\RiderAssignmentLocation;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class RiderLocationUpdated implements ShouldBroadcastNow
+class RiderLocationUpdated implements ShouldBroadcast
 {
     use Dispatchable, SerializesModels;
+
+    // Do not make the Rider GPS HTTP request wait on a Reverb connection.
+    public string $connection = 'background';
 
     public function __construct(public RiderAssignmentLocation $location)
     {

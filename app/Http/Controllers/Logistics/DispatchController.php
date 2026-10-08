@@ -232,8 +232,12 @@ class DispatchController extends Controller
             'assignment_type' => ['required', 'string', 'in:PICKUP,DELIVERY'],
         ]);
 
-        $rider = RiderProfile::findOrFail($data['rider_profile_id']);
-        abort_unless((int) $rider->logistics_center_id === (int) $center->id, 403);
+        $rider = RiderProfile::query()->find($data['rider_profile_id']);
+        if (! $rider || (int) $rider->logistics_center_id !== (int) $center->id) {
+            return back()
+                ->withErrors(['rider_profile_id' => 'Select an active rider from this logistics center.'])
+                ->withInput();
+        }
         try {
             $workflow->assignRider($shipment, $rider, $data['assignment_type'], $request->user());
         } catch (\RuntimeException $exception) {
@@ -260,8 +264,12 @@ class DispatchController extends Controller
             $workflow->approvePickup($pickup, $request->user());
         }
 
-        $rider = RiderProfile::findOrFail($data['rider_profile_id']);
-        abort_unless((int) $rider->logistics_center_id === (int) $center->id, 403);
+        $rider = RiderProfile::query()->find($data['rider_profile_id']);
+        if (! $rider || (int) $rider->logistics_center_id !== (int) $center->id) {
+            return back()
+                ->withErrors(['rider_profile_id' => 'Select an active rider from this logistics center.'])
+                ->withInput();
+        }
         $coverageOverride = (bool) ($data['coverage_override'] ?? false);
         $pickupArea = $workflow->sellerPickupServiceArea($shipment, $center);
 

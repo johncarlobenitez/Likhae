@@ -44,6 +44,7 @@ Route::prefix('admin')
         Route::get('/finance', [AdminOperationsController::class, 'finance'])->name('finance');
         Route::get('/reports', [AdminOperationsController::class, 'reports'])->name('reports');
         Route::get('/messages', [AdminOperationsController::class, 'messages'])->name('messages');
+        Route::get('/messages/stream', [AdminOperationsController::class, 'messageStream'])->name('messages.stream');
         Route::get('/settings', [AdminOperationsController::class, 'settings'])->name('settings');
         Route::get('/account', [AdminOperationsController::class, 'account'])->name('account');
         Route::get('/notifications', [AdminOperationsController::class, 'notifications'])->name('notifications');

@@ -29,12 +29,16 @@
                     @php($hasCoveredRiders = $eligibleRiders->isNotEmpty())
                     @php($coverageShortage = $pickupAreaId && !$hasCoveredRiders)
                     @php($eligibleRiders = $coverageShortage ? $riders : $eligibleRiders)
-                    <form method="POST" action="{{ route('logistics.pickups.assign', $shipment) }}" class="flex min-w-72 gap-2">@csrf
-                        <select name="rider_profile_id" required class="min-h-11 flex-1 border border-line bg-white px-3"><option value="">{{ $eligibleRiders->isEmpty() ? 'No rider covers pickup area' : 'Select nearby rider' }}</option>@foreach($eligibleRiders as $rider)<option value="{{ $rider->id }}">{{ $rider->user?->name }} — {{ $rider->vehicle_type }}</option>@endforeach</select>
-                        @if($pickupAreaId)
-                            <label class="col-span-full flex items-start gap-2 text-[10px] font-semibold text-amber-800 sm:col-span-2"><input type="checkbox" name="coverage_override" value="1" @if($coverageShortage) required @endif class="mt-0.5"><span>Use shortage override to assign outside the pickup area when no covered rider is available.</span></label>
-                        @endif
+                    <form method="POST" action="{{ route('logistics.pickups.assign', $shipment) }}" class="grid min-w-72 grid-cols-[minmax(0,1fr)_auto] gap-2">@csrf
+                        <input type="hidden" name="assignment_shipment_id" value="{{ $shipment->id }}">
+                        <select name="rider_profile_id" required class="min-h-11 min-w-0 border border-line bg-white px-3"><option value="">{{ $eligibleRiders->isEmpty() ? 'No active rider available' : 'Select nearby rider' }}</option>@foreach($eligibleRiders as $rider)<option value="{{ $rider->id }}" @selected((int) old('assignment_shipment_id') === (int) $shipment->id && (int) old('rider_profile_id') === (int) $rider->id)>{{ $rider->user?->name }} — {{ $rider->vehicle_type }}</option>@endforeach</select>
                         <button class="bg-primary px-4 py-2 font-semibold text-white">Assign</button>
+                        @if($pickupAreaId)
+                            <label class="col-span-full flex items-start gap-2 text-[11px] font-semibold {{ $coverageShortage ? 'text-red-700' : 'text-amber-800' }}"><input type="checkbox" name="coverage_override" value="1" @checked((int) old('assignment_shipment_id') === (int) $shipment->id && old('coverage_override')) class="mt-0.5"><span>{{ $coverageShortage ? 'Required for the listed rider: no active rider covers this pickup area. Check to use the shortage override.' : 'Use only if an area-coverage override is required.' }}</span></label>
+                        @endif
+                        @if((int) old('assignment_shipment_id') === (int) $shipment->id && $errors->has('rider_profile_id'))
+                            <p class="col-span-full border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800" role="alert">{{ $errors->first('rider_profile_id') }}</p>
+                        @endif
                     </form>@endif
                 </td>
             </tr>

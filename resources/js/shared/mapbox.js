@@ -236,7 +236,10 @@ async function drawPersistedRoutes(map, markers, shell, token) {
     const activeRouteIds = new Set();
     const navigationEnabled = shell.dataset.mapNavigation === 'true';
     const activeRider = markers.find((marker) => marker.kind === 'rider' && marker.active_rider);
-    const liveNavigationRider = activeRider?.location_fresh === true ? activeRider : null;
+    // A route is still useful when the latest server position is older than the
+    // live threshold.  Keep the pin honestly labelled as "last known", but do
+    // not suppress the road line while the next device fix is being requested.
+    const navigationRider = activeRider || null;
     const activeDestinationKind = activeRider?.active_destination_kind;
     const activeNavigationTarget = markers.find((marker) => marker.target_kind === activeDestinationKind);
     const previousNavigation = shell._likhaeNavigationSnapshot;
@@ -248,21 +251,23 @@ async function drawPersistedRoutes(map, markers, shell, token) {
         updateNavigationPanel(shell, {
             rider: activeRider,
             target: activeNavigationTarget,
-            route: sameNavigationTarget && liveNavigationRider ? previousNavigation.route : null,
+            route: sameNavigationTarget && navigationRider ? previousNavigation.route : null,
             status: !activeRider
                 ? 'Waiting for the active assignment.'
                 : !markerCoordinates(activeNavigationTarget)
                     ? activeDestinationKind === 'seller'
                         ? 'Seller pickup coordinates are missing. Ask the seller to confirm the saved address pin.'
                         : 'Saved destination coordinates are unavailable.'
-                    : !liveNavigationRider
-                        ? 'Waiting for a fresh live GPS fix.'
+                    : !navigationRider
+                        ? 'Waiting for the Rider location.'
+                        : activeRider.location_fresh !== true
+                            ? 'Road route is based on the Rider’s last known GPS. Refresh GPS for a current route.'
                         : sameNavigationTarget && previousNavigation.route
                             ? 'Road route active'
                             : 'Calculating driving route…',
         });
 
-        const riderCoordinates = markerCoordinates(liveNavigationRider);
+        const riderCoordinates = markerCoordinates(navigationRider);
         const destinationCoordinates = markerCoordinates(activeNavigationTarget);
         const fitKey = `${activeRider?.assignment_id || ''}:${activeNavigationTarget?.id || ''}`;
         if (riderCoordinates && destinationCoordinates && shell._likhaeNavigationFitKey !== fitKey) {
@@ -278,7 +283,7 @@ async function drawPersistedRoutes(map, markers, shell, token) {
     Object.entries(grouped).forEach(([shipmentId, shipmentMarkers]) => {
         const riders = shipmentMarkers.filter((marker) => marker.kind === 'rider'
             && marker.active_rider
-            && (!navigationEnabled || marker.location_fresh === true));
+            );
         const targets = shipmentMarkers.filter((marker) => ['seller', 'center', 'destination'].includes(marker.kind));
 
         riders.forEach((rider) => {
@@ -330,7 +335,9 @@ async function drawPersistedRoutes(map, markers, shell, token) {
                             rider,
                             target,
                             route: routeState.route,
-                            status: 'Road route updated from live GPS',
+                            status: rider.location_fresh === true
+                                ? 'Road route updated from live GPS'
+                                : 'Road route shown from the Rider’s last known GPS. Refresh GPS for a current route.',
                         });
                     }
                 })
@@ -501,9 +508,18 @@ async function refreshTracking(shell, map, mapboxgl, payload) {
         updateStatus(shell, `Rider live location updated · ${tracking.status || 'Active shipment'}.`);
     } else if (tracking.location_state === 'stale') {
         const lastSeen = tracking.last_location?.recorded_at
-            ? new Date(tracking.last_location.recorded_at).toLocaleString('en-PH', { timeZone: 'Asia/Manila', timeZoneName: 'short' })
+            ? new Intl.DateTimeFormat('en-PH', {
+                timeZone: 'Asia/Manila',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit',
+                timeZoneName: 'short',
+            }).format(new Date(tracking.last_location.recorded_at)).replace(/GMT\+8$/, 'PHT')
             : 'an earlier time';
-        updateStatus(shell, `Showing the rider's last known location from ${lastSeen}. Waiting for a fresh GPS update.`, true);
+        updateStatus(shell, `Showing the Rider’s last known location from ${lastSeen}. The maroon road route is shown; refresh GPS to update it.`, false);
     } else if (['READY_FOR_PICKUP', 'PICKED_UP', 'ASSIGNED_TO_RIDER', 'OUT_FOR_DELIVERY'].includes(tracking.status)) {
         updateStatus(shell, `Waiting for the active rider location · ${tracking.status.replaceAll('_', ' ')}.`);
     } else if (markers.length) {
@@ -523,6 +539,11 @@ function configureRiderLocationUpdates(shell) {
         if (tracker) button.setAttribute('aria-pressed', String(tracker.isRunning()));
     };
     sync();
+    const tracker = window.LikhaeRiderLocationTracker;
+    if (tracker?.refresh && shell.dataset.deviceGpsRefreshRequested !== 'true') {
+        shell.dataset.deviceGpsRefreshRequested = 'true';
+        window.setTimeout(() => tracker.refresh(), 0);
+    }
     if (!button.dataset.locationStatusBound) {
         button.dataset.locationStatusBound = 'true';
         window.addEventListener('likhae:rider-location-status', sync);
@@ -590,7 +611,7 @@ async function applyRiderLocationEvent(shell, map, mapboxgl, event) {
         ? event?.local_device_gps
             ? 'Road route updated from fresh Rider device GPS. Saving live location…'
             : 'Rider live location updated from the active assignment.'
-        : 'A delayed rider location was received; waiting for a fresh GPS update.', !fresh);
+        : 'A delayed Rider location was received; the road route now uses that last known GPS. Refresh GPS to update it.', false);
     return true;
 }
 

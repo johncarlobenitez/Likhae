@@ -678,6 +678,7 @@
                     id="chatMessages"
                     class="lk-chat-stream"
                     data-conversation-id="{{ $activeSeller['conversation_id'] ?? '' }}"
+                    data-stream-url="{{ route('buyer.messages.stream', ['seller_id' => $activeSeller['id']]) }}"
                     data-current-user-id="{{ auth()->id() }}"
                     data-seller-avatar="{{ $activeSeller['avatar'] }}"
                     data-seller-name="{{ $activeSeller['name'] }}"
@@ -778,12 +779,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const list = document.getElementById('chatMessages');
     const form = document.getElementById('chatForm');
     const input = form?.querySelector('[data-chat-input]');
+    const sendButton = form?.querySelector('[type="submit"]');
     if (!list) return;
 
+    const initialRows = [...list.querySelectorAll('[data-message-id]')];
+    let previousSignature = null;
+    initialRows.forEach((row) => {
+        const side = row.classList.contains('is-buyer') ? 'buyer' : 'other';
+        const body = row.querySelector('.lk-message-bubble')?.textContent?.trim() || '';
+        const signature = `${side}|${body}`;
+        if (body && signature === previousSignature) row.remove();
+        else previousSignature = signature;
+    });
     const seen = new Set([...list.querySelectorAll('[data-message-id]')].map((row) => row.dataset.messageId));
     let lastId = Math.max(0, ...[...seen].map((id) => Number(id) || 0));
 
     const scrollBottom = () => { list.scrollTop = list.scrollHeight; };
+    let sending = false;
     const appendMessage = (message) => {
         const id = String(message.id || '');
         if (!id || seen.has(id)) return;
@@ -822,7 +834,9 @@ document.addEventListener('DOMContentLoaded', () => {
     form?.addEventListener('submit', async (event) => {
         event.preventDefault();
         const body = input?.value.trim();
-        if (!body) return;
+        if (!body || sending) return;
+        sending = true;
+        if (sendButton) sendButton.disabled = true;
 
         const payload = new FormData(form);
         try {
@@ -842,6 +856,9 @@ document.addEventListener('DOMContentLoaded', () => {
             input.value = '';
         } catch (error) {
             window.lkBuyerToast?.('Message could not be sent. Please try again.');
+        } finally {
+            sending = false;
+            if (sendButton) sendButton.disabled = false;
         }
     });
 });

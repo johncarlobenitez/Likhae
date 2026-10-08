@@ -34,6 +34,7 @@ Route::prefix('buyer')
         Route::post('/cart/{product}', [BuyerController::class, 'addCart'])->name('cart.add');
         Route::patch('/cart/items/{item}', [BuyerController::class, 'updateCart'])->name('cart.update');
         Route::delete('/cart/items/{item}', [BuyerController::class, 'removeCart'])->name('cart.remove');
+        Route::post('/buy-now/{product}', [BuyerController::class, 'buyNow'])->name('buy-now');
 
         Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout');
         Route::post('/checkout', [CheckoutController::class, 'select'])->name('checkout.post');
@@ -41,6 +42,7 @@ Route::prefix('buyer')
 
         Route::get('/orders/success', [BuyerOrderController::class, 'success'])->name('orders.success');
         Route::get('/orders', [BuyerOrderController::class, 'index'])->name('orders');
+        Route::get('/orders/stream', [BuyerOrderController::class, 'stream'])->name('orders.stream');
         Route::get('/returns', [BuyerOrderController::class, 'returns'])->name('returns');
         Route::get('/orders/{order}', [BuyerOrderController::class, 'show'])->name('orders.show');
         Route::post('/orders/{order}/seller-orders/{sellerOrder}/conversation', [BuyerOrderController::class, 'sellerConversation'])->name('orders.seller-conversation');
@@ -56,6 +58,7 @@ Route::prefix('buyer')
         Route::post('/messages', [BuyerController::class, 'sendMessage'])->name('messages.send');
 
         Route::get('/notifications', [BuyerController::class, 'notifications'])->name('notifications');
+        Route::get('/notifications/stream', [BuyerController::class, 'notificationStream'])->name('notifications.stream');
         Route::post('/notifications/read-all', [BuyerController::class, 'markNotificationsRead'])->name('notifications.read-all');
         Route::get('/rewards', [BuyerController::class, 'rewards'])->name('rewards');
 

@@ -10,6 +10,7 @@ use App\Support\AddressCoordinateValidator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CheckoutController extends Controller
@@ -72,10 +73,28 @@ class CheckoutController extends Controller
             'payment_method' => ['required', Rule::in(['COD', 'ONLINE'])],
             'voucher_codes' => ['nullable', 'array'],
             'voucher_codes.*' => ['nullable', 'string', 'max:80'],
+        ], [
+            'address_id.required' => 'Select a delivery address.',
+            'address_id.exists' => 'The selected delivery address is no longer available.',
+            'logistics_center_id.required' => 'Select a logistics provider.',
+            'logistics_center_id.exists' => 'The selected logistics provider is no longer active.',
+            'payment_method.required' => 'Select a payment method.',
+            'payment_method.in' => 'Select a supported payment method.',
         ]);
 
         $selectedIds = array_map('intval', (array) $request->session()->get('checkout_cart_item_ids', []));
+        if ($selectedIds === []) {
+            throw ValidationException::withMessages([
+                'cart' => 'Your checkout selection expired. Return to your cart or use Buy Now again.',
+            ]);
+        }
+
         $items = $this->cartService->selectedItems($request->user(), $selectedIds);
+        if ($items->isEmpty()) {
+            throw ValidationException::withMessages([
+                'cart' => 'The selected product is no longer available in your cart. Choose the product again.',
+            ]);
+        }
         $address = Address::query()->where('user_id', $request->user()->id)->findOrFail((int) $data['address_id']);
         AddressCoordinateValidator::assertValid([
             'latitude' => $address->latitude,

@@ -224,7 +224,7 @@ function initializeRiderLocationTracker() {
                 return;
             }
             setStatus('Device GPS timed out. Waiting for another fix.', 'error');
-        }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 });
+        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
         syncControls();
     };
 

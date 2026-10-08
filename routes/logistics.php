@@ -69,6 +69,7 @@ Route::prefix('logistics')->name('logistics.')->group(function (): void {
         Route::patch('/delivery-areas/{area}', [LogisticsPortalController::class, 'toggleDeliveryArea'])->name('delivery-areas.toggle');
 
         Route::get('/messages', [LogisticsPortalController::class, 'messages'])->name('messages');
+        Route::get('/messages/stream', [LogisticsPortalController::class, 'messageStream'])->name('messages.stream');
         Route::post('/messages', [LogisticsPortalController::class, 'sendMessage'])->name('messages.send');
         Route::get('/reports', [LogisticsPortalController::class, 'reports'])->name('reports');
         Route::get('/reports/export', [LogisticsPortalController::class, 'exportReport'])->name('reports.export');

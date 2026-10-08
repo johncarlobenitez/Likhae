@@ -21,6 +21,7 @@ use App\Models\Seller\SellerOrder;
 use App\Models\Seller\SellerProfile;
 use App\Models\User;
 use App\Services\Communication\ConversationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -199,13 +200,26 @@ class AdminOperationsController extends Controller
 
     public function messages(Request $request, ConversationService $conversationService): View
     {
-        $conversations = $conversationService->listFor($request->user());
-        $conversations->each(fn ($conversation) => $conversationService->markRead($conversation, $request->user()));
+        $conversations = $conversationService->workspaceThreads(
+            $request->user(),
+            $request->integer('conversation') ?: null,
+        );
 
         return view('Admin.messages', [
             'conversations' => $conversations,
-            'contacts' => User::query()->where('status', 'ACTIVE')->whereKeyNot($request->user()->id)->orderBy('first_name')->get(),
+            'contacts' => User::query()->where('status', 'ACTIVE')->whereKeyNot($request->user()->id)->orderBy('first_name')->limit(100)->get(['id', 'first_name', 'middle_initial', 'last_name', 'name_extension', 'account_type']),
             'announcements' => Announcement::query()->latest()->paginate(10),
+        ]);
+    }
+
+    public function messageStream(Request $request, ConversationService $conversationService): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'messages' => $conversationService->streamPayload(
+                $request->user(),
+                $request->integer('conversation'),
+            ),
         ]);
     }
 
@@ -455,7 +469,7 @@ class AdminOperationsController extends Controller
         return back()->with('status', 'Subcategory status updated.');
     }
 
-    public function sendMessage(Request $request, ConversationService $conversationService): RedirectResponse
+    public function sendMessage(Request $request, ConversationService $conversationService): JsonResponse|RedirectResponse
     {
         $data = $request->validate([
             'recipient_user_id' => ['required', 'integer', 'exists:users,id'],
@@ -473,7 +487,14 @@ class AdminOperationsController extends Controller
             $context = $conversationService->contextFor($conversation);
         }
 
-        $conversationService->send($request->user(), (int) $data['recipient_user_id'], $data['body'], $context);
+        $message = $conversationService->send($request->user(), (int) $data['recipient_user_id'], trim($data['body']), $context);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $conversationService->messagePayload($message),
+            ]);
+        }
 
         return back()->with('status', 'Message sent.');
     }

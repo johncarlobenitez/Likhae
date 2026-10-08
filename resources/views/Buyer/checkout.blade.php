@@ -8,6 +8,7 @@
     $addresses = collect($addresses ?? []);
     $logisticsProviders = collect($logisticsProviders ?? []);
     $defaultAddress = $addresses->firstWhere('is_default', true) ?? $addresses->first();
+    $defaultLogisticsProvider = $logisticsProviders->first();
     $groups = collect(data_get($preview ?? [], 'groups', []));
     $imageUrl = static function ($product, $variant = null): string {
         $assignedPath = data_get($variant, 'productImage.file_path');
@@ -26,13 +27,26 @@
     @elseif($addresses->isEmpty())
         <section class="mt-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"><h2 class="text-lg font-bold text-stone-900">A delivery address is required</h2><p class="mt-2 text-sm text-stone-500">Save an address before placing this order.</p><a class="lk-btn lk-btn-red mt-5" href="{{ route('buyer.account.addresses') }}">Add delivery address</a></section>
     @else
-        <form method="POST" action="{{ route('buyer.order.store') }}" class="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        @if($errors->any())
+            <section id="checkout-validation-errors" class="mt-5 rounded-2xl border border-red-300 bg-red-50 p-5 text-red-900 shadow-sm" role="alert" aria-live="assertive" tabindex="-1">
+                <h2 class="text-sm font-bold">Your order could not be placed</h2>
+                <p class="mt-1 text-xs">Please fix the following before trying again:</p>
+                <ul class="mt-3 list-disc space-y-1 pl-5 text-xs font-semibold">
+                    @foreach(collect($errors->all())->unique() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </section>
+        @endif
+
+        <form method="POST" action="{{ route('buyer.order.store') }}" class="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]" data-checkout-form>
             @csrf
             <div class="space-y-5">
                 <section class="rounded-2xl border border-stone-200 bg-white shadow-sm">
                     <div class="flex items-center justify-between gap-4 border-b border-stone-100 px-5 py-4"><div><h2 class="text-base font-bold text-stone-900">Delivery Address</h2><p class="mt-1 text-xs text-stone-500">Your order will be delivered to this address.</p></div><a href="{{ route('buyer.account', ['tab' => 'addresses']) }}" class="shrink-0 text-xs font-semibold text-red-800">Change</a></div>
                     @error('address_id')<p class="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">{{ $message }} <a class="underline" href="{{ route('buyer.account.addresses') }}">Open Account Addresses</a></p>@enderror
-                    <div class="grid gap-3 p-5">@foreach($addresses as $address)<label class="cursor-pointer"><input required type="radio" name="address_id" value="{{ $address->id }}" class="peer sr-only" @checked($address->id === $defaultAddress?->id)><span class="flex gap-3 rounded-xl border border-stone-200 p-4 transition peer-checked:border-red-800 peer-checked:bg-red-50/60"><span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-800">⌖</span><span class="min-w-0"><span class="flex flex-wrap items-center gap-2"><strong class="text-sm text-stone-900">{{ $address->recipient_name }}</strong><span class="text-xs text-stone-500">{{ $address->contact_number }}</span>@if($address->is_default)<span class="rounded-full bg-red-100 px-2 py-0.5 text-[9px] font-semibold uppercase text-red-900">Default</span>@endif</span><span class="mt-2 block text-xs leading-5 text-stone-600">{{ $address->formatted() }}</span><span class="mt-2 block text-[11px] font-semibold {{ filled($address->latitude) && filled($address->longitude) ? 'text-emerald-700' : 'text-amber-700' }}">{{ filled($address->latitude) && filled($address->longitude) ? 'Exact pin confirmed' : 'Confirm exact pin in Account before ordering' }}</span></span></span></label>@endforeach</div>
+                    @if($errors->has('latitude') || $errors->has('longitude'))<p class="mx-5 mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-800">{{ $errors->first('latitude') ?: $errors->first('longitude') }} <a class="underline" href="{{ route('buyer.account.addresses') }}">Confirm the address pin</a></p>@endif
+                    <div class="grid gap-3 p-5">@foreach($addresses as $address)<label class="cursor-pointer"><input required type="radio" name="address_id" value="{{ $address->id }}" class="peer sr-only" @checked((string) old('address_id', $defaultAddress?->id) === (string) $address->id)><span class="flex gap-3 rounded-xl border border-stone-200 p-4 transition peer-checked:border-red-800 peer-checked:bg-red-50/60"><span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-800">⌖</span><span class="min-w-0"><span class="flex flex-wrap items-center gap-2"><strong class="text-sm text-stone-900">{{ $address->recipient_name }}</strong><span class="text-xs text-stone-500">{{ $address->contact_number }}</span>@if($address->is_default)<span class="rounded-full bg-red-100 px-2 py-0.5 text-[9px] font-semibold uppercase text-red-900">Default</span>@endif</span><span class="mt-2 block text-xs leading-5 text-stone-600">{{ $address->formatted() }}</span><span class="mt-2 block text-[11px] font-semibold {{ filled($address->latitude) && filled($address->longitude) ? 'text-emerald-700' : 'text-amber-700' }}">{{ filled($address->latitude) && filled($address->longitude) ? 'Exact pin confirmed' : 'Confirm exact pin in Account before ordering' }}</span></span></span></label>@endforeach</div>
                 </section>
 
                 <section class="rounded-2xl border border-stone-200 bg-white shadow-sm">
@@ -43,7 +57,7 @@
                     <div class="grid gap-3 p-5">
                         @forelse($logisticsProviders as $provider)
                             <label class="cursor-pointer">
-                                <input required type="radio" name="logistics_center_id" value="{{ $provider->id }}" data-shipping-fee="{{ number_format((float) $provider->shipping_fee, 2, '.', '') }}" class="peer sr-only" @checked((string) old('logistics_center_id') === (string) $provider->id)>
+                                <input required type="radio" name="logistics_center_id" value="{{ $provider->id }}" data-shipping-fee="{{ number_format((float) $provider->shipping_fee, 2, '.', '') }}" class="peer sr-only" @checked((string) old('logistics_center_id', $defaultLogisticsProvider?->id) === (string) $provider->id)>
                                 <span class="flex items-center gap-3 rounded-xl border border-stone-200 p-4 transition peer-checked:border-red-800 peer-checked:bg-red-50">
                                     <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-xs font-bold text-red-800">LP</span>
                                     <span class="min-w-0 flex-1">
@@ -71,14 +85,15 @@
                                 <div class="flex gap-3 text-sm"><img class="h-14 w-14 rounded-lg object-cover" src="{{ $imageUrl($product, $variant) }}" alt="{{ $product->name }}"><div class="min-w-0 flex-1"><strong class="line-clamp-2 text-stone-800">{{ $product->name }}</strong><span class="block text-xs text-stone-500">{{ $variant->description ?: 'Standard' }} · Qty {{ $item->quantity }}</span></div><strong>&#8369;{{ number_format((float) $variant->final_price * $item->quantity, 2) }}</strong></div>
                             @endforeach
                         </div>
-                        <label class="mt-4 block text-xs font-semibold text-stone-700">Voucher code<input name="voucher_codes[{{ $sellerId }}]" value="{{ $voucherCodes[$sellerId] ?? '' }}" maxlength="80" class="mt-2 block w-full rounded-xl border border-stone-300 px-3 py-2.5 text-sm" placeholder="Optional"></label>
+                        <label class="mt-4 block text-xs font-semibold text-stone-700">Voucher code<input name="voucher_codes[{{ $sellerId }}]" value="{{ old('voucher_codes.'.$sellerId, $voucherCodes[$sellerId] ?? '') }}" maxlength="80" class="mt-2 block w-full rounded-xl border border-stone-300 px-3 py-2.5 text-sm" placeholder="Optional"></label>
+                        @error('voucher_codes.'.$sellerId)<p class="mt-2 text-xs font-semibold text-red-700">{{ $message }}</p>@enderror
                     </section>
                 @endforeach
 
-                <section class="rounded-2xl border border-stone-200 bg-white shadow-sm"><div class="border-b border-stone-100 px-5 py-4"><h2 class="text-base font-bold text-stone-900">Payment Method</h2><p class="mt-1 text-xs text-stone-500">Select how you want to pay for your order.</p></div><div class="grid gap-3 p-5 sm:grid-cols-3"><label class="cursor-pointer"><input checked type="radio" name="payment_method" value="COD" class="peer sr-only"><span class="flex h-full items-start gap-3 rounded-xl border border-stone-200 p-4 peer-checked:border-red-800 peer-checked:bg-red-50"><span class="text-red-800">₱</span><span><strong class="block text-xs">Cash on Delivery</strong><small class="text-[10px] text-stone-500">Pay when your order arrives.</small></span></span></label><label class="cursor-pointer"><input type="radio" name="payment_method" value="ONLINE" class="peer sr-only"><span class="flex h-full items-start gap-3 rounded-xl border border-stone-200 p-4 peer-checked:border-red-800 peer-checked:bg-red-50"><span class="font-bold text-blue-700">G</span><span><strong class="block text-xs">GCash</strong><small class="text-[10px] text-stone-500">Pay using your GCash wallet.</small></span></span></label><label class="cursor-pointer"><input type="radio" name="payment_method" value="ONLINE" class="peer sr-only"><span class="flex h-full items-start gap-3 rounded-xl border border-stone-200 p-4 peer-checked:border-red-800 peer-checked:bg-red-50"><span class="text-red-800">▣</span><span><strong class="block text-xs">Debit/Credit Card</strong><small class="text-[10px] text-stone-500">Visa and Mastercard.</small></span></span></label></div></section>
+                <section class="rounded-2xl border border-stone-200 bg-white shadow-sm"><div class="border-b border-stone-100 px-5 py-4"><h2 class="text-base font-bold text-stone-900">Payment Method</h2><p class="mt-1 text-xs text-stone-500">Select how you want to pay for your order.</p></div><div class="grid gap-3 p-5 sm:grid-cols-3"><label class="cursor-pointer"><input type="radio" name="payment_method" value="COD" class="peer sr-only" @checked(old('payment_method', 'COD') === 'COD')><span class="flex h-full items-start gap-3 rounded-xl border border-stone-200 p-4 peer-checked:border-red-800 peer-checked:bg-red-50"><span class="text-red-800">₱</span><span><strong class="block text-xs">Cash on Delivery</strong><small class="text-[10px] text-stone-500">Pay when your order arrives.</small></span></span></label><label class="cursor-pointer"><input type="radio" name="payment_method" value="ONLINE" class="peer sr-only" @checked(old('payment_method') === 'ONLINE')><span class="flex h-full items-start gap-3 rounded-xl border border-stone-200 p-4 peer-checked:border-red-800 peer-checked:bg-red-50"><span class="font-bold text-blue-700">G</span><span><strong class="block text-xs">GCash</strong><small class="text-[10px] text-stone-500">Pay using your GCash wallet.</small></span></span></label><label class="cursor-pointer"><input type="radio" name="payment_method" value="ONLINE" class="peer sr-only"><span class="flex h-full items-start gap-3 rounded-xl border border-stone-200 p-4 peer-checked:border-red-800 peer-checked:bg-red-50"><span class="text-red-800">▣</span><span><strong class="block text-xs">Debit/Credit Card</strong><small class="text-[10px] text-stone-500">Visa and Mastercard.</small></span></span></label></div>@error('payment_method')<p class="px-5 pb-5 text-xs font-semibold text-red-700">{{ $message }}</p>@enderror</section>
             </div>
 
-            <aside class="h-fit rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><h2 class="text-base font-bold text-stone-900">Order summary</h2><dl class="mt-4 space-y-3 text-sm"><div class="flex justify-between"><dt class="text-stone-500">Subtotal</dt><dd>&#8369;{{ number_format((float) data_get($preview, 'subtotal', 0), 2) }}</dd></div><div class="flex justify-between"><dt class="text-stone-500">Discount</dt><dd>-&#8369;{{ number_format((float) data_get($preview, 'discount_total', 0), 2) }}</dd></div><div class="flex justify-between"><dt class="text-stone-500">Shipping</dt><dd id="checkout-shipping-total">&#8369;{{ number_format((float) data_get($preview, 'shipping_total', 0), 2) }}</dd></div><div class="flex justify-between border-t border-stone-200 pt-3 text-base font-bold"><dt>Total</dt><dd id="checkout-grand-total">&#8369;{{ number_format((float) data_get($preview, 'grand_total', 0), 2) }}</dd></div></dl><button class="lk-btn lk-btn-red lk-btn-full mt-5" type="submit" @disabled($logisticsProviders->isEmpty())>Place Order</button></aside>
+            <aside class="h-fit rounded-2xl border border-stone-200 bg-white p-5 shadow-sm"><h2 class="text-base font-bold text-stone-900">Order summary</h2><dl class="mt-4 space-y-3 text-sm"><div class="flex justify-between"><dt class="text-stone-500">Subtotal</dt><dd>&#8369;{{ number_format((float) data_get($preview, 'subtotal', 0), 2) }}</dd></div><div class="flex justify-between"><dt class="text-stone-500">Discount</dt><dd>-&#8369;{{ number_format((float) data_get($preview, 'discount_total', 0), 2) }}</dd></div><div class="flex justify-between"><dt class="text-stone-500">Shipping</dt><dd id="checkout-shipping-total">&#8369;{{ number_format((float) data_get($preview, 'shipping_total', 0), 2) }}</dd></div><div class="flex justify-between border-t border-stone-200 pt-3 text-base font-bold"><dt>Total</dt><dd id="checkout-grand-total">&#8369;{{ number_format((float) data_get($preview, 'grand_total', 0), 2) }}</dd></div></dl>@error('cart')<p class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-800">{{ $message }}</p>@enderror<button class="lk-btn lk-btn-red lk-btn-full mt-5" type="submit" data-place-order-submit @disabled($logisticsProviders->isEmpty())>{{ $logisticsProviders->isEmpty() ? 'Delivery unavailable' : 'Place Order' }}</button></aside>
         </form>
     @endif
 </div>
@@ -103,6 +118,20 @@
                 input.addEventListener('change', () => updateTotals(input));
                 if (input.checked) updateTotals(input);
             });
+
+            const checkoutForm = document.querySelector('[data-checkout-form]');
+            const placeOrderButton = checkoutForm?.querySelector('[data-place-order-submit]');
+            checkoutForm?.addEventListener('submit', () => {
+                if (!placeOrderButton) return;
+                placeOrderButton.disabled = true;
+                placeOrderButton.textContent = 'Placing order...';
+            });
+
+            const validationSummary = document.getElementById('checkout-validation-errors');
+            if (validationSummary) {
+                validationSummary.focus({ preventScroll: true });
+                validationSummary.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         });
     </script>
 @endif

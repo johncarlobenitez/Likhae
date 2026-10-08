@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Rider;
 use App\Http\Controllers\Controller;
 use App\Models\Rider\RiderAssignment;
 use App\Models\Buyer\Address;
+use App\Models\Communication\Conversation;
 use App\Models\User;
 use App\Services\Account\ProfilePhotoService;
 use App\Services\Communication\ConversationService;
 use App\Support\PhilippineAddressValidator;
 use App\Support\AddressCoordinateValidator;
 use App\Services\Maps\MapDataService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -323,22 +325,54 @@ class RiderController extends Controller
 
     public function messages(Request $request, ConversationService $conversationService): View
     {
-        $conversations = $conversationService->listFor($request->user());
-        $conversations->each(fn ($conversation) => $conversationService->markRead($conversation, $request->user()));
+        $conversations = $conversationService->workspaceThreads(
+            $request->user(),
+            $request->integer('conversation') ?: null,
+        );
 
         return view('Rider.messages', [
             'conversations' => $conversations,
-            'contacts' => User::query()->where('status', 'ACTIVE')->whereKeyNot($request->user()->id)->orderBy('first_name')->get(),
+            'contacts' => User::query()->where('status', 'ACTIVE')->whereKeyNot($request->user()->id)->orderBy('first_name')->limit(100)->get(['id', 'first_name', 'middle_initial', 'last_name', 'name_extension', 'account_type']),
         ]);
     }
 
-    public function sendMessage(Request $request, ConversationService $conversationService): RedirectResponse
+    public function messageStream(Request $request, ConversationService $conversationService): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'messages' => $conversationService->streamPayload(
+                $request->user(),
+                $request->integer('conversation'),
+            ),
+        ]);
+    }
+
+    public function sendMessage(Request $request, ConversationService $conversationService): JsonResponse|RedirectResponse
     {
         $data = $request->validate([
             'recipient_user_id' => ['required', 'integer', 'exists:users,id'],
+            'conversation_id' => ['nullable', 'integer', 'exists:conversations,id'],
             'body' => ['required', 'string', 'max:5000'],
         ]);
-        $conversationService->send($request->user(), (int) $data['recipient_user_id'], $data['body']);
+
+        $context = [];
+        if (! empty($data['conversation_id'])) {
+            $conversation = Conversation::query()
+                ->whereKey((int) $data['conversation_id'])
+                ->whereHas('participants', fn ($query) => $query->where('users.id', $request->user()->id))
+                ->whereHas('participants', fn ($query) => $query->where('users.id', (int) $data['recipient_user_id']))
+                ->firstOrFail();
+            $context = $conversationService->contextFor($conversation);
+        }
+
+        $message = $conversationService->send($request->user(), (int) $data['recipient_user_id'], trim($data['body']), $context);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $conversationService->messagePayload($message),
+            ]);
+        }
 
         return back()->with('status', 'Message sent.');
     }

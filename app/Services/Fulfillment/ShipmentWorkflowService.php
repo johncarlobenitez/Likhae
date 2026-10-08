@@ -381,10 +381,6 @@ class ShipmentWorkflowService
             return $exact;
         }
 
-        if (! $names) {
-            return null;
-        }
-
         return null;
     }
 
@@ -444,12 +440,41 @@ class ShipmentWorkflowService
 
     private function serviceAreaMatchesAddressCodes(?ServiceArea $area, object $address): bool
     {
-        return $this->serviceAreaMatchesCodes(
+        if ($this->serviceAreaMatchesCodes(
             $area,
             $address->province_code,
             $address->municipality_code,
             $address->barangay_code,
-        );
+        )) {
+            return true;
+        }
+
+        if (! $area?->is_active) {
+            return false;
+        }
+
+        $addressNames = collect([
+            $address->province_name ?? null,
+            $address->municipality_name ?? null,
+            $address->barangay_name ?? null,
+        ])->map(fn ($name) => $this->normalizeLocationName($name));
+
+        if ($addressNames->contains('')) {
+            return false;
+        }
+
+        return $area->locations->contains(function ($location) use ($addressNames): bool {
+            return $addressNames->all() === collect([
+                $location->province_name,
+                $location->municipality_name,
+                $location->barangay_name,
+            ])->map(fn ($name) => $this->normalizeLocationName($name))->all();
+        });
+    }
+
+    private function normalizeLocationName(mixed $name): string
+    {
+        return Str::of((string) $name)->lower()->squish()->toString();
     }
 
     private function serviceAreaMatchesDestinationCodes(?ServiceArea $area, Shipment $shipment): bool

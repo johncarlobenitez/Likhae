@@ -5,6 +5,9 @@
     $activeOther = $activeConversation?->participants?->first(fn ($participant) => (int) $participant->id !== (int) auth()->id());
     $activeOtherName = $activeOther?->name ?: 'Conversation';
     $activeOtherAvatar = 'https://ui-avatars.com/api/?name='.urlencode($activeOtherName).'&background=561C17&color=fff';
+    $activeStreamUrl = $activeConversation && filled($streamRoute ?? null)
+        ? $streamRoute.(str_contains($streamRoute, '?') ? '&' : '?').'conversation='.$activeConversation->id
+        : null;
 @endphp
 
 @vite('resources/js/shared/messages.js')
@@ -37,6 +40,8 @@
     .lk-unified-messages .lk-chat-user-copy strong { display: block; overflow: hidden; color: var(--msg-text); font-size: 14px; font-weight: 900; text-overflow: ellipsis; white-space: nowrap; }
     .lk-unified-messages .lk-chat-status { display: inline-flex; align-items: center; gap: 6px; margin-top: 3px; color: #256F4A; font-size: 11px; font-weight: 700; }
     .lk-unified-messages .lk-chat-status-dot { width: 8px; height: 8px; border-radius: 999px; background: #256F4A; }
+    .lk-unified-messages .lk-chat-status.is-error { color: #9A5B11; }
+    .lk-unified-messages .lk-chat-status-dot.is-error { background: #C88418; }
     .lk-unified-messages .lk-chat-stream { flex: 1; overflow-y: auto; padding: 20px; background: radial-gradient(circle at 12% 12%,rgba(193,151,113,.10),transparent 28%),linear-gradient(180deg,#FBF7F2,#F6EFE7); }
     .lk-unified-messages .lk-chat-day { display: flex; justify-content: center; margin-bottom: 18px; }
     .lk-unified-messages .lk-chat-day span { display: inline-flex; align-items: center; min-height: 26px; padding: 0 12px; border: 1px solid var(--msg-border); border-radius: 999px; background: rgba(255,253,249,.86); color: var(--msg-muted); font-size: 10px; font-weight: 800; }
@@ -102,9 +107,9 @@
             @if($activeConversation && $activeOther)
                 @php($activeMessages = $activeConversation->messages ?? collect())
                 <div class="lk-chat-head">
-                    <div class="lk-chat-user"><img class="lk-chat-avatar" src="{{ $activeOtherAvatar }}" alt="{{ $activeOtherName }}"><div class="lk-chat-user-copy"><strong>{{ $activeOtherName }}</strong><span class="lk-chat-status"><span class="lk-chat-status-dot"></span>Active conversation</span></div></div>
+                    <div class="lk-chat-user"><img class="lk-chat-avatar" src="{{ $activeOtherAvatar }}" alt="{{ $activeOtherName }}"><div class="lk-chat-user-copy"><strong>{{ $activeOtherName }}</strong><span class="lk-chat-status" data-message-connection-status><span class="lk-chat-status-dot"></span>Live conversation</span></div></div>
                 </div>
-                <div class="lk-chat-stream" data-message-thread data-conversation-id="{{ $activeConversation->id }}" data-current-user-id="{{ auth()->id() }}" data-other-avatar="{{ $activeOtherAvatar }}" data-other-name="{{ $activeOtherName }}">
+                <div class="lk-chat-stream" data-message-thread data-conversation-id="{{ $activeConversation->id }}" data-current-user-id="{{ auth()->id() }}" data-other-avatar="{{ $activeOtherAvatar }}" data-other-name="{{ $activeOtherName }}" @if($activeStreamUrl) data-stream-url="{{ $activeStreamUrl }}" @endif>
                     <div class="lk-chat-day"><span>Conversation</span></div>
                     @forelse($activeMessages as $message)
                         @php($fromMe = (int) $message->sender_user_id === (int) auth()->id())
@@ -116,7 +121,7 @@
                         <div class="lk-messages-empty">No messages yet. Send the first message.</div>
                     @endforelse
                 </div>
-                <form method="POST" action="{{ $sendRoute }}" class="lk-chat-form">@csrf<input type="hidden" name="recipient_user_id" value="{{ $activeOther->id }}"><input type="hidden" name="conversation_id" value="{{ $activeConversation->id }}"><input class="lk-chat-input" name="body" required maxlength="5000" placeholder="Type your message to {{ $activeOtherName }}..."><button class="lk-chat-send" type="submit">Send</button></form>
+                <form method="POST" action="{{ $sendRoute }}" class="lk-chat-form" data-live-message-form>@csrf<input type="hidden" name="recipient_user_id" value="{{ $activeOther->id }}"><input type="hidden" name="conversation_id" value="{{ $activeConversation->id }}"><input class="lk-chat-input" name="body" required maxlength="5000" autocomplete="off" placeholder="Type your message to {{ $activeOtherName }}..."><button class="lk-chat-send" type="submit">Send</button></form>
             @else
                 <div class="lk-chat-empty-state">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 13h5"/></svg>

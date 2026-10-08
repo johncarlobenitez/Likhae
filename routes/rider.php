@@ -52,5 +52,6 @@ Route::prefix('rider')
         Route::patch('/account/address', [RiderController::class, 'updateResidentialAddress'])->name('account.address.update');
         Route::patch('/account/password', [RiderController::class, 'updatePassword'])->name('account.password.update');
         Route::get('/messages', [RiderController::class, 'messages'])->name('messages');
+        Route::get('/messages/stream', [RiderController::class, 'messageStream'])->name('messages.stream');
         Route::post('/messages', [RiderController::class, 'sendMessage'])->name('messages.send');
     });

@@ -42,7 +42,10 @@ return [
                 'useTLS' => env('REVERB_SCHEME', 'https') === 'https',
             ],
             'client_options' => [
-                // Guzzle client options: https://docs.guzzlephp.org/en/stable/request-options.html
+                // Keep a Reverb outage from holding a web request until the
+                // platform's 30-second execution limit.
+                'connect_timeout' => (float) env('REVERB_CONNECT_TIMEOUT', 2),
+                'timeout' => (float) env('REVERB_HTTP_TIMEOUT', 5),
             ],
         ],
 

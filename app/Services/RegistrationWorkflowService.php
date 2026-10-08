@@ -24,9 +24,13 @@ use Throwable;
 
 class RegistrationWorkflowService
 {
-    public function submit(StoreRegistrationRequest $request): RegistrationApplication
+    /**
+     * @param  array<string, mixed>  $overrides  Server-derived values that must
+     *                                           take precedence over client input.
+     */
+    public function submit(StoreRegistrationRequest $request, array $overrides = []): RegistrationApplication
     {
-        $data = $request->validated();
+        $data = array_replace($request->validated(), $overrides);
         $storedPaths = [];
 
         try {

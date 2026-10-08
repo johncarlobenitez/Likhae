@@ -1,4 +1,6 @@
 import '../address/forms.js';
+import '../shared/echo.js';
+import { startRealtimeFallback } from '../shared/realtime-fallback.js';
 import './hero-carousel.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -202,6 +204,58 @@ document.addEventListener('DOMContentLoaded', () => {
         syncVariantGallery(button);
     }));
 
+    all('[data-variation-picker]').forEach((picker) => {
+        const product = picker.closest('[data-variant-stock-product]') || picker.parentElement;
+        const variants = all('[data-variation-option]', product).map((button) => {
+            let options = {};
+            try { options = JSON.parse(button.dataset.optionValues || '{}'); } catch (_) { options = {}; }
+            return {button, options, stock: Number(button.dataset.variationStock || 0)};
+        });
+        const groups = all('[data-variation-choice-group]', picker);
+        const selection = () => Object.fromEntries(groups.map((group) => {
+            const selected = one('[data-variation-choice][aria-pressed="true"]', group);
+            return [group.dataset.optionKey, selected?.dataset.optionValue || ''];
+        }));
+        const matches = (variant, choices, ignoredKey = '') => Object.entries(choices)
+            .every(([key, value]) => key === ignoredKey || !value || variant.options[key] === value);
+        const selectChoice = (group, value) => all('[data-variation-choice]', group).forEach((choice) => {
+            const selected = choice.dataset.optionValue === value;
+            choice.setAttribute('aria-pressed', String(selected));
+            choice.classList.toggle('is-selected', selected);
+        });
+        const syncDisabled = () => {
+            const choices = selection();
+            groups.forEach((group) => all('[data-variation-choice]', group).forEach((choice) => {
+                const possible = variants.some((variant) => variant.stock > 0
+                    && variant.options[group.dataset.optionKey] === choice.dataset.optionValue
+                    && matches(variant, choices, group.dataset.optionKey));
+                choice.disabled = !possible;
+                choice.setAttribute('aria-disabled', String(!possible));
+            }));
+        };
+        const resolve = () => {
+            let choices = selection();
+            const complete = groups.every((group) => Boolean(choices[group.dataset.optionKey]));
+            if (!complete) {
+                syncDisabled();
+                return;
+            }
+            let variant = variants.find((candidate) => candidate.stock > 0 && matches(candidate, choices));
+            variant ||= variants.find((candidate) => matches(candidate, choices));
+            if (variant) variant.button.click();
+            syncDisabled();
+        };
+
+        groups.forEach((group) => all('[data-variation-choice]', group).forEach((choice) => {
+            choice.addEventListener('click', () => {
+                if (choice.disabled) return;
+                selectChoice(group, choice.dataset.optionValue || '');
+                resolve();
+            });
+        }));
+        syncDisabled();
+    });
+
     const selectedVariation = (scope) => {
         const selected = one('[data-variation-option][aria-pressed="true"]', scope);
         if (!selected) return null;
@@ -256,7 +310,13 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     all('[data-test-add-cart], [data-test-buy-now]').forEach((button) => button.addEventListener('click', async (event) => {
+        event.preventDefault();
         const scope = event.currentTarget.closest('.lk-detail-info-card') || document;
+        const picker = one('[data-variation-picker]', scope);
+        if (picker && all('[data-variation-choice-group]', picker).some((group) => !one('[data-variation-choice][aria-pressed="true"]', group))) {
+            showToast('Select every variation option before continuing.');
+            return;
+        }
         const variation = selectedVariation(scope);
         const cartUrl = event.currentTarget.dataset.cartUrl;
 
@@ -315,7 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const availability = one('[data-variant-availability]', product);
             const quantity = one('[data-quantity-input]', product);
             const price = one('.lk-detail-price', product);
-            if (availability) availability.textContent = stock ? `${stock} available` : 'Out of stock';
+            if (availability) availability.textContent = variation?.id ? (stock ? `${stock} available` : 'Out of stock') : (one('[data-variation-picker]', product) ? 'Select all variations' : 'Out of stock');
             if (price && variation?.id) price.textContent = `₱${variation.price.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             const oldPrice = one('[data-variation-old-price]', product);
             const discountBadge = one('[data-variation-discount-badge-wrapper]', product);
@@ -424,6 +484,138 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!checkboxes.some((checkbox) => checkbox.checked)) event.preventDefault();
         });
         syncSelection();
+    }
+
+    const parseIds = (value) => {
+        try { return JSON.parse(value || '[]').map(Number).filter(Number.isFinite); } catch (_) { return []; }
+    };
+    const notificationPage = one('[data-buyer-notifications-live]');
+    const buyerUserId = one('[data-buyer-user-id]')?.dataset.buyerUserId;
+    const formatPhilippineTime = (value) => value
+        ? `${new Date(value).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })} PHT`
+        : 'Just now';
+    const headline = (value) => String(value || '').replaceAll('_', ' ').toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase());
+    const safeUrl = (value) => {
+        try {
+            const url = new URL(value || '/buyer/notifications', window.location.origin);
+            return url.origin === window.location.origin ? `${url.pathname}${url.search}${url.hash}` : '/buyer/notifications';
+        } catch (_) {
+            return '/buyer/notifications';
+        }
+    };
+
+    let refreshNotifications = async () => {};
+    if (buyerUserId && window.Echo) {
+        window.Echo.private(`App.Models.User.${buyerUserId}`)
+            .listen('.notification.created', (notification) => {
+                if (notificationPage) refreshNotifications();
+                else showToast(notification?.title || 'You have a new notification.');
+            });
+    }
+    if (notificationPage?.dataset.notificationStreamUrl) {
+        let polling = false;
+        const notificationType = new URLSearchParams(window.location.search).get('type') || 'all';
+        const renderNotifications = (rows) => {
+            const list = one('[data-notification-list]', notificationPage);
+            if (!list) return;
+            list.replaceChildren();
+            if (!rows.length) {
+                const empty = document.createElement('div');
+                empty.className = 'p-5';
+                empty.textContent = 'No notifications in this section.';
+                list.appendChild(empty);
+                return;
+            }
+            rows.forEach((item) => {
+                const link = document.createElement('a');
+                link.href = safeUrl(item.action_url);
+                link.className = `flex gap-3 border-b border-stone-100 p-4 transition last:border-0 hover:bg-stone-50 sm:p-5${item.read_at ? '' : ' bg-red-50/40'}`;
+                link.dataset.notificationItem = 'true';
+                link.dataset.notificationType = item.category || 'orders';
+                const icon = document.createElement('span');
+                icon.className = `flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${item.read_at ? 'bg-stone-100 text-stone-500' : 'bg-red-900 text-white'} text-sm font-bold`;
+                icon.textContent = item.category === 'messages' ? '✉' : item.category === 'rewards' ? '%' : item.category === 'account' ? '○' : '□';
+                const copy = document.createElement('span');
+                copy.className = 'min-w-0 flex-1';
+                const top = document.createElement('span');
+                top.className = 'flex flex-wrap items-center justify-between gap-2';
+                const title = document.createElement('strong');
+                title.className = 'text-sm text-stone-900';
+                title.textContent = item.title || '';
+                const time = document.createElement('time');
+                time.className = 'text-[10px] text-stone-400';
+                time.textContent = formatPhilippineTime(item.created_at);
+                top.append(title, time);
+                const message = document.createElement('span');
+                message.className = 'mt-1 block text-xs leading-5 text-stone-500';
+                message.textContent = item.message || '';
+                copy.append(top, message);
+                link.append(icon, copy);
+                if (!item.read_at) {
+                    const unread = document.createElement('i');
+                    unread.className = 'mt-2 h-2 w-2 shrink-0 rounded-full bg-red-800';
+                    unread.setAttribute('aria-label', 'Unread');
+                    link.appendChild(unread);
+                }
+                list.appendChild(link);
+            });
+        };
+        refreshNotifications = async () => {
+            if (polling) return;
+            polling = true;
+            try {
+                const response = await fetch(notificationPage.dataset.notificationStreamUrl, {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+                const payload = await response.json();
+                if (!response.ok || !payload.version || payload.version === notificationPage.dataset.notificationVersion) return;
+                renderNotifications((payload.notifications || []).filter((item) => notificationType === 'all' || item.category === notificationType));
+                one('[data-notification-unread-count]')?.replaceChildren(document.createTextNode(String(payload.unread_count || 0)));
+                notificationPage.dataset.notificationVersion = payload.version;
+            } catch (_) {
+                // Retry on the next fallback interval while Reverb is unavailable.
+            } finally {
+                polling = false;
+            }
+        };
+        startRealtimeFallback(refreshNotifications);
+    }
+
+    const orderPage = one('[data-buyer-order-live]');
+    if (orderPage?.dataset.orderStreamUrl) {
+        const orderIds = parseIds(orderPage.dataset.orderIds);
+        const shipmentIds = parseIds(orderPage.dataset.shipmentIds);
+        const checkOrders = async () => {
+            const streamUrl = new URL(orderPage.dataset.orderStreamUrl, window.location.origin);
+            orderIds.forEach((id) => streamUrl.searchParams.append('ids[]', String(id)));
+            try {
+                const response = await fetch(streamUrl, {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+                const payload = await response.json();
+                if (!response.ok || !payload.version || payload.version === orderPage.dataset.orderVersion) return;
+                const displayStatus = (order) => order.status === 'PROCESSING'
+                    && order.shipments?.length
+                    && order.shipments.every((shipment) => ['DELIVERED', 'COMPLETED'].includes(shipment.status))
+                    ? 'DELIVERED' : order.status;
+                (payload.orders || []).forEach((order) => {
+                    document.querySelectorAll(`[data-order-status-id="${order.id}"]`).forEach((element) => { element.textContent = headline(displayStatus(order)); });
+                    const shipmentStatuses = (order.shipments || []).map((shipment) => headline(shipment.status));
+                    document.querySelectorAll('[data-order-detail-status]').forEach((element) => { element.textContent = shipmentStatuses.join(', '); });
+                    (order.shipments || []).forEach((shipment) => document.querySelectorAll(`[data-shipment-status-id="${shipment.id}"]`).forEach((element) => { element.textContent = headline(shipment.status); }));
+                });
+                orderPage.dataset.orderVersion = payload.version;
+            } catch (_) {
+                // Retry on the next fallback interval while Reverb is unavailable.
+            }
+        };
+        shipmentIds.forEach((shipmentId) => {
+            window.Echo?.private(`shipments.${shipmentId}`)
+                .listen('.shipment.tracking.updated', checkOrders);
+        });
+        startRealtimeFallback(checkOrders);
     }
 
 });

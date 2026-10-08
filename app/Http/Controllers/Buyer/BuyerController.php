@@ -7,6 +7,8 @@ use App\Models\Buyer\Address;
 use App\Models\Buyer\CartItem;
 use App\Models\Buyer\WishlistItem;
 use App\Models\Communication\Conversation;
+use App\Models\Communication\ConversationParticipant;
+use App\Models\Communication\Message;
 use App\Models\Seller\Product;
 use App\Models\Seller\SellerProfile;
 use App\Models\Seller\Voucher;
@@ -147,6 +149,31 @@ class BuyerController extends Controller
         return back()->with('buyer_notice', 'Product added to cart.');
     }
 
+    public function buyNow(Request $request, Product $product): RedirectResponse
+    {
+        abort_unless($product->status === 'ACTIVE', 404);
+
+        $data = $request->validate([
+            'product_variant_id' => ['required', 'integer', Rule::exists('product_variants', 'id')->where('product_id', $product->id)],
+            'quantity' => ['nullable', 'integer', 'min:1', 'max:999'],
+        ]);
+
+        $item = $this->cartService->add(
+            $request->user(),
+            $product,
+            (int) $data['product_variant_id'],
+            (int) ($data['quantity'] ?? 1),
+        );
+
+        // Checkout uses persisted cart items for stock locking and totals, but
+        // Buy Now selects only this item and always leaves this endpoint via
+        // the checkout page rather than the cart response path.
+        $request->session()->put('checkout_cart_item_ids', [$item->id]);
+        $request->session()->forget('checkout_voucher_codes');
+
+        return redirect()->route('buyer.checkout');
+    }
+
     public function updateCart(Request $request, CartItem $item): RedirectResponse
     {
         $data = $request->validate([
@@ -188,8 +215,13 @@ class BuyerController extends Controller
             ], static fn ($value) => filled($value)));
         }
 
-        $conversations = $this->conversations->listFor($request->user());
-        $conversations->each(fn ($conversation) => $this->conversations->markRead($conversation, $request->user()));
+        $conversations = $this->conversations->listFor($request->user(), false);
+        if ($conversations->isNotEmpty()) {
+            ConversationParticipant::query()
+                ->where('user_id', $request->user()->id)
+                ->whereIn('conversation_id', $conversations->pluck('id'))
+                ->update(['last_read_at' => now()]);
+        }
         $rows = $conversations->map(function ($conversation) use ($request): array {
             $other = $conversation->participants->first(fn ($participant) => (int) $participant->id !== (int) $request->user()->id);
             $seller = $other?->sellerProfile;
@@ -209,35 +241,59 @@ class BuyerController extends Controller
                 'last_message' => $conversation->latestMessage?->body ?: 'Start a conversation.',
                 'time' => $conversation->latestMessage?->sent_at?->diffForHumans() ?? '',
                 'unread' => 0,
-                'messages' => $conversation->messages,
+                'messages' => [],
             ];
         })->filter(fn (array $row): bool => filled($row['id']))->values();
 
         $selectedSlug = (string) $request->query('seller', '');
         $active = $rows->firstWhere('slug', $selectedSlug) ?: $rows->first();
+        $chatMessages = $active
+            ? Message::query()
+                ->where('conversation_id', $active['conversation_id'])
+                ->latest('sent_at')
+                ->limit(100)
+                ->get(['id', 'conversation_id', 'body', 'sender_user_id', 'sent_at'])
+                ->reverse()
+                ->values()
+            : collect();
 
         return view('Buyer.messages', [
             'buyerProducts' => collect(),
             'conversationRows' => $rows,
             'dbActiveSeller' => null,
-            'chatMessages' => collect($active['messages'] ?? []),
+            'chatMessages' => $chatMessages,
         ]);
     }
 
     public function messageStream(Request $request): JsonResponse
     {
         $recipientId = (int) $request->query('seller_id');
-        $conversation = $this->conversations->listFor($request->user())
-            ->first(fn ($thread) => $thread->participants->contains(fn ($participant) => (int) $participant->id === $recipientId));
+        $conversation = $recipientId > 0
+            ? Conversation::query()
+                ->select('conversations.id')
+                ->whereHas('participants', fn ($query) => $query->where('users.id', $request->user()->id))
+                ->whereHas('participants', fn ($query) => $query->where('users.id', $recipientId))
+                ->first()
+            : null;
+
+        $messages = $conversation
+            ? Message::query()
+                ->where('conversation_id', $conversation->id)
+                ->latest('sent_at')
+                ->limit(100)
+                ->get(['id', 'conversation_id', 'body', 'sender_user_id', 'sent_at'])
+                ->reverse()
+                ->values()
+            : collect();
 
         return response()->json([
             'success' => true,
-            'messages' => $conversation?->messages?->map(fn ($message): array => [
+            'messages' => $messages->map(fn ($message): array => [
                 'id' => $message->id,
                 'body' => $message->body,
                 'sender_user_id' => $message->sender_user_id,
                 'sent_at' => $message->sent_at?->toIso8601String(),
-            ])->values() ?? [],
+            ])->values(),
         ]);
     }
 
@@ -405,6 +461,36 @@ class BuyerController extends Controller
     {
         return view('Buyer.notifications', [
             'notifications' => $request->user()->notifications()->latest()->paginate(20),
+        ]);
+    }
+
+    public function notificationStream(Request $request): JsonResponse
+    {
+        $notifications = $request->user()->notifications()
+            ->latest()
+            ->limit(20)
+            ->get(['id', 'type', 'title', 'message', 'action_url', 'read_at', 'created_at', 'updated_at']);
+
+        $rows = $notifications->map(fn ($notification): array => [
+            'id' => (int) $notification->id,
+            'category' => str_contains(strtolower((string) $notification->type), 'message') ? 'messages'
+                : (str_contains(strtolower((string) $notification->type), 'reward') ? 'rewards'
+                    : (str_contains(strtolower((string) $notification->type), 'account') ? 'account' : 'orders')),
+            'title' => $notification->title,
+            'message' => $notification->message,
+            'action_url' => $notification->action_url ?: route('buyer.notifications'),
+            'read_at' => $notification->read_at?->toIso8601String(),
+            'created_at' => $notification->created_at?->toIso8601String(),
+        ])->values();
+
+        return response()->json([
+            'version' => sha1($notifications->map(fn ($notification): array => [
+                'id' => (int) $notification->id,
+                'read_at' => $notification->read_at?->toIso8601String(),
+                'updated_at' => $notification->updated_at?->toIso8601String(),
+            ])->values()->toJson()),
+            'notifications' => $rows,
+            'unread_count' => $rows->whereNull('read_at')->count(),
         ]);
     }
 

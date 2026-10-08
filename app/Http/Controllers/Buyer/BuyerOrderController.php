@@ -138,6 +138,35 @@ class BuyerOrderController extends Controller
         ]);
     }
 
+    public function stream(Request $request): JsonResponse
+    {
+        $ids = collect($request->query('ids', []))
+            ->map(fn ($id): int => (int) $id)
+            ->filter()
+            ->values();
+
+        $orders = $request->user()->orders()
+            ->select(['id', 'status', 'updated_at'])
+            ->when($ids->isNotEmpty(), fn ($query) => $query->whereIn('id', $ids))
+            ->with([
+                'sellerOrders' => fn ($query) => $query->select(['id', 'order_id']),
+                'sellerOrders.shipment' => fn ($query) => $query->select(['id', 'seller_order_id', 'current_status', 'updated_at']),
+            ])
+            ->get()
+            ->sortBy('id')
+            ->values();
+        $snapshot = $this->realtimeOrderSnapshot($orders);
+
+        return response()->json([
+            'version' => sha1($snapshot->toJson()),
+            'orders' => $snapshot->map(fn (array $order): array => [
+                'id' => $order['id'],
+                'status' => $order['status'],
+                'shipments' => $order['shipments'],
+            ])->values(),
+        ]);
+    }
+
     public function show(Request $request, Order $order, ShipmentWorkflowService $workflow, ReviewImageService $reviewImages): View
     {
         abort_unless((int) $order->buyer_user_id === (int) $request->user()->id, 403);
@@ -743,5 +772,27 @@ class BuyerOrderController extends Controller
         }
 
         return back()->with('buyer_notice', 'Your ratings were saved.');
+    }
+
+    private function realtimeOrderSnapshot(iterable $orders)
+    {
+        return collect($orders)
+            ->sortBy('id')
+            ->map(fn (Order $order): array => [
+                'id' => (int) $order->id,
+                'status' => (string) $order->status,
+                'updated_at' => $order->updated_at?->toIso8601String(),
+                'shipments' => $order->sellerOrders
+                    ->map(fn (SellerOrder $sellerOrder): ?array => $sellerOrder->shipment ? [
+                        'id' => (int) $sellerOrder->shipment->id,
+                        'status' => (string) $sellerOrder->shipment->current_status,
+                        'updated_at' => $sellerOrder->shipment->updated_at?->toIso8601String(),
+                    ] : null)
+                    ->filter()
+                    ->sortBy('id')
+                    ->values()
+                    ->all(),
+            ])
+            ->values();
     }
 }

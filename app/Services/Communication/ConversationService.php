@@ -14,13 +14,79 @@ use Throwable;
 
 class ConversationService
 {
-    public function listFor(User $user): Collection
+    public function listFor(User $user, bool $includeMessages = true, ?int $limit = null): Collection
     {
-        return Conversation::query()
+        $query = Conversation::query()
             ->whereHas('participants', fn ($query) => $query->where('users.id', $user->id))
-            ->with(['participants', 'latestMessage.sender', 'messages.sender'])
-            ->latest('updated_at')
-            ->get();
+            ->with(['participants', 'latestMessage.sender'])
+            ->latest('updated_at');
+
+        if ($limit !== null) {
+            $query->limit(max(1, min($limit, 100)));
+        }
+
+        $conversations = $query->get();
+
+        if ($includeMessages) {
+            $conversations->load('messages.sender');
+        }
+
+        return $conversations;
+    }
+
+    /** Load conversation summaries plus only the selected thread's recent messages. */
+    public function workspaceThreads(User $user, ?int $selectedConversationId = null): Collection
+    {
+        $conversations = $this->listFor($user, false, 100);
+        $active = $selectedConversationId
+            ? $conversations->firstWhere('id', $selectedConversationId)
+            : $conversations->first();
+
+        if ($active) {
+            $active->setRelation('messages', $this->messagesFor($user, (int) $active->id));
+            $this->markRead($active, $user);
+        }
+
+        return $conversations;
+    }
+
+    /** Return a small authorized message window for the five-second fallback. */
+    public function messagesFor(User $user, int $conversationId, int $limit = 100): Collection
+    {
+        $conversation = Conversation::query()
+            ->select('conversations.id')
+            ->whereKey($conversationId)
+            ->whereHas('participants', fn ($query) => $query->where('users.id', $user->id))
+            ->firstOrFail();
+
+        return Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->latest('sent_at')
+            ->limit(max(1, min($limit, 100)))
+            ->get(['id', 'conversation_id', 'sender_user_id', 'body', 'sent_at', 'created_at'])
+            ->reverse()
+            ->values();
+    }
+
+    public function messagePayload(Message $message): array
+    {
+        $sentAt = $message->sent_at ?? $message->created_at;
+
+        return [
+            'id' => (string) $message->id,
+            'conversation_id' => (string) $message->conversation_id,
+            'sender_id' => (string) $message->sender_user_id,
+            'sender_user_id' => (string) $message->sender_user_id,
+            'body' => $message->body,
+            'time' => $sentAt?->diffForHumans() ?? 'Just now',
+            'sent_at' => $sentAt?->toIso8601String(),
+        ];
+    }
+
+    public function streamPayload(User $user, int $conversationId): Collection
+    {
+        return $this->messagesFor($user, $conversationId)
+            ->map(fn (Message $message): array => $this->messagePayload($message));
     }
 
     public function send(User $sender, int $recipientUserId, string $body, array $context = []): Message

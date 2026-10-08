@@ -24,7 +24,7 @@
     </script>
 </head>
 <body class="lk-buyer-body">
-    <div class="lk-buyer-app" data-lk-buyer-app>
+    <div class="lk-buyer-app" data-lk-buyer-app data-buyer-user-id="{{ auth()->id() }}">
         <x-admin.sidebar role="buyer" :active="$activePage" />
         <div class="lk-shell" data-sidebar-content>
             <x-buyer.header :title="$pageTitle" />

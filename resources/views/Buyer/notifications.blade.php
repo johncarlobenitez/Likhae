@@ -7,7 +7,13 @@
 @section('content')
 @php
     $type = request('type', 'all');
-    $notifications = collect($dbNotifications ?? [])->map(function ($notification) {
+    $notificationRows = collect($dbNotifications ?? $notifications ?? []);
+    $notificationVersion = sha1($notificationRows->take(20)->map(fn ($notification) => [
+        'id' => (int) $notification->id,
+        'read_at' => $notification->read_at?->toIso8601String(),
+        'updated_at' => $notification->updated_at?->toIso8601String(),
+    ])->values()->toJson());
+    $notifications = $notificationRows->map(function ($notification) {
         $kind = in_array($notification->type, ['orders','messages','rewards','account'], true) ? $notification->type : (str_contains((string) $notification->type, 'message') ? 'messages' : 'orders');
         $url = $notification->action_url ?: route('buyer.notifications');
         if (str_starts_with($url, '/seller/')) $url = route('buyer.notifications');
@@ -15,7 +21,7 @@
             'id' => $notification->id,
             'type' => $kind,
             'title' => $notification->title,
-            'message' => $notification->body,
+            'message' => $notification->message ?? $notification->body,
             'time' => $notification->created_at?->diffForHumans() ?: '',
             'unread' => $notification->read_at === null,
             'url' => $url,
@@ -26,14 +32,14 @@
     $icons = ['orders'=>'□','messages'=>'✉','rewards'=>'%','account'=>'○'];
 @endphp
 
-<div class="lk-page-narrow">
+<div class="lk-page-narrow" data-buyer-notifications-live data-notification-stream-url="{{ route('buyer.notifications.stream') }}" data-notification-version="{{ $notificationVersion }}">
     <div class="lk-page-title"><div><span class="lk-kicker">Notification Center</span><h1>Notifications</h1><p>Important activity from your LIKHAE account.</p></div><form method="POST" action="{{ route('buyer.notifications.read-all') }}">@csrf<button type="submit" class="lk-btn lk-btn-light">Mark all as read</button></form></div>
 
-    <nav class="flex gap-1 overflow-x-auto rounded-xl border border-stone-200 bg-white p-1 shadow-sm" aria-label="Notification filters">@foreach($types as $key=>$label)<a href="{{ route('buyer.notifications',['type'=>$key]) }}" class="whitespace-nowrap rounded-lg px-3.5 py-2.5 text-xs font-semibold {{ $type === $key ? 'bg-red-900 text-white' : 'text-stone-600 hover:bg-stone-50' }}">{{ $label }}@if($key==='all') <span class="ml-1 opacity-70">{{ $notifications->where('unread',true)->count() }}</span>@endif</a>@endforeach</nav>
+    <nav class="flex gap-1 overflow-x-auto rounded-xl border border-stone-200 bg-white p-1 shadow-sm" aria-label="Notification filters">@foreach($types as $key=>$label)<a href="{{ route('buyer.notifications',['type'=>$key]) }}" class="whitespace-nowrap rounded-lg px-3.5 py-2.5 text-xs font-semibold {{ $type === $key ? 'bg-red-900 text-white' : 'text-stone-600 hover:bg-stone-50' }}">{{ $label }}@if($key==='all') <span class="ml-1 opacity-70" data-notification-unread-count>{{ $notifications->where('unread',true)->count() }}</span>@endif</a>@endforeach</nav>
 
     <section class="mt-5 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm" data-notification-list>
         @forelse($visible as $notification)
-            <a href="{{ $notification['url'] }}" class="flex gap-3 border-b border-stone-100 p-4 transition last:border-0 hover:bg-stone-50 sm:p-5 {{ $notification['unread'] ? 'bg-red-50/40' : '' }}" data-notification-item>
+            <a href="{{ $notification['url'] }}" class="flex gap-3 border-b border-stone-100 p-4 transition last:border-0 hover:bg-stone-50 sm:p-5 {{ $notification['unread'] ? 'bg-red-50/40' : '' }}" data-notification-item data-notification-type="{{ $notification['type'] }}">
                 <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {{ $notification['unread'] ? 'bg-red-900 text-white' : 'bg-stone-100 text-stone-500' }} text-sm font-bold">{{ $icons[$notification['type']] ?? '•' }}</span>
                 <span class="min-w-0 flex-1"><span class="flex flex-wrap items-center justify-between gap-2"><strong class="text-sm text-stone-900">{{ $notification['title'] }}</strong><time class="text-[10px] text-stone-400">{{ $notification['time'] }}</time></span><span class="mt-1 block text-xs leading-5 text-stone-500">{{ $notification['message'] }}</span></span>
                 @if($notification['unread'])<i class="mt-2 h-2 w-2 shrink-0 rounded-full bg-red-800" aria-label="Unread"></i>@endif
