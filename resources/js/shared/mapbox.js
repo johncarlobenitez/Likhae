@@ -107,10 +107,15 @@ async function fetchRoadGeometry(token, from, to) {
     const coordinates = `${from[0]},${from[1]};${to[0]},${to[1]}`;
     const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}?overview=full&geometries=geojson&access_token=${encodeURIComponent(token)}`;
     const response = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (!response.ok) throw new Error(`Directions request failed (${response.status}).`);
+    if (!response.ok) {
+        const message = response.status === 401 || response.status === 403
+            ? `Mapbox Directions authorization failed (HTTP ${response.status}). Check the browser-safe token and its URL restrictions.`
+            : `Mapbox Directions request failed (HTTP ${response.status}).`;
+        throw new Error(message);
+    }
     const payload = await response.json();
     const route = payload.routes?.[0];
-    if (!route?.geometry?.coordinates?.length) throw new Error('No driving route was returned.');
+    if (!route?.geometry?.coordinates?.length) throw new Error('Mapbox returned no drivable route for these saved coordinates.');
     if (!Number.isFinite(Number(route.distance)) || !Number.isFinite(Number(route.duration))) {
         throw new Error('The driving route did not include distance and duration.');
     }
@@ -246,13 +251,15 @@ async function drawPersistedRoutes(map, markers, shell, token) {
             route: sameNavigationTarget && liveNavigationRider ? previousNavigation.route : null,
             status: !activeRider
                 ? 'Waiting for the active assignment.'
-                : !liveNavigationRider
-                    ? 'Waiting for a fresh live GPS fix.'
-                    : sameNavigationTarget && liveNavigationRider && previousNavigation.route
-                        ? 'Road route active'
-                    : !markerCoordinates(activeNavigationTarget)
-                        ? 'Saved destination coordinates are unavailable.'
-                        : 'Calculating driving route…',
+                : !markerCoordinates(activeNavigationTarget)
+                    ? activeDestinationKind === 'seller'
+                        ? 'Seller pickup coordinates are missing. Ask the seller to confirm the saved address pin.'
+                        : 'Saved destination coordinates are unavailable.'
+                    : !liveNavigationRider
+                        ? 'Waiting for a fresh live GPS fix.'
+                        : sameNavigationTarget && previousNavigation.route
+                            ? 'Road route active'
+                            : 'Calculating driving route…',
         });
 
         const riderCoordinates = markerCoordinates(liveNavigationRider);
@@ -327,7 +334,7 @@ async function drawPersistedRoutes(map, markers, shell, token) {
                         });
                     }
                 })
-                .catch(() => {
+                .catch((error) => {
                     if (shell._likhaeRouteState?.[routeId] !== routeState) return;
                     routeState.pending = false;
                     routeState.failedAt = Date.now();
@@ -335,10 +342,10 @@ async function drawPersistedRoutes(map, markers, shell, token) {
                         updateNavigationPanel(shell, {
                             rider,
                             target,
-                            status: 'Driving route unavailable. Retrying shortly.',
+                            status: error?.message || 'Driving route unavailable. Retrying shortly.',
                         });
                     }
-                    updateStatus(shell, 'Live rider location is available, but the road route is temporarily unavailable.', true);
+                    updateStatus(shell, error?.message || 'Live rider location is available, but the road route is temporarily unavailable.', true);
                 });
         });
     });
@@ -563,9 +570,41 @@ async function applyRiderLocationEvent(shell, map, mapboxgl, event) {
     renderMarkers(shell, map, mapboxgl, shell._likhaeCurrentMarkers || []);
     await drawPersistedRoutes(map, shell._likhaeCurrentMarkers || [], shell, shell.dataset.mapToken);
     updateStatus(shell, fresh
-        ? 'Rider live location updated from the active assignment.'
+        ? event?.local_device_gps
+            ? 'Road route updated from fresh Rider device GPS. Saving live location…'
+            : 'Rider live location updated from the active assignment.'
         : 'A delayed rider location was received; waiting for a fresh GPS update.', !fresh);
     return true;
+}
+
+function bindDeviceRiderLocation(shell, map, mapboxgl) {
+    if (shell._likhaeSavedLocationBound) return;
+    shell._likhaeSavedLocationBound = true;
+
+    const applyDeviceFix = ({ detail }, source) => {
+        const assignmentId = String(detail?.assignmentId || '');
+        const marker = (shell._likhaeCurrentMarkers || []).find((candidate) =>
+            String(candidate.assignment_id || '') === assignmentId
+            && candidate.kind === 'rider');
+        if (!marker) return;
+
+        // This event is emitted only after the existing protected endpoint
+        // returns success. It is therefore real, accepted Rider device GPS,
+        // never the local-only "Use my location" marker.
+        applyRiderLocationEvent(shell, map, mapboxgl, {
+            shipment_id: marker.shipment_id,
+            assignment_id: assignmentId,
+            latitude: detail.latitude,
+            longitude: detail.longitude,
+            recorded_at: detail.recorded_at,
+            local_device_gps: source === 'device',
+        });
+    };
+
+    // Only the tracker’s fresh, validated watchPosition coordinate may create
+    // an immediate route. The local-only map helper never emits this event.
+    window.addEventListener('likhae:rider-location-read', (event) => applyDeviceFix(event, 'device'));
+    window.addEventListener('likhae:rider-location-saved', (event) => applyDeviceFix(event, 'saved'));
 }
 
 async function pollTracking(shell, map, mapboxgl, { fallback = false } = {}) {
@@ -615,6 +654,21 @@ function setRealtimeConnectionState(shell, state) {
         : 'Realtime tracking is reconnecting; polling fallback is active.', !connected);
 }
 
+function syncPollingFallback(shell, map, mapboxgl) {
+    if (shell._likhaeRealtimeConnectionState === 'connected') {
+        if (shell._likhaeTrackingTimer) window.clearInterval(shell._likhaeTrackingTimer);
+        shell._likhaeTrackingTimer = null;
+        return;
+    }
+
+    if (shell._likhaeTrackingTimer) return;
+    pollTracking(shell, map, mapboxgl, { fallback: true });
+    shell._likhaeTrackingTimer = window.setInterval(
+        () => pollTracking(shell, map, mapboxgl, { fallback: true }),
+        5000,
+    );
+}
+
 function leaveEchoChannels(shell) {
     const channels = shell._likhaeTrackingChannels || [];
     channels.forEach((channel) => {
@@ -638,7 +692,11 @@ function connectLiveTracking(shell, map, mapboxgl) {
                     shell._likhaeRealtimeNotice = '';
                     shell._likhaeRealtimeNoticeError = false;
                     applyRiderLocationEvent(shell, map, mapboxgl, event)
-                        .finally(() => pollTracking(shell, map, mapboxgl));
+                        .finally(() => {
+                            if (shell._likhaeRealtimeConnectionState !== 'connected') {
+                                pollTracking(shell, map, mapboxgl, { fallback: true });
+                            }
+                        });
                 })
                 .listen('.shipment.tracking.updated', () => {
                     shell._likhaeRealtimeNotice = '';
@@ -647,9 +705,11 @@ function connectLiveTracking(shell, map, mapboxgl) {
                 }));
             const connectionState = window.Echo?.connector?.pusher?.connection?.state;
             setRealtimeConnectionState(shell, connectionState === 'connected' ? 'connected' : 'connecting');
+            syncPollingFallback(shell, map, mapboxgl);
         } catch {
             leaveEchoChannels(shell);
             setRealtimeConnectionState(shell, 'unavailable');
+            syncPollingFallback(shell, map, mapboxgl);
         }
     };
 
@@ -664,13 +724,16 @@ function connectLiveTracking(shell, map, mapboxgl) {
                 shell._likhaeRealtimeNoticeError = false;
                 leaveEchoChannels(shell);
                 subscribe();
+                syncPollingFallback(shell, map, mapboxgl);
                 return;
             }
 
             leaveEchoChannels(shell);
             setRealtimeConnectionState(shell, states.current || 'unavailable');
+            syncPollingFallback(shell, map, mapboxgl);
         });
         setRealtimeConnectionState(shell, connection.state === 'connected' ? 'connected' : 'connecting');
+        syncPollingFallback(shell, map, mapboxgl);
     };
 
     bindConnection();
@@ -678,12 +741,13 @@ function connectLiveTracking(shell, map, mapboxgl) {
     shell._likhaeEchoRetryTimer = window.setInterval(() => {
         if (!window.Echo) {
             setRealtimeConnectionState(shell, 'unavailable');
+            syncPollingFallback(shell, map, mapboxgl);
             return;
         }
         bindConnection();
         subscribe();
     }, 2000);
-    shell._likhaeTrackingTimer = window.setInterval(() => pollTracking(shell, map, mapboxgl, { fallback: true }), 5000);
+    syncPollingFallback(shell, map, mapboxgl);
 }
 
 function initMap(shell, mapboxgl) {
@@ -718,6 +782,7 @@ function initMap(shell, mapboxgl) {
     map.on('load', () => {
         drawPersistedRoutes(map, markers, shell, token);
         configureRiderLocationUpdates(shell);
+        bindDeviceRiderLocation(shell, map, mapboxgl);
         updateStatus(shell, markers.length ? `${markers.length} location${markers.length === 1 ? '' : 's'} loaded.` : 'No saved coordinates yet.');
         connectLiveTracking(shell, map, mapboxgl);
         if (shell.dataset.mapNavigation === 'true') {

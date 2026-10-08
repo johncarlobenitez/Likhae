@@ -1,5 +1,8 @@
 @extends('Rider.app')
 @section('title','Rider Account - LIKHAE')
+@push('head')
+    @vite(['resources/css/shared/mapbox.css', 'resources/js/shared/address-pin.js', 'resources/js/address/forms.js'])
+@endpush
 @section('content')
 <div class="space-y-6"><header><p class="text-xs font-bold uppercase text-primary">Account Management</p><h1 class="mt-2 text-2xl font-bold">{{ $rider->user?->name }}</h1><p class="mt-2 text-sm text-muted">Your approved rider and vehicle information.</p></header>
 	@if(session('status'))<div class="border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{{ session('status') }}</div>@endif

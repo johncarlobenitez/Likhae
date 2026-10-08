@@ -96,11 +96,30 @@ function initializeRiderLocationTracker() {
                 body: JSON.stringify(payload),
             });
 
-            if (response.ok) return true;
+            if (response.ok) {
+                const body = await response.json();
+                return { ok: true, location: body?.data || payload };
+            }
+            let details = null;
+            try { details = await response.json(); } catch { /* Status remains actionable without JSON. */ }
             if (response.status === 403 || response.status === 409) removeAssignment(assignment.endpoint);
-            return false;
-        } catch {
-            return false;
+            const message = {
+                401: 'Your Rider session expired. Sign in again, then resume GPS sharing.',
+                403: 'This Rider account cannot update this assignment. GPS sharing was stopped.',
+                409: 'This assignment is no longer in a travel state. GPS sharing was stopped.',
+                419: 'Your session verification expired. Refresh this page, sign in if needed, then resume GPS.',
+                422: details?.message || 'This GPS fix was rejected. Check accuracy and wait for a fresh device fix.',
+                500: 'The server could not process this GPS update. It will retry with the next fix.',
+            }[response.status] || `GPS update failed (HTTP ${response.status}). It will retry with the next fix.`;
+            return { ok: false, message, state: [401, 403, 409, 419, 422].includes(response.status) ? 'error' : 'offline' };
+        } catch (error) {
+            return {
+                ok: false,
+                message: error?.name === 'AbortError'
+                    ? 'The GPS update timed out. It will retry with the next fix.'
+                    : 'GPS was read, but the server could not receive the update. Retrying.',
+                state: 'offline',
+            };
         } finally {
             window.clearTimeout(timeout);
         }
@@ -150,12 +169,33 @@ function initializeRiderLocationTracker() {
             accuracy,
             recorded_at: recordedAt.toISOString(),
         };
+        // This is a fresh, accuracy-checked device GPS fix from
+        // watchPosition(). Let the map calculate the real road route now;
+        // persistence and the shared tracking feed continue independently.
+        assignments.forEach((assignment) => {
+            window.dispatchEvent(new CustomEvent('likhae:rider-location-read', {
+                detail: { assignmentId: assignment.id, ...payload },
+            }));
+        });
         Promise.all(assignments.map((assignment) => postLocation(assignment, payload)))
             .then((results) => {
-                if (assignments.length && results.some(Boolean)) {
+                if (assignments.length && results.some((result) => result.ok)) {
+                    // The server has accepted actual device GPS. Update this
+                    // page's map immediately instead of waiting for Reverb or
+                    // the next fallback poll to reflect the saved fix.
+                    results.forEach((result, index) => {
+                        if (!result.ok) return;
+                        window.dispatchEvent(new CustomEvent('likhae:rider-location-saved', {
+                            detail: {
+                                assignmentId: assignments[index].id,
+                                ...result.location,
+                            },
+                        }));
+                    });
                     setStatus('Live GPS is active. Keep this Rider page in the foreground while traveling.', 'active');
                 } else if (assignments.length) {
-                    setStatus('GPS was read, but the server could not receive the update. Retrying.', 'offline');
+                    const failure = results.find((result) => result.message);
+                    setStatus(failure?.message || 'GPS was read, but the server could not receive the update. Retrying.', failure?.state || 'offline');
                 }
             });
     };

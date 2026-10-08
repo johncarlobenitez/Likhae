@@ -7,7 +7,9 @@ use App\Models\Rider\RiderAssignment;
 use App\Models\Rider\RiderAssignmentLocation;
 use App\Models\User;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class RiderLocationService
 {
@@ -81,7 +83,17 @@ class RiderLocationService
             'recorded_at' => $recordedAt,
         ]);
 
-        RiderLocationUpdated::dispatch($location->load('riderAssignment.shipment'));
+        // Persisted device GPS is the source of truth. A realtime outage must
+        // not make an otherwise accepted GPS update appear to have failed.
+        try {
+            RiderLocationUpdated::dispatch($location->load('riderAssignment.shipment'));
+        } catch (Throwable $exception) {
+            Log::warning('Rider GPS location was saved but its realtime broadcast failed.', [
+                'assignment_id' => $assignment->id,
+                'shipment_id' => $assignment->shipment_id,
+                'exception' => $exception,
+            ]);
+        }
 
         return $location;
     }

@@ -2,6 +2,10 @@
 
 @section('title', 'Pickup Details - LIKHAE Rider')
 
+@push('head')
+    @vite(['resources/css/shared/mapbox.css', 'resources/js/shared/mapbox.js'])
+@endpush
+
 @section('content')
 <div class="flex flex-col gap-8">
     @if(session('status'))

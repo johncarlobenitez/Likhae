@@ -31,12 +31,10 @@
     @vite([
         'resources/css/logistic/app.css',
         'resources/css/shared/likhae-workspace-ai.css',
-        'resources/css/shared/mapbox.css',
         'resources/js/rider/app.js',
-        'resources/js/shared/likhae-workspace-ai.js',
-        'resources/js/shared/mapbox.js',
-        'resources/js/shared/address-pin.js'
+        'resources/js/shared/likhae-workspace-ai.js'
     ])
+    @stack('head')
 
     <style>
         :root {
