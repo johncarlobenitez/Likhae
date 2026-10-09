@@ -3,6 +3,10 @@
 @php
     $sellerSlug = data_get($seller, 'id', 'store');
     $sellerName = data_get($seller, 'business_name', 'LIKHAE Store');
+    $sellerAvatar = data_get($seller, 'avatar_path');
+    $sellerAvatarUrl = $sellerAvatar ? (\Illuminate\Support\Str::startsWith($sellerAvatar, ['http://', 'https://']) ? $sellerAvatar : \Illuminate\Support\Facades\Storage::url($sellerAvatar)) : null;
+    $sellerBanner = data_get($seller, 'banner_path');
+    $sellerBannerUrl = $sellerBanner ? (\Illuminate\Support\Str::startsWith($sellerBanner, ['http://', 'https://']) ? $sellerBanner : \Illuminate\Support\Facades\Storage::url($sellerBanner)) : null;
     $storeProducts = collect($products)->filter(function ($product) use ($sellerSlug) {
         return (string) data_get($product, 'seller.id') === (string) $sellerSlug;
     })->values();
@@ -13,10 +17,10 @@
 
 <div class="lk-page">
     <section class="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
-        <div class="h-24 bg-gradient-to-r from-red-950 via-red-900 to-stone-900"></div>
+        <div class="h-24 bg-gradient-to-r from-red-950 via-red-900 to-stone-900" @if($sellerBannerUrl) style="background-image:linear-gradient(90deg,rgba(40,10,10,.32),rgba(40,10,10,.08)),url('{{ $sellerBannerUrl }}');background-position:center;background-size:cover" @endif></div>
         <div class="flex flex-col gap-4 p-5 sm:flex-row sm:items-end sm:p-6">
-            <img class="-mt-14 h-24 w-24 rounded-2xl border-4 border-white bg-white object-cover shadow-sm" src="{{ data_get($seller, 'avatar') }}" alt="{{ $sellerName }}">
-            <div class="min-w-0 flex-1"><span class="text-[10px] font-bold uppercase tracking-widest text-red-800">Verified LIKHAE store</span><h1 class="truncate text-2xl font-bold text-stone-950">{{ $sellerName }}</h1><p class="mt-1 text-xs text-stone-500">{{ data_get($seller, 'location') }} · Joined {{ data_get($seller, 'joined') }}</p></div>
+            @if($sellerAvatarUrl)<img class="-mt-14 h-24 w-24 rounded-2xl border-4 border-white bg-white object-cover shadow-sm" src="{{ $sellerAvatarUrl }}" alt="{{ $sellerName }}">@else<div class="-mt-14 grid h-24 w-24 place-items-center rounded-2xl border-4 border-white bg-red-900 text-xl font-bold text-white shadow-sm">{{ collect(explode(' ', $sellerName))->filter()->take(2)->map(fn ($part) => mb_strtoupper(mb_substr($part, 0, 1)))->implode('') }}</div>@endif
+            <div class="min-w-0 flex-1"><span class="text-[10px] font-bold uppercase tracking-widest text-red-800">Verified LIKHAE store</span><h1 class="truncate text-2xl font-bold text-stone-950">{{ $sellerName }}</h1>@if(data_get($seller, 'tagline'))<p class="mt-1 text-sm text-stone-600">{{ data_get($seller, 'tagline') }}</p>@endif<p class="mt-1 text-xs text-stone-500">{{ data_get($seller, 'location') }} · Joined {{ data_get($seller, 'joined') }}</p></div>
             <div class="flex flex-wrap gap-2">
                 @if($guest)
                     <button type="button" class="lk-btn lk-btn-light" data-auth-required data-auth-message="Sign in to follow this store.">+ Follow</button>
@@ -40,5 +44,5 @@
         @if($storeProducts->isNotEmpty())<div class="lk-product-grid mt-5">@foreach($storeProducts as $product)<x-buyer.product-card :product="$product" :guest="$guest" />@endforeach</div>@else<div class="mt-5"><x-buyer.empty-state title="No store products found" message="Try another keyword or browse the full marketplace." /></div>@endif
     </section>
 
-    <section class="mt-5 grid gap-4 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_300px]"><div><h2 class="text-base font-bold text-stone-900">About this store</h2><p class="mt-2 text-sm leading-6 text-stone-600">{{ data_get($seller, 'description') }}</p></div><dl class="space-y-2 text-xs"><div class="flex justify-between gap-3"><dt class="text-stone-500">Location</dt><dd class="font-medium text-stone-800">{{ data_get($seller, 'location') }}</dd></div><div class="flex justify-between gap-3"><dt class="text-stone-500">Business hours</dt><dd class="font-medium text-stone-800">{{ data_get($seller, 'hours') }}</dd></div><div class="flex justify-between gap-3"><dt class="text-stone-500">Response time</dt><dd class="font-medium text-stone-800">{{ data_get($seller, 'response') }}</dd></div></dl></section>
+    <section class="mt-5 grid gap-4 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm md:grid-cols-[1fr_300px]"><div><h2 class="text-base font-bold text-stone-900">About this store</h2><p class="mt-2 text-sm leading-6 text-stone-600">{{ data_get($seller, 'description') }}</p></div><dl class="space-y-2 text-xs"><div class="flex justify-between gap-3"><dt class="text-stone-500">Location</dt><dd class="font-medium text-stone-800">{{ data_get($seller, 'location') }}</dd></div><div class="flex justify-between gap-3"><dt class="text-stone-500">Business hours</dt><dd class="font-medium text-stone-800">{{ data_get($seller, 'business_hours') }}</dd></div></dl></section>
 </div>

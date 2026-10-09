@@ -17,6 +17,7 @@ class LogisticsApplicationData extends Model
         'business_name',
         'business_registration_number',
         'dti_registration_number',
+        'tin',
     ];
 
     public function application(): BelongsTo

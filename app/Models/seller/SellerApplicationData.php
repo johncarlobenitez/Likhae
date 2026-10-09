@@ -15,6 +15,8 @@ class SellerApplicationData extends Model
         'category_id',
         'business_name',
         'business_registration_number',
+        'seller_type',
+        'tin',
     ];
 
     public function application(): BelongsTo

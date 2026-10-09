@@ -17,6 +17,24 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById(
             'email'
         );
+    const contactNumberInput = document.getElementById('contact_number');
+    contactNumberInput?.addEventListener('input', () => {
+        let digits = contactNumberInput.value.replace(/\D/g, '');
+        if (digits.startsWith('63')) digits = digits.slice(2);
+        if (digits.startsWith('0')) digits = digits.slice(1);
+        contactNumberInput.value = digits.slice(0, 10);
+    });
+
+    document.querySelectorAll('[data-name-format]').forEach((field) => {
+        const validateName = () => {
+            const value = field.value.trim();
+            const valid = value.length >= 2 && value.length <= 50 && /^[\p{L}][\p{L}\s'.-]*$/u.test(value);
+            field.setCustomValidity(valid || value === '' ? '' : 'Use 2 to 50 letters, spaces, hyphens, apostrophes, or periods.');
+        };
+        field.addEventListener('input', validateName);
+        field.addEventListener('blur', validateName);
+        validateName();
+    });
 
     const emailVerification =
         document.querySelector(
@@ -284,6 +302,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         }
 
+        const sellerBranding = document.querySelector('[data-seller-branding]');
+        if (sellerBranding) sellerBranding.hidden = !seller;
+        const sellerTypeField = document.querySelector('[data-seller-type-field]');
+        const sellerTypeInput = document.getElementById('seller_type');
+        if (sellerTypeField) sellerTypeField.hidden = !seller;
+        if (sellerTypeInput) {
+            sellerTypeInput.required = seller;
+            sellerTypeInput.disabled = !seller;
+        }
+        const businessIdField = document.querySelector('[data-business-id-field]');
+        if (businessIdField) businessIdField.hidden = !(seller || logistics);
+        const businessNameInput = document.getElementById('business_name');
+        if (businessNameInput) businessNameInput.maxLength = seller ? 30 : 200;
+        const sellerDocuments = document.querySelector('[data-seller-documents]');
+        if (sellerDocuments) sellerDocuments.hidden = !(seller || logistics);
+        document.querySelectorAll('[data-logistics-field]').forEach((field) => { field.hidden = !logistics; });
+        const sellerTypeValue = sellerTypeInput?.value;
+        document.querySelectorAll('[data-seller-document]').forEach((wrapper) => {
+            const input = wrapper.querySelector('input[type="file"]');
+            const documentType = wrapper.dataset.sellerDocument;
+            const required = (seller && (
+                (documentType === 'dti_certificate' && sellerTypeValue === 'sole_proprietorship')
+                || (documentType === 'sec_certificate' && sellerTypeValue === 'corporation')
+                || (documentType === 'bir_form_2303' && ['sole_proprietorship', 'corporation'].includes(sellerTypeValue))
+            )) || (logistics && ['sec_certificate', 'bir_form_2303'].includes(documentType));
+            wrapper.hidden = !required;
+            if (input) {
+                input.required = required;
+                input.disabled = !required;
+            }
+        });
+
 
         accountButtons.forEach(
             (button) => {
@@ -335,7 +385,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (businessPermitUpload) {
 
             businessPermitUpload.hidden =
-                !(seller || logistics);
+                !logistics;
+
+            const permitInput = businessPermitUpload.querySelector('input[type="file"]');
+            if (permitInput) {
+                permitInput.required = logistics;
+                permitInput.disabled = !logistics;
+            }
 
         }
 
@@ -404,6 +460,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 field.required =
                     logistics;
+                field.disabled =
+                    !logistics;
 
             }
         );
@@ -564,6 +622,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         }
     );
+
+    document.getElementById('seller_type')?.addEventListener('change', () => {
+        setAccountType(accountTypeInput?.value || 'buyer');
+    });
 
 
     /*
@@ -986,10 +1048,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!valid) {
 
-            showStepError();
+            showStepError('Please correct the highlighted field(s) before continuing.');
 
 
             firstInvalid?.focus();
+            firstInvalid?.reportValidity();
 
 
             return false;
@@ -1000,7 +1063,7 @@ document.addEventListener('DOMContentLoaded', () => {
             current.name === 'contact'
             && !emailVerified
         ) {
-            showStepError();
+            showStepError('Verify your email before continuing.');
             sendEmailCodeButton?.focus();
             return false;
         }
@@ -1105,10 +1168,11 @@ document.addEventListener('DOMContentLoaded', () => {
     |--------------------------------------------------------------------------
     */
 
-    function showStepError() {
+    function showStepError(message = 'Please complete the required fields before continuing.') {
 
         if (stepError) {
 
+            stepError.textContent = message;
             stepError.hidden =
                 false;
 
@@ -1473,10 +1537,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
                             fileName.textContent =
                                 'No file selected';
+                            input.setCustomValidity('');
 
 
                             return;
 
+                        }
+
+                        const maxBytes = 5 * 1024 * 1024;
+                        const acceptedTypes = (input.accept || '').toLowerCase().split(',').map((type) => type.trim()).filter(Boolean);
+                        const fileExtension = `.${file.name.split('.').pop().toLowerCase()}`;
+                        const accepted = !acceptedTypes.length || acceptedTypes.some((type) => (
+                            type === file.type.toLowerCase()
+                            || type === fileExtension
+                            || (type.endsWith('/*') && file.type.toLowerCase().startsWith(type.slice(0, -1)))
+                        ));
+                        const error = file.size > maxBytes
+                            ? 'File must be 5 MB or smaller.'
+                            : (!accepted ? 'Choose a file in one of the accepted formats.' : '');
+                        input.setCustomValidity(error);
+                        if (error) {
+                            input.reportValidity();
+                            input.value = '';
+                            fileName.textContent = 'No file selected';
+                            return;
                         }
 
 
@@ -2172,5 +2256,104 @@ document.addEventListener('DOMContentLoaded', () => {
             ? initialAccountType
             : 'buyer'
     );
+
+    const serverErrors = JSON.parse(document.getElementById('registration-validation-errors')?.textContent || '{}');
+    let firstInvalid = null;
+    Object.entries(serverErrors).forEach(([name, messages]) => {
+        const fields = [...form.querySelectorAll('[name]')].filter((field) => field.name === name && field.type !== 'hidden');
+        if (!fields.length) return;
+        const message = Array.isArray(messages) ? messages[0] : String(messages);
+        fields.forEach((field) => {
+            field.setAttribute('aria-invalid', 'true');
+            const wrapper = field.closest('.register-field');
+            if (!wrapper || wrapper.querySelector(`[data-inline-error="${name}"]`)) return;
+            const inline = document.createElement('small');
+            inline.className = 'register-inline-error';
+            inline.dataset.inlineError = name;
+            inline.setAttribute('role', 'alert');
+            inline.textContent = message;
+            wrapper.append(inline);
+            firstInvalid ||= field;
+        });
+    });
+    if (firstInvalid) {
+        const steps = getSteps();
+        const invalidStep = steps.findIndex((step) => step.contains(firstInvalid));
+        if (invalidStep >= 0) showStep(invalidStep);
+        firstInvalid.focus({preventScroll: true});
+        firstInvalid.scrollIntoView({behavior: 'smooth', block: 'center'});
+    }
+
+    document.querySelectorAll('[data-store-photo]').forEach((input) => input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        const preview = document.querySelector(`[data-store-photo-preview="${input.dataset.storePhoto}"]`);
+        const maxBytes = input.dataset.storePhoto === 'avatar' ? 5 * 1024 * 1024 : 8 * 1024 * 1024;
+        if (!file || !preview) return;
+        if (file.size > maxBytes) {
+            input.value = '';
+            input.setCustomValidity(`Choose an image smaller than ${input.dataset.storePhoto === 'avatar' ? '5' : '8'} MB.`);
+            input.reportValidity();
+            return;
+        }
+        input.setCustomValidity('');
+        const oldUrl = preview.dataset.previewUrl;
+        if (oldUrl) URL.revokeObjectURL(oldUrl);
+        const url = URL.createObjectURL(file);
+        preview.dataset.previewUrl = url;
+        preview.src = url;
+        preview.hidden = false;
+        updateStorePhotoPreview(input.dataset.storePhoto);
+    }));
+
+    function updateStorePhotoPreview(key) {
+        const preview = document.querySelector(`[data-store-photo-preview="${key}"]`);
+        if (!preview) return;
+        const x = document.querySelector(`[data-store-photo-x="${key}"]`)?.value ?? 50;
+        const y = document.querySelector(`[data-store-photo-y="${key}"]`)?.value ?? 50;
+        const zoom = document.querySelector(`[data-store-photo-zoom="${key}"]`)?.value ?? 100;
+        preview.style.objectPosition = `${x}% ${y}%`;
+        preview.style.transform = `scale(${Number(zoom) / 100})`;
+    }
+
+    document.querySelectorAll('[data-store-photo-zoom], [data-store-photo-x], [data-store-photo-y]').forEach((control) => {
+        control.addEventListener('input', () => updateStorePhotoPreview(control.dataset.storePhotoZoom || control.dataset.storePhotoX || control.dataset.storePhotoY));
+    });
+
+    let storePhotoCropInProgress = false;
+    form?.addEventListener('submit', async (event) => {
+        if (event.defaultPrevented || storePhotoCropInProgress) return;
+        const selected = [...document.querySelectorAll('[data-store-photo]')]
+            .map((input) => ({input, file: input.files?.[0], key: input.dataset.storePhoto}))
+            .filter((item) => item.file);
+        if (!selected.length) return;
+        event.preventDefault();
+        storePhotoCropInProgress = true;
+        try {
+            for (const {input, file, key} of selected) {
+                const image = await createImageBitmap(file);
+                const width = 1200;
+                const height = key === 'avatar' ? 1200 : 400;
+                const zoom = Number(document.querySelector(`[data-store-photo-zoom="${key}"]`).value) / 100;
+                const scale = Math.max(width / image.width, height / image.height) * zoom;
+                const drawWidth = image.width * scale;
+                const drawHeight = image.height * scale;
+                const x = (width - drawWidth) * Number(document.querySelector(`[data-store-photo-x="${key}"]`).value) / 100;
+                const y = (height - drawHeight) * Number(document.querySelector(`[data-store-photo-y="${key}"]`).value) / 100;
+                const canvas = document.createElement('canvas');
+                canvas.width = width; canvas.height = height;
+                canvas.getContext('2d').drawImage(image, x, y, drawWidth, drawHeight);
+                image.close();
+                const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', .88));
+                if (blob?.type === 'image/webp') {
+                    const transfer = new DataTransfer();
+                    transfer.items.add(new File([blob], `${key}.webp`, {type: 'image/webp'}));
+                    input.files = transfer.files;
+                }
+            }
+        } catch (error) {
+            console.warn('Shop photo crop failed; sending the selected original image.', error);
+        }
+        form.submit();
+    });
 
 });

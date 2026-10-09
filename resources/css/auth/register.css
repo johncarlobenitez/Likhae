@@ -1175,6 +1175,18 @@ html.dark .likhae-logo .likhae-logo__image--dark { display: block; }
     line-height: 1.4;
 }
 
+.register-field .register-inline-error {
+    display: block;
+    margin-top: 3px;
+    color: #b42318;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.register-field [aria-invalid="true"] {
+    border-color: #b42318;
+}
+
 .register-email-verification {
     display: grid;
     gap: 8px;

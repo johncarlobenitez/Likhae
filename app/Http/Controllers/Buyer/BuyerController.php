@@ -25,6 +25,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -134,7 +135,7 @@ class BuyerController extends Controller
 
         if ($request->boolean('checkout')) {
             $request->session()->put('checkout_cart_item_ids', [$item->id]);
-            $request->session()->forget('checkout_voucher_codes');
+            $request->session()->forget(['checkout_voucher_code', 'checkout_voucher_codes']);
 
             return redirect()->route('buyer.checkout');
         }
@@ -169,7 +170,7 @@ class BuyerController extends Controller
         // Buy Now selects only this item and always leaves this endpoint via
         // the checkout page rather than the cart response path.
         $request->session()->put('checkout_cart_item_ids', [$item->id]);
-        $request->session()->forget('checkout_voucher_codes');
+        $request->session()->forget(['checkout_voucher_code', 'checkout_voucher_codes']);
 
         return redirect()->route('buyer.checkout');
     }
@@ -634,14 +635,18 @@ class BuyerController extends Controller
     public function saveAddress(Request $request): RedirectResponse
     {
         $data = $this->validatedAddress($request);
+        $buyer = $request->user();
+        $makeDefault = $request->boolean('is_default') || ! $buyer->addresses()->exists();
 
-        if ($request->boolean('is_default')) {
-            $request->user()->addresses()->update(['is_default' => false]);
-        }
+        DB::transaction(function () use ($buyer, $data, $makeDefault): void {
+            if ($makeDefault) {
+                $buyer->addresses()->update(['is_default' => false]);
+            }
 
-        $request->user()->addresses()->create($this->addressAttributes($data) + [
-            'is_default' => $request->boolean('is_default'),
-        ]);
+            $buyer->addresses()->create($this->addressAttributes($data) + [
+                'is_default' => $makeDefault,
+            ]);
+        });
 
         return back()->with('buyer_notice', 'Address saved.');
     }
@@ -652,13 +657,30 @@ class BuyerController extends Controller
 
         $data = $this->validatedAddress($request, $address);
 
-        if ($request->boolean('is_default')) {
-            $request->user()->addresses()->whereKeyNot($address->id)->update(['is_default' => false]);
-        }
+        $buyer = $request->user();
+        $makeDefault = $request->boolean('is_default');
 
-        $address->update($this->addressAttributes($data, $address) + [
-            'is_default' => $request->boolean('is_default'),
-        ]);
+        DB::transaction(function () use ($buyer, $address, $data, &$makeDefault): void {
+            if ($makeDefault) {
+                $buyer->addresses()->whereKeyNot($address->id)->update(['is_default' => false]);
+            } elseif ($address->is_default) {
+                $replacement = $buyer->addresses()
+                    ->whereKeyNot($address->id)
+                    ->latest()
+                    ->first();
+
+                if ($replacement) {
+                    $buyer->addresses()->update(['is_default' => false]);
+                    $replacement->update(['is_default' => true]);
+                } else {
+                    $makeDefault = true;
+                }
+            }
+
+            $address->update($this->addressAttributes($data, $address) + [
+                'is_default' => $makeDefault,
+            ]);
+        });
 
         return back()->with('buyer_notice', 'Address updated.');
     }
@@ -696,7 +718,15 @@ class BuyerController extends Controller
     public function deleteAddress(Request $request, Address $address): RedirectResponse
     {
         abort_unless((int) $address->user_id === (int) $request->user()->id, 403);
-        $address->delete();
+        $buyer = $request->user();
+
+        DB::transaction(function () use ($buyer, $address): void {
+            $address->delete();
+
+            if (! $buyer->addresses()->where('is_default', true)->exists()) {
+                $buyer->addresses()->latest()->first()?->update(['is_default' => true]);
+            }
+        });
 
         return back()->with('buyer_notice', 'Address deleted.');
     }

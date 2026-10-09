@@ -64,7 +64,7 @@ class RegistrationEmailVerificationTest extends TestCase
 
         $sendResponse = $this->postJson(route('register.email-verification.send'), ['email' => $email]);
         $this->assertSame(200, $sendResponse->status(), $sendResponse->getContent());
-        $sendResponse->assertJsonPath('message', 'A verification code was sent. It expires in 10 minutes.');
+        $sendResponse->assertJsonPath('message', 'A verification code was sent. It expires in 5 minutes.');
 
         $mailable = Mail::sent(RegistrationEmailVerificationCode::class)->first();
         $this->assertNotNull($mailable);

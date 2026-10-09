@@ -26,6 +26,9 @@ class StoreRegistrationRequest extends FormRequest
         $this->merge([
             'account_type' => $googleEmail ? 'buyer' : strtolower(trim((string) $this->input('account_type'))),
             'email' => mb_strtolower(trim((string) ($googleEmail ?: $this->input('email')))),
+            'first_name' => trim((string) $this->input('first_name')),
+            'last_name' => trim((string) $this->input('last_name')),
+            'middle_initial' => filled($this->input('middle_initial')) ? trim((string) $this->input('middle_initial')) : null,
             'contact_number' => $this->normalizeContactNumber((string) $this->input('contact_number')),
             'sex' => strtolower(trim((string) $this->input('sex'))),
             'plate_number' => filled($this->input('plate_number'))
@@ -34,11 +37,16 @@ class StoreRegistrationRequest extends FormRequest
             'drivers_license_number' => filled($this->input('drivers_license_number'))
                 ? mb_strtoupper(trim((string) $this->input('drivers_license_number')))
                 : null,
-            'business_registration_number' => filled($this->input('business_registration_number'))
-                ? trim((string) $this->input('business_registration_number'))
-                : null,
             'dti_registration_number' => filled($this->input('dti_registration_number'))
                 ? trim((string) $this->input('dti_registration_number'))
+                : null,
+            'business_name' => filled($this->input('business_name'))
+                ? trim((string) $this->input('business_name'))
+                : null,
+            'seller_type' => strtolower(trim((string) $this->input('seller_type'))),
+            'tin' => filled($this->input('tin')) ? trim((string) $this->input('tin')) : null,
+            'business_registration_number' => filled($this->input('business_registration_number'))
+                ? mb_strtoupper(trim((string) $this->input('business_registration_number')))
                 : null,
         ]);
     }
@@ -50,18 +58,34 @@ class StoreRegistrationRequest extends FormRequest
         $isLogistics = $type === 'logistics';
         $isRider = $type === 'rider';
 
-        $businessRegistrationRules = ['nullable', 'string', 'max:100'];
+        $businessRegistrationRules = [Rule::requiredIf($isLogistics), 'nullable', 'string', 'max:100'];
         if ($isSeller) {
             $businessRegistrationRules[] = Rule::unique('seller_profiles', 'business_registration_number');
         } elseif ($isLogistics) {
+            $businessRegistrationRules[] = 'regex:/^[A-Za-z]{2}\d{9}$/';
             $businessRegistrationRules[] = Rule::unique('logistics_centers', 'business_registration_number');
+        }
+
+        $businessNameRules = [Rule::requiredIf($isSeller || $isLogistics), 'nullable', 'string'];
+        $businessNameRules[] = $isSeller ? 'min:3' : 'min:1';
+        $businessNameRules[] = $isSeller ? 'max:30' : 'max:200';
+        if ($isSeller) {
+            $businessNameRules[] = Rule::unique('seller_profiles', 'business_name');
+        } elseif ($isLogistics) {
+            $businessNameRules[] = Rule::unique('logistics_centers', 'business_name');
+        }
+
+        $tinRules = [Rule::requiredIf($isSeller || $isLogistics), 'nullable', 'string', 'regex:/^\d{3}-\d{3}-\d{3}-\d{3}$/'];
+        if ($isSeller || $isLogistics) {
+            $tinRules[] = Rule::unique('seller_profiles', 'tin');
+            $tinRules[] = Rule::unique('logistics_centers', 'tin');
         }
 
         return [
             'account_type' => ['required', Rule::in(['buyer', 'seller', 'logistics', 'rider'])],
-            'first_name' => ['required', 'string', 'max:100'],
+            'first_name' => ['required', 'string', 'min:2', 'max:50', 'regex:/^[\pL][\pL\s\x{27}.\x{2D}]*$/u'],
             'middle_initial' => ['nullable', 'string', 'max:10'],
-            'last_name' => ['required', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'min:2', 'max:50', 'regex:/^[\pL][\pL\s\x{27}.\x{2D}]*$/u'],
             'sex' => ['required', Rule::in(['male', 'female', 'other', 'prefer_not_to_say'])],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
             // Mobile registration consumes this one-time token after the
@@ -74,7 +98,7 @@ class StoreRegistrationRequest extends FormRequest
                 'regex:/^(?:\+63|0)9\d{9}$/',
                 Rule::unique('users', 'contact_number'),
             ],
-            'birthday' => ['required', 'date', 'before:today'],
+            'birthday' => ['required', 'date', 'before_or_equal:'.now()->subYears(18)->toDateString()],
             'age' => ['required', 'integer', 'between:18,120'],
 
             'region' => ['required', 'string', 'max:150'],
@@ -85,16 +109,19 @@ class StoreRegistrationRequest extends FormRequest
             'municipality_code' => ['required', 'string', 'max:50'],
             'barangay' => ['required', 'string', 'max:150'],
             'barangay_code' => ['required', 'string', 'max:50'],
-            'postal_code' => ['nullable', 'string', 'max:20'],
+            'postal_code' => ['required', 'string', 'regex:/^\d{4}$/'],
             'house_number' => ['nullable', 'string', 'max:100'],
             'street' => ['required', 'string', 'max:255'],
             'landmark' => ['nullable', 'string', 'max:255'],
             // Location is not required to submit a registration. If a client
             // provides it, still validate the coordinate range.
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
 
-            'business_name' => [Rule::requiredIf($isSeller || $isLogistics), 'nullable', 'string', 'max:200'],
+            'business_name' => $businessNameRules,
             'line_of_business' => [Rule::requiredIf($isSeller), 'nullable', 'integer', Rule::exists('categories', 'id')->where('is_active', true)],
+            'seller_type' => [Rule::requiredIf($isSeller), 'nullable', Rule::in(['individual', 'sole_proprietorship', 'corporation'])],
+            'tin' => $tinRules,
             'business_registration_number' => $businessRegistrationRules,
             'dti_registration_number' => ['nullable', 'string', 'max:100', Rule::unique('logistics_centers', 'dti_registration_number')],
 
@@ -121,11 +148,17 @@ class StoreRegistrationRequest extends FormRequest
             ],
 
             'valid_id' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
-            'business_permit' => [Rule::requiredIf($isSeller || $isLogistics), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'business_permit' => [Rule::requiredIf($isLogistics), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'dti_certificate' => [Rule::requiredIf($isSeller && $this->input('seller_type') === 'sole_proprietorship'), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'sec_certificate' => [Rule::requiredIf(($isSeller && $this->input('seller_type') === 'corporation') || $isLogistics), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'bir_form_2303' => [Rule::requiredIf(($isSeller && in_array($this->input('seller_type'), ['sole_proprietorship', 'corporation'], true)) || $isLogistics), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'or_cr' => [Rule::requiredIf($isRider), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
             'drivers_license' => [Rule::requiredIf($isRider), 'nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:5120'],
+            'profile_picture' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'store_avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'store_banner' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
 
-            'password' => ['required', 'confirmed', 'max:72', Password::min(8)->mixedCase()->numbers()],
+            'password' => ['required', 'confirmed', 'max:72', Password::min(8)->mixedCase()->numbers()->symbols()],
             'terms' => ['accepted'],
         ];
     }

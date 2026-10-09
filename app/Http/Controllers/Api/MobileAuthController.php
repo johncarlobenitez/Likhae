@@ -20,7 +20,7 @@ use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class MobileAuthController extends Controller
 {
-    private const EMAIL_CODE_TTL_MINUTES = 10;
+    private const EMAIL_CODE_TTL_MINUTES = 5;
 
     public function register(
         StoreRegistrationRequest $request,
@@ -125,7 +125,7 @@ class MobileAuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'A verification code was sent. It expires in 10 minutes.',
+            'message' => 'A verification code was sent. It expires in 5 minutes.',
         ]);
     }
 

@@ -39,7 +39,7 @@
         @php
             $deliveryCollection = $deliveries ?? collect();
         @endphp
-        <div class="sl-page-toolbar"><div><span class="sl-eyebrow">Logistics</span><h2>Pickup Requests</h2><p>Delivery records are loaded from the database.</p></div><a href="{{ route('seller.logistics',['view'=>'couriers']) }}" class="sl-btn sl-btn-primary">New Pickup Request</a></div>
+        <div class="sl-page-toolbar"><div><span class="sl-eyebrow">Logistics</span><h2>Pickup Requests</h2><p>Manage pickup requests and follow each delivery.</p></div><a href="{{ route('seller.logistics',['view'=>'couriers']) }}" class="sl-btn sl-btn-primary">New Pickup Request</a></div>
         <section class="sl-mini-stats"><div><span>Total Requests</span><strong>{{ $deliveryCollection->count() }}</strong></div><div><span>Requested</span><strong>{{ $deliveryCollection->where('status','requested')->count() }}</strong></div><div><span>In Transit</span><strong>{{ $deliveryCollection->whereIn('status',['assigned','out_for_delivery'])->count() }}</strong></div><div><span>Delivered</span><strong>{{ $deliveryCollection->where('status','delivered')->count() }}</strong></div></section>
         <section class="sl-card"><div class="sl-table-wrap"><table class="sl-table"><thead><tr><th>Tracking</th><th>Order</th><th>Provider</th><th>Pickup Window</th><th>Courier</th><th>Status</th><th></th></tr></thead><tbody>
             @forelse($deliveryCollection as $pickup)
@@ -87,7 +87,7 @@
         @else<section class="sl-card"><x-seller.empty-state title="Order not found" message="The selected order does not exist." action="Back to Orders" :href="route('seller.orders')" /></section>@endif
 
     @else
-        <div class="sl-page-toolbar"><div><span class="sl-eyebrow">Order Management</span><h2>Manage Orders</h2><p>Actions now persist real order status changes.</p></div><a href="{{ route('seller.orders.export') }}" class="sl-btn sl-btn-ghost">Export CSV</a></div>
+        <div class="sl-page-toolbar"><div><span class="sl-eyebrow">Order Management</span><h2>Manage Orders</h2><p>Review orders and move each purchase through fulfillment.</p></div><a href="{{ route('seller.orders.export') }}" class="sl-btn sl-btn-ghost">Export CSV</a></div>
         <section class="sl-order-tabs" aria-label="Order filters">
             @foreach(['all'=>'All Orders','placed'=>'Placed','confirmed'=>'Confirmed','preparing'=>'Preparing','ready-for-pickup'=>'Ready for Pickup','shipping'=>'Shipping','completed'=>'Completed','cancelled'=>'Cancelled','returns'=>'Returns/Refunds'] as $key=>$label)<a href="{{ route('seller.orders',['status'=>$key]) }}" class="{{ $currentStatus===$key?'is-active':'' }}">{{ $label }} @if(($statusCounts[$key]??0)>0)<span>{{ $statusCounts[$key] }}</span>@endif</a>@endforeach
         </section>

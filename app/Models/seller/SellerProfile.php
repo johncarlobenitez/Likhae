@@ -20,6 +20,20 @@ class SellerProfile extends Model
         'business_address_id',
         'business_name',
         'business_registration_number',
+        'seller_type',
+        'tin',
+        'avatar_path',
+        'banner_path',
+        'tagline',
+        'description',
+        'location',
+        'business_days',
+        'business_hours',
+        'processing_days',
+        'order_cutoff',
+        'vacation_mode',
+        'auto_accept_orders',
+        'store_visibility',
         'status',
         'approved_by_user_id',
         'approved_at',
@@ -27,7 +41,13 @@ class SellerProfile extends Model
 
     protected function casts(): array
     {
-        return ['approved_at' => 'datetime'];
+        return [
+            'approved_at' => 'datetime',
+            'processing_days' => 'integer',
+            'vacation_mode' => 'boolean',
+            'auto_accept_orders' => 'boolean',
+            'store_visibility' => 'boolean',
+        ];
     }
 
     public function user(): BelongsTo

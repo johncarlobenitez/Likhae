@@ -15,6 +15,7 @@ use App\Models\Seller\SellerApplicationData;
 use App\Models\Seller\SellerProfile;
 use App\Models\User;
 use App\Notifications\RegistrationDecisionNotification;
+use App\Services\Media\ImageOptimizationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -32,9 +33,10 @@ class RegistrationWorkflowService
     {
         $data = array_replace($request->validated(), $overrides);
         $storedPaths = [];
+        $publicPaths = [];
 
         try {
-            return DB::transaction(function () use ($request, $data, &$storedPaths): RegistrationApplication {
+            return DB::transaction(function () use ($request, $data, &$storedPaths, &$publicPaths): RegistrationApplication {
                 $user = User::create([
                     'account_type' => $request->accountTypeConstant(),
                     'first_name' => trim($data['first_name']),
@@ -84,6 +86,8 @@ class RegistrationWorkflowService
                         'category_id' => (int) $data['line_of_business'],
                         'business_name' => trim($data['business_name']),
                         'business_registration_number' => $data['business_registration_number'] ?? null,
+                        'seller_type' => $data['seller_type'] ?? null,
+                        'tin' => $data['tin'] ?? null,
                     ]),
                     User::TYPE_LOGISTICS => LogisticsApplicationData::create([
                         'registration_application_id' => $application->id,
@@ -91,6 +95,7 @@ class RegistrationWorkflowService
                         'business_name' => trim($data['business_name']),
                         'business_registration_number' => $data['business_registration_number'] ?? null,
                         'dti_registration_number' => $data['dti_registration_number'] ?? null,
+                        'tin' => $data['tin'] ?? null,
                     ]),
                     User::TYPE_RIDER => RiderApplicationData::create([
                         'registration_application_id' => $application->id,
@@ -109,6 +114,8 @@ class RegistrationWorkflowService
                         'business_address_id' => $address->id,
                         'business_name' => trim($data['business_name']),
                         'business_registration_number' => $data['business_registration_number'] ?? null,
+                        'seller_type' => $data['seller_type'] ?? null,
+                        'tin' => $data['tin'] ?? null,
                         'status' => 'PENDING',
                     ]);
                 } elseif ($user->account_type === User::TYPE_LOGISTICS) {
@@ -119,6 +126,7 @@ class RegistrationWorkflowService
                         'business_name' => trim($data['business_name']),
                         'business_registration_number' => $data['business_registration_number'] ?? null,
                         'dti_registration_number' => $data['dti_registration_number'] ?? null,
+                        'tin' => $data['tin'] ?? null,
                         'status' => 'PENDING',
                     ]);
                 } elseif ($user->account_type === User::TYPE_RIDER) {
@@ -135,6 +143,9 @@ class RegistrationWorkflowService
                 $documentMap = [
                     'valid_id' => 'VALID_ID',
                     'business_permit' => 'BUSINESS_PERMIT',
+                    'dti_certificate' => 'DTI_CERTIFICATE',
+                    'sec_certificate' => 'SEC_CERTIFICATE',
+                    'bir_form_2303' => 'BIR_FORM_2303',
                     'or_cr' => 'VEHICLE_OR_CR',
                     'drivers_license' => 'DRIVERS_LICENSE',
                 ];
@@ -161,9 +172,33 @@ class RegistrationWorkflowService
                 // Handle optional profile picture
                 if ($request->hasFile('profile_picture')) {
                     $profilePicture = $request->file('profile_picture');
-                    $path = $profilePicture->store('profile-pictures/'.$user->id, 'public');
-                    $storedPaths[] = $path;
-                    $user->update(['profile_picture' => $path]);
+                    $path = app(ImageOptimizationService::class)->store($profilePicture, 'profile-photos');
+                    $publicPaths[] = $path;
+                    $user->update(['profile_photo_path' => $path]);
+                } else {
+                    $googlePhoto = $request->hasSession()
+                        ? $request->session()->get('google_buyer_registration.profile_photo_url')
+                        : null;
+                    if (is_string($googlePhoto) && str_starts_with($googlePhoto, 'https://')) {
+                        $user->update(['profile_photo_path' => $googlePhoto]);
+                    }
+                }
+
+                if ($user->account_type === User::TYPE_SELLER && $user->sellerProfile) {
+                    $sellerProfile = $user->sellerProfile;
+                    foreach (['store_avatar' => 'avatar_path', 'store_banner' => 'banner_path'] as $input => $column) {
+                        if (! $request->hasFile($input)) {
+                            continue;
+                        }
+
+                        $path = app(ImageOptimizationService::class)->store(
+                            $request->file($input),
+                            'seller-branding',
+                        );
+                        $publicPaths[] = $path;
+                        $sellerProfile->{$column} = $path;
+                    }
+                    $sellerProfile->save();
                 }
 
                 $this->audit(
@@ -183,6 +218,10 @@ class RegistrationWorkflowService
         } catch (Throwable $exception) {
             foreach ($storedPaths as $path) {
                 Storage::disk('registrations')->delete($path);
+            }
+
+            foreach ($publicPaths as $path) {
+                Storage::disk('public')->delete($path);
             }
 
             throw $exception;
@@ -318,6 +357,8 @@ class RegistrationWorkflowService
                         'business_address_id' => $defaultAddress?->id,
                         'business_name' => $data->business_name,
                         'business_registration_number' => $data->business_registration_number,
+                        'seller_type' => $data->seller_type,
+                        'tin' => $data->tin,
                         'status' => 'ACTIVE',
                         'approved_by_user_id' => $reviewer->id,
                         'approved_at' => now(),
@@ -339,6 +380,7 @@ class RegistrationWorkflowService
                         'business_name' => $data->business_name,
                         'business_registration_number' => $data->business_registration_number,
                         'dti_registration_number' => $data->dti_registration_number,
+                        'tin' => $data->tin,
                         'status' => 'ACTIVE',
                         'approved_by_user_id' => $reviewer->id,
                         'approved_at' => now(),

@@ -28,14 +28,9 @@ class CheckoutService
         return $items
             ->groupBy(fn (CartItem $item) => (int) $item->productVariant->product->seller_profile_id)
             ->map(function (Collection $sellerItems, int $sellerId) use ($buyer): Collection {
-                $subtotal = $sellerItems->sum(
-                    fn (CartItem $item): float => $item->productVariant->final_price * (int) $item->quantity
-                );
-
                 return Voucher::query()
                     ->where('seller_profile_id', $sellerId)
                     ->where('is_active', true)
-                    ->where('minimum_order_amount', '<=', $subtotal)
                     ->where(fn ($query) => $query->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
                     ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>=', now()))
                     ->withCount([
@@ -49,7 +44,8 @@ class CheckoutService
                         && ($voucher->per_user_limit === null || $voucher->buyer_uses_count < $voucher->per_user_limit)
                     )
                     ->values();
-            });
+            })
+            ->filter(fn (Collection $vouchers): bool => $vouchers->isNotEmpty());
     }
 
     public function availableLogisticsProviders(): Collection
@@ -65,11 +61,13 @@ class CheckoutService
 
     public function preview(
         Collection $items,
-        array $voucherCodes = [],
+        array|string $voucherCodes = [],
         ?User $buyer = null,
         ?LogisticsCenter $logisticsProvider = null,
     ): array
     {
+        $singleVoucherCode = is_string($voucherCodes) ? mb_strtoupper(trim($voucherCodes)) : '';
+        $legacyVoucherCodes = is_array($voucherCodes) ? $voucherCodes : [];
         $groups = [];
         $subtotal = 0.0;
         $discountTotal = 0.0;
@@ -100,33 +98,43 @@ class CheckoutService
             $groups[$sellerId]['item_subtotal'] += $lineTotal;
         }
 
-        foreach ($groups as $sellerId => &$group) {
-            $code = trim((string) ($voucherCodes[$sellerId] ?? ''));
-            $voucher = $code !== ''
-                ? $this->usableVoucher((int) $sellerId, $code, (float) $group['item_subtotal'], $buyer)
-                : null;
-            if ($code !== '' && $voucher === null) {
-                throw ValidationException::withMessages([
-                    'voucher_codes.'.$sellerId => 'This voucher is invalid or no longer available for this seller.',
-                ]);
-            }
-            $discount = $voucher ? $this->discountAmount($voucher, (float) $group['item_subtotal']) : 0.0;
+        if ($singleVoucherCode !== '') {
+            $this->applySingleVoucherCode($groups, $singleVoucherCode, $buyer);
+        } else {
+            foreach ($groups as $sellerId => &$group) {
+                $code = trim((string) ($legacyVoucherCodes[$sellerId] ?? ''));
+                $voucher = $code !== ''
+                    ? $this->usableVoucher((int) $sellerId, $code, (float) $group['item_subtotal'], $buyer)
+                    : null;
+                if ($code !== '' && $voucher === null) {
+                    throw ValidationException::withMessages([
+                        'voucher_codes.'.$sellerId => 'This voucher is invalid or no longer available for this seller.',
+                    ]);
+                }
+                $discount = $voucher ? $this->discountAmount($voucher, (float) $group['item_subtotal']) : 0.0;
 
-            $group['voucher'] = $voucher;
-            $group['voucher_discount'] = $discount;
+                $group['voucher'] = $voucher;
+                $group['voucher_discount'] = $discount;
+                $group['grand_total'] = max(0.0, (float) $group['item_subtotal'] - $discount + (float) $group['shipping_fee']);
+            }
+            unset($group);
+
+            foreach (array_keys($legacyVoucherCodes) as $sellerId) {
+                if (! array_key_exists((int) $sellerId, $groups)) {
+                    throw ValidationException::withMessages([
+                        'voucher_codes.'.$sellerId => 'This voucher does not apply to the selected cart items.',
+                    ]);
+                }
+            }
+        }
+
+        foreach ($groups as &$group) {
+            $discount = (float) $group['voucher_discount'];
             $group['grand_total'] = max(0.0, (float) $group['item_subtotal'] - $discount + (float) $group['shipping_fee']);
             $discountTotal += $discount;
             $shippingTotal += (float) $group['shipping_fee'];
         }
         unset($group);
-
-        foreach (array_keys($voucherCodes) as $sellerId) {
-            if (! array_key_exists((int) $sellerId, $groups)) {
-                throw ValidationException::withMessages([
-                    'voucher_codes.'.$sellerId => 'This voucher does not apply to the selected cart items.',
-                ]);
-            }
-        }
 
         return [
             'groups' => collect($groups),
@@ -142,7 +150,7 @@ class CheckoutService
         Address $address,
         Collection $items,
         string $paymentMethod,
-        array $voucherCodes = [],
+        array|string $voucherCodes = [],
         ?int $logisticsCenterId = null,
     ): Order
     {
@@ -393,6 +401,86 @@ class CheckoutService
         }
 
         return $voucher;
+    }
+
+    /** @param array<int, array<string, mixed>> $groups */
+    private function applySingleVoucherCode(array &$groups, string $code, ?User $buyer): void
+    {
+        $candidates = Voucher::query()
+            ->whereRaw('UPPER(code) = ?', [mb_strtoupper($code)])
+            ->with('sellerProfile')
+            ->withCount([
+                'sellerOrders',
+                'sellerOrders as buyer_uses_count' => fn ($query) => $buyer
+                    ? $query->whereHas('order', fn ($order) => $order->where('buyer_user_id', $buyer->id))
+                    : $query->whereRaw('1 = 0'),
+            ])
+            ->get();
+
+        if ($candidates->isEmpty()) {
+            throw ValidationException::withMessages([
+                'voucher_code' => 'We could not find that voucher code. Check it and try again.',
+            ]);
+        }
+
+        $cartCandidates = $candidates
+            ->filter(fn (Voucher $voucher): bool => array_key_exists((int) $voucher->seller_profile_id, $groups))
+            ->values();
+
+        if ($cartCandidates->isEmpty()) {
+            $shopNames = $candidates->pluck('sellerProfile.business_name')->filter()->unique()->values();
+            $message = $shopNames->count() === 1
+                ? 'This voucher belongs to '.$shopNames->first().' and does not apply to a shop in this checkout.'
+                : 'This voucher does not apply to any shop in this checkout.';
+
+            throw ValidationException::withMessages(['voucher_code' => $message]);
+        }
+
+        if ($cartCandidates->count() > 1) {
+            throw ValidationException::withMessages([
+                'voucher_code' => 'This code matches more than one shop in your cart. Ask the sellers for a unique code.',
+            ]);
+        }
+
+        $voucher = $cartCandidates->first();
+        $sellerId = (int) $voucher->seller_profile_id;
+        $group = &$groups[$sellerId];
+
+        if (! $voucher->is_active || ($voucher->starts_at && $voucher->starts_at->isFuture())) {
+            throw ValidationException::withMessages([
+                'voucher_code' => 'This voucher is not active yet.',
+            ]);
+        }
+
+        if ($voucher->ends_at && $voucher->ends_at->isPast()) {
+            throw ValidationException::withMessages([
+                'voucher_code' => 'This voucher has expired.',
+            ]);
+        }
+
+        if ($voucher->usage_limit !== null && $voucher->seller_orders_count >= $voucher->usage_limit) {
+            throw ValidationException::withMessages([
+                'voucher_code' => 'This voucher has reached its redemption limit.',
+            ]);
+        }
+
+        if ($buyer && $voucher->per_user_limit !== null && $voucher->buyer_uses_count >= $voucher->per_user_limit) {
+            throw ValidationException::withMessages([
+                'voucher_code' => 'You have already used this voucher the maximum number of times.',
+            ]);
+        }
+
+        if ((float) $group['item_subtotal'] < (float) $voucher->minimum_order_amount) {
+            $remaining = (float) $voucher->minimum_order_amount - (float) $group['item_subtotal'];
+
+            throw ValidationException::withMessages([
+                'voucher_code' => 'Add PHP '.number_format($remaining, 2).' more from '.$voucher->sellerProfile?->business_name.' to use this voucher.',
+            ]);
+        }
+
+        $discount = $this->discountAmount($voucher, (float) $group['item_subtotal']);
+        $group['voucher'] = $voucher;
+        $group['voucher_discount'] = $discount;
     }
 
     private function discountAmount(Voucher $voucher, float $subtotal): float

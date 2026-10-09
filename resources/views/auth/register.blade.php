@@ -570,6 +570,8 @@
                 data-address-base="{{ \Illuminate\Support\Str::beforeLast(route('address.philippines.regions', [], false), '/regions') }}"
             >
 
+                <script type="application/json" id="registration-validation-errors">@json($errors->messages())</script>
+
                 @csrf
 
                 <input
@@ -626,6 +628,9 @@
                                     id="first_name"
                                     name="first_name"
                                     type="text"
+                                    minlength="2"
+                                    maxlength="50"
+                                    data-name-format
                                     value="{{ old('first_name', data_get($googleBuyerRegistration ?? null, 'first_name')) }}"
                                     placeholder="Juan"
                                     autocomplete="given-name"
@@ -647,7 +652,7 @@
                                     name="middle_initial"
                                     type="text"
                                     value="{{ old('middle_initial') }}"
-                                    maxlength="80"
+                                    maxlength="10"
                                     placeholder="Santos"
                                     autocomplete="additional-name"
                                 >
@@ -667,6 +672,9 @@
                                     id="last_name"
                                     name="last_name"
                                     type="text"
+                                    minlength="2"
+                                    maxlength="50"
+                                    data-name-format
                                     value="{{ old('last_name', data_get($googleBuyerRegistration ?? null, 'last_name')) }}"
                                     placeholder="Dela Cruz"
                                     autocomplete="family-name"
@@ -765,6 +773,8 @@
                                     id="age"
                                     name="age"
                                     type="number"
+                                    min="18"
+                                    max="120"
                                     value="{{ old('age') }}"
                                     placeholder="Auto-generated"
                                     readonly
@@ -837,6 +847,7 @@
                                     id="email"
                                     name="email"
                                     type="email"
+                                    maxlength="255"
                                     value="{{ old('email', data_get($googleBuyerRegistration ?? null, 'email')) }}"
                                     @if(!empty($googleBuyerRegistration)) readonly @endif
                                     placeholder="juan@email.com"
@@ -902,6 +913,9 @@
                                         placeholder="917 123 4567"
                                         inputmode="numeric"
                                         autocomplete="tel"
+                                        maxlength="10"
+                                        pattern="9[0-9]{9}"
+                                        title="Enter a 10-digit Philippine mobile number beginning with 9."
                                         required
                                     >
 
@@ -1004,9 +1018,10 @@
 
                             {{-- POSTAL --}}
                             <div class="register-field">
-                                <label for="postal_code">Postal Code</label>
+                                <label for="postal_code">Postal Code <span>*</span></label>
                                 <input id="postal_code" name="postal_code" type="text" inputmode="numeric"
-                                    value="{{ old('postal_code') }}" placeholder="Auto-filled after barangay" readonly data-address-postal data-old-value="{{ old('postal_code') }}">
+                                    maxlength="4" pattern="[0-9]{4}" title="Postal code must be exactly 4 digits."
+                                    value="{{ old('postal_code') }}" placeholder="Auto-filled after barangay" readonly data-address-postal data-old-value="{{ old('postal_code') }}" required>
                             </div>
 
                             {{-- LANDMARK --}}
@@ -1076,6 +1091,7 @@
                                     id="business_name"
                                     name="business_name"
                                     type="text"
+                                    maxlength="{{ old('account_type', $preselectedRole ?? 'buyer') === 'seller' ? 30 : 200 }}"
                                     value="{{ old('business_name') }}"
                                     placeholder="Juan's General Store"
                                     data-seller-required
@@ -1118,6 +1134,25 @@
 
                             </div>
 
+                        </div>
+                        <div class="register-grid" style="margin-top: 14px;">
+                            <div class="register-field" data-seller-type-field hidden>
+                                <label for="seller_type">Seller Type <span>*</span></label>
+                                <select id="seller_type" name="seller_type">
+                                    <option value="">Select seller type</option>
+                                    <option value="individual" @selected(old('seller_type') === 'individual')>Individual</option>
+                                    <option value="sole_proprietorship" @selected(old('seller_type') === 'sole_proprietorship')>Sole Proprietorship</option>
+                                    <option value="corporation" @selected(old('seller_type') === 'corporation')>Corporation</option>
+                                </select>
+                            </div>
+                            <div class="register-field" data-business-id-field hidden>
+                                <label for="tin">TIN <span>*</span></label>
+                                <input id="tin" name="tin" value="{{ old('tin') }}" maxlength="15" placeholder="000-000-000-000" pattern="[0-9]{3}-[0-9]{3}-[0-9]{3}-[0-9]{3}" title="Enter 12 digits in 000-000-000-000 format." data-seller-required>
+                            </div>
+                            <div class="register-field" data-logistics-field hidden>
+                                <label for="business_registration_number">SEC Registration Number <span>*</span></label>
+                                <input id="business_registration_number" name="business_registration_number" value="{{ old('business_registration_number') }}" maxlength="11" pattern="[A-Za-z]{2}[0-9]{9}" title="Enter two letters followed by nine digits." data-logistics-required>
+                            </div>
                         </div>
 
                     </div>
@@ -1179,8 +1214,8 @@
 
                         <div class="profile-picture-container">
                             <div class="profile-picture-preview">
-                                <img id="profilePicturePreview" src="#" alt="Profile Preview" style="display: none;">
-                                <div id="profilePictureDefault" class="profile-picture-default">
+                                <img id="profilePicturePreview" @if(data_get($googleBuyerRegistration ?? null, 'profile_photo_url')) src="{{ data_get($googleBuyerRegistration, 'profile_photo_url') }}" @else src="#" @endif alt="Profile Preview" style="{{ data_get($googleBuyerRegistration ?? null, 'profile_photo_url') ? '' : 'display: none;' }}">
+                                    <div id="profilePictureDefault" class="profile-picture-default" @if(data_get($googleBuyerRegistration ?? null, 'profile_photo_url')) style="display: none;" @endif>
                                     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                                         <circle cx="12" cy="8" r="4"/>
                                         <path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/>
@@ -1193,13 +1228,13 @@
                                     id="profile_picture"
                                     name="profile_picture"
                                     type="file"
-                                    accept=".jpg,.jpeg,.png,.gif,.webp"
+                                    accept="image/jpeg,image/png,image/webp"
                                     data-file-input
                                 >
                                 <label for="profile_picture" class="upload-box__label">
                                     <span class="upload-box__icon">↑</span>
                                     <strong>Upload Profile Picture</strong>
-                                    <span>JPG, JPEG, PNG, GIF or WEBP (Max 2 MB)</span>
+                                    <span>JPG, PNG or WEBP (Max 5 MB)</span>
                                     <small data-file-name>No file selected</small>
                                 </label>
                             </div>
@@ -1209,6 +1244,14 @@
                             <p style="color: #666; font-size: 14px; margin-bottom: 0.5rem;">
                                 You can add your profile picture later from your account settings.
                             </p>
+                        </div>
+                        <div data-seller-branding hidden style="margin-top: 28px; padding-top: 22px; border-top: 1px solid #eadbce;">
+                            <h3>Shop photos</h3>
+                            <p>Add a shop icon and cover photo. You can adjust the crop later in your Shop settings.</p>
+                            <div class="register-grid">
+                                <div class="register-field"><label for="store_avatar">Shop profile picture</label><input id="store_avatar" type="file" name="store_avatar" accept="image/jpeg,image/png,image/webp" data-store-photo="avatar"><small>Square image · max 5 MB</small><img data-store-photo-preview="avatar" alt="Shop profile preview" hidden style="width:76px;height:76px;object-fit:cover;border-radius:16px"><label>Zoom <input type="range" min="100" max="200" value="100" data-store-photo-zoom="avatar"></label><label>Horizontal crop <input type="range" min="0" max="100" value="50" data-store-photo-x="avatar"></label><label>Vertical crop <input type="range" min="0" max="100" value="50" data-store-photo-y="avatar"></label></div>
+                                <div class="register-field"><label for="store_banner">Shop cover photo</label><input id="store_banner" type="file" name="store_banner" accept="image/jpeg,image/png,image/webp" data-store-photo="banner"><small>Wide cover image · max 8 MB</small><img data-store-photo-preview="banner" alt="Shop cover preview" hidden style="width:100%;height:76px;object-fit:cover;border-radius:12px"><label>Zoom <input type="range" min="100" max="200" value="100" data-store-photo-zoom="banner"></label><label>Horizontal crop <input type="range" min="0" max="100" value="50" data-store-photo-x="banner"></label><label>Vertical crop <input type="range" min="0" max="100" value="50" data-store-photo-y="banner"></label></div>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -1304,7 +1347,7 @@
                                     type="file"
                                     accept=".jpg,.jpeg,.png,.pdf"
                                     data-file-input
-                                    data-seller-required
+                                    data-logistics-required
                                 >
 
 
@@ -1335,6 +1378,14 @@
 
                         </div>
 
+                        <div class="register-grid" data-seller-documents hidden>
+                            @foreach(['dti_certificate' => 'DTI Certificate', 'sec_certificate' => 'SEC Certificate', 'bir_form_2303' => 'BIR Form 2303'] as $field => $label)
+                                <div class="upload-box" data-seller-document="{{ $field }}">
+                                    <input id="{{ $field }}" name="{{ $field }}" type="file" accept=".jpg,.jpeg,.png,.pdf" data-file-input>
+                                    <label for="{{ $field }}" class="upload-box__label"><strong>Upload {{ $label }}</strong><span>JPG, PNG or PDF, up to 5 MB</span><small data-file-name>No file selected</small></label>
+                                </div>
+                            @endforeach
+                        </div>
 
                         <div class="register-grid" id="riderVehicleSection" hidden>
                             @foreach(['or_cr' => 'Vehicle OR / CR', 'drivers_license' => "Driver's License"] as $field => $label)
@@ -1362,12 +1413,13 @@
                                     type="password"
                                     minlength="8"
                                     maxlength="72"
-                                    pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,72}"
-                                    title="Use 8–72 characters with uppercase and lowercase letters and a number."
-                                    placeholder="Min. 8 chars, uppercase, number"
+                                    pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,72}"
+                                    title="Use 8 to 72 characters with at least one uppercase letter, one lowercase letter, one number, and one symbol."
+                                    placeholder="Min. 8 chars, uppercase, number, symbol"
                                     autocomplete="new-password"
                                     required
                                 >
+                                <small>Use 8–72 characters with uppercase and lowercase letters, a number, and a symbol.</small>
                             </div>
 
                             <div class="register-field">
@@ -1437,7 +1489,7 @@
                     data-step-error
                     hidden
                 >
-                    Please complete the required fields and verify your email before continuing.
+                    Please complete the required fields before continuing.
                 </div>
 
 
@@ -1518,7 +1570,7 @@
 
                 </div>
 
-            </form>
+</form>
 
         </div>
 

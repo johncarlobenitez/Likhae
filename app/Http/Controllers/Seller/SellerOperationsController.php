@@ -99,6 +99,7 @@ class SellerOperationsController extends Controller
                 'today_sales' => (float) (clone $orders)->whereDate('created_at', today())->sum('grand_total'),
                 'orders' => $stats['orders'],
                 'revenue' => $stats['sales'],
+                'weekly_revenue' => (float) $dailySales->sum(),
                 'products_sold' => $seller->products()->count(),
                 'pending_shipment' => $stats['ready'],
                 'inventory_alerts' => $seller->products()->whereHas('variants', fn ($query) => $query->where('stock', '<=', 5))->count(),

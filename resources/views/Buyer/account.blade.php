@@ -332,34 +332,72 @@
                 <section aria-labelledby="addresses-heading">
                     <div class="border-b border-stone-100 px-5 py-4 sm:px-6">
                         <h2 id="addresses-heading" class="text-base font-semibold text-stone-900">Delivery Addresses</h2>
-                        <p class="mt-1 text-xs text-stone-500">Saved separately from orders so old orders keep their original shipping snapshot.</p>
+                        <p class="mt-1 text-xs text-stone-500">Manage delivery destinations. Changes apply to future orders; existing orders keep their original address.</p>
                     </div>
                     <div class="space-y-4 p-5 sm:p-6">
-                        @forelse(collect($buyerAddresses ?? []) as $address)
-                            <article class="rounded-xl border {{ $address->is_default ? 'border-red-300 bg-red-50/40' : 'border-stone-200' }} p-4">
+                        @forelse(collect($addresses ?? []) as $address)
+                            <article class="rounded-2xl border {{ $address->is_default ? 'border-red-300 bg-red-50/40' : 'border-stone-200 bg-white' }} p-4 sm:p-5">
                                 <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                    <div>
-                                        <div class="flex items-center gap-2"><h3 class="text-sm font-semibold text-stone-900">{{ $address->label }} · {{ $address->recipient_name }}</h3>@if($address->is_default)<span class="rounded-full bg-red-100 px-2 py-1 text-[10px] font-semibold text-red-900">Default</span>@endif</div>
+                                    <div class="min-w-0">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <h3 class="text-sm font-semibold text-stone-900">{{ $address->label }} <span class="text-stone-400">·</span> {{ $address->recipient_name }}</h3>
+                                            @if($address->is_default)<span class="rounded-full bg-red-100 px-2.5 py-1 text-[10px] font-semibold text-red-900">Default address</span>@endif
+                                        </div>
                                         <p class="mt-2 text-xs font-medium text-stone-600">{{ $address->contact_number }}</p>
                                         <p class="mt-2 text-sm leading-6 text-stone-600">{{ $address->formatted() }}</p>
+                                        @if(filled($address->latitude) && filled($address->longitude))
+                                            <p class="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700"><span aria-hidden="true">✓</span> Delivery pin confirmed</p>
+                                        @else
+                                            <p class="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-700"><span aria-hidden="true">!</span> Confirm a map pin before checkout</p>
+                                        @endif
                                     </div>
-<div class="flex gap-3"><details><summary class="cursor-pointer text-xs font-semibold text-red-800">Edit</summary><form method="POST" action="{{ route('buyer.account.addresses.update', ['address' => $address->id]) }}" class="mt-3 grid gap-3 rounded-lg border border-stone-200 bg-white p-3 sm:grid-cols-2">@csrf @method('PUT')<input required name="label" value="{{ old('label', $address->label) }}" placeholder="Label" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm"><input required name="recipient_name" value="{{ old('recipient_name', $address->recipient_name) }}" placeholder="Recipient name" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm"><input required name="contact_number" value="{{ old('contact_number', $address->contact_number) }}" placeholder="Contact number" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm"><x-shared.philippine-address-fields :address="$address" wrapper-class="contents" /><x-shared.address-pin :address="$address" class="sm:col-span-2" /><label class="flex items-center gap-2 text-xs font-semibold text-stone-700 sm:col-span-2"><input type="checkbox" name="is_default" value="1" @checked($address->is_default)> Set as default address</label><div class="sm:col-span-2"><button type="submit" class="rounded-xl bg-red-900 px-4 py-2 text-xs font-semibold text-white">Save changes</button></div></form></details><form method="POST" action="{{ route('buyer.account.addresses.destroy', ['address' => $address->id]) }}">@csrf @method('DELETE')<button type="submit" class="text-xs font-semibold text-red-700">Delete</button></form></div>
+                                    <div class="flex shrink-0 items-center gap-3">
+                                        <details class="group">
+                                            <summary class="cursor-pointer list-none rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:border-red-300 hover:text-red-900 focus:outline-none focus:ring-4 focus:ring-red-100">Edit address</summary>
+                                            <form method="POST" action="{{ route('buyer.account.addresses.update', ['address' => $address->id]) }}" class="mt-3 grid gap-4 rounded-xl border border-stone-200 bg-white p-4 shadow-sm sm:grid-cols-2">
+                                                @csrf @method('PUT')
+                                                <label class="grid gap-1 text-xs font-semibold text-stone-700">
+                                                    Address label
+                                                    <input required name="label" value="{{ old('label', $address->label) }}" maxlength="50" placeholder="Home, Work" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm font-normal">
+                                                </label>
+                                                <label class="grid gap-1 text-xs font-semibold text-stone-700">
+                                                    Recipient name
+                                                    <input required name="recipient_name" value="{{ old('recipient_name', $address->recipient_name) }}" maxlength="200" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm font-normal">
+                                                </label>
+                                                <label class="grid gap-1 text-xs font-semibold text-stone-700">
+                                                    Contact number
+                                                    <input required name="contact_number" value="{{ old('contact_number', $address->contact_number) }}" maxlength="30" inputmode="tel" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm font-normal">
+                                                </label>
+                                                <x-shared.philippine-address-fields :address="$address" wrapper-class="contents" />
+                                                <x-shared.address-pin :address="$address" class="sm:col-span-2" />
+                                                <label class="flex items-center gap-2 text-xs font-semibold text-stone-700 sm:col-span-2"><input type="checkbox" name="is_default" value="1" @checked($address->is_default)> Use as my default address</label>
+                                                <div class="flex justify-end sm:col-span-2"><button type="submit" class="rounded-xl bg-red-900 px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-red-950 focus:outline-none focus:ring-4 focus:ring-red-100">Save address</button></div>
+                                            </form>
+                                        </details>
+                                        <form method="POST" action="{{ route('buyer.account.addresses.destroy', ['address' => $address->id]) }}" onsubmit="return confirm('Delete this saved address?');">
+                                            @csrf @method('DELETE')
+                                            <button type="submit" class="rounded-lg px-2 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 focus:outline-none focus:ring-4 focus:ring-red-100">Delete</button>
+                                        </form>
+                                    </div>
                                 </div>
                             </article>
                         @empty
-                            <p class="text-sm text-stone-500">No saved delivery address yet.</p>
+                            <div class="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-6 text-center">
+                                <h3 class="text-sm font-semibold text-stone-800">No saved addresses yet</h3>
+                                <p class="mt-1 text-xs text-stone-500">Add a delivery address below to use it at checkout.</p>
+                            </div>
                         @endforelse
 
-                        <form method="POST" action="{{ route('buyer.account.addresses.store') }}" class="grid gap-4 rounded-xl border border-stone-200 bg-stone-50 p-4 sm:grid-cols-2">
+                        <form method="POST" action="{{ route('buyer.account.addresses.store') }}" class="grid gap-4 rounded-2xl border border-stone-200 bg-stone-50 p-4 sm:p-5 sm:grid-cols-2">
                             @csrf
-                            <div class="sm:col-span-2"><h3 class="text-sm font-semibold text-stone-900">Add delivery address</h3></div>
-                            <input required name="label" value="{{ old('label','Home') }}" placeholder="Label (Home, Work)" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
-                            <input required name="recipient_name" value="{{ old('recipient_name',$buyerName) }}" placeholder="Recipient name" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
-                            <input required name="contact_number" value="{{ old('contact_number',$buyerPhone) }}" placeholder="Contact number" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm">
+                            <div class="sm:col-span-2"><h3 class="text-sm font-semibold text-stone-900">Add delivery address</h3><p class="mt-1 text-xs text-stone-500">Choose a precise location so the courier can find you.</p></div>
+                            <label class="grid gap-1 text-xs font-semibold text-stone-700">Address label<input required name="label" value="{{ old('label','Home') }}" maxlength="50" placeholder="Home, Work" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm font-normal"></label>
+                            <label class="grid gap-1 text-xs font-semibold text-stone-700">Recipient name<input required name="recipient_name" value="{{ old('recipient_name',$buyerName) }}" maxlength="200" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm font-normal"></label>
+                            <label class="grid gap-1 text-xs font-semibold text-stone-700">Contact number<input required name="contact_number" value="{{ old('contact_number',$buyerPhone) }}" maxlength="30" inputmode="tel" class="rounded-xl border border-stone-300 px-3 py-2.5 text-sm font-normal"></label>
                             <x-shared.philippine-address-fields wrapper-class="contents" />
                             <x-shared.address-pin class="sm:col-span-2" />
-                            <label class="flex items-center gap-2 text-xs font-semibold text-stone-700 sm:col-span-2"><input type="checkbox" name="is_default" value="1"> Set as default address</label>
-                            <div class="sm:col-span-2"><button type="submit" class="rounded-xl bg-red-900 px-5 py-2.5 text-xs font-semibold text-white">Save Address</button></div>
+                            <label class="flex items-center gap-2 text-xs font-semibold text-stone-700 sm:col-span-2"><input type="checkbox" name="is_default" value="1" @checked(old('is_default', collect($addresses ?? [])->isEmpty()))> Use as my default address</label>
+                            <div class="sm:col-span-2"><button type="submit" class="rounded-xl bg-red-900 px-5 py-2.5 text-xs font-semibold text-white transition hover:bg-red-950 focus:outline-none focus:ring-4 focus:ring-red-100">Save address</button></div>
                         </form>
                     </div>
                 </section>
