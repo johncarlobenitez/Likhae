@@ -38,6 +38,7 @@ Route::prefix('buyer')
 
         Route::get('/checkout', [CheckoutController::class, 'show'])->name('checkout');
         Route::post('/checkout', [CheckoutController::class, 'select'])->name('checkout.post');
+        Route::post('/checkout/voucher', [CheckoutController::class, 'applyVoucher'])->name('checkout.voucher');
         Route::post('/order', [CheckoutController::class, 'store'])->name('order.store');
 
         Route::get('/orders/success', [BuyerOrderController::class, 'success'])->name('orders.success');

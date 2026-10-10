@@ -23,7 +23,7 @@ use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class RegistrationController extends Controller
 {
-    private const EMAIL_CODE_TTL_MINUTES = 10;
+    private const EMAIL_CODE_TTL_MINUTES = 5;
 
     public function __construct(
         private readonly RegistrationWorkflowService $workflow,
@@ -96,7 +96,7 @@ class RegistrationController extends Controller
         $request->session()->forget('registration_email_verified');
 
         return response()->json([
-            'message' => 'A verification code was sent. It expires in 10 minutes.',
+            'message' => 'A verification code was sent. It expires in 5 minutes.',
         ]);
     }
 
@@ -203,7 +203,7 @@ class RegistrationController extends Controller
             ->route($loginRoute)
             ->with(
                 'status',
-                'Registration submitted successfully. Application '.$application->application_number.' is pending review by '.$reviewer.'.',
+                'Registration submitted successfully. Application '.$application->application_number.' is pending review by '.$reviewer.'. You can sign in after your application is approved.',
             );
     }
 

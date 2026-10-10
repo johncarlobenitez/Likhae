@@ -6,11 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Buyer\Address;
 use App\Models\Seller\SellerProfile;
 use App\Services\Account\ProfilePhotoService;
+use App\Services\Media\ImageOptimizationService;
 use App\Support\PhilippineAddressValidator;
 use App\Support\AddressCoordinateValidator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -27,7 +30,7 @@ class SellerAccountController extends Controller
         ]);
     }
 
-    public function updateStore(Request $request): RedirectResponse
+    public function updateStore(Request $request, ImageOptimizationService $images): RedirectResponse
     {
         $shop = $this->shop($request);
 
@@ -46,7 +49,28 @@ class SellerAccountController extends Controller
             'banner' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
         ]);
 
-        return back()->with('status', 'Store profile saved. Extended branding fields are display-only until a future schema revision adds storefront branding columns.');
+        $shop->fill(collect($data)->only([
+            'tagline', 'description', 'location', 'business_days', 'business_hours',
+            'processing_days', 'order_cutoff', 'vacation_mode', 'auto_accept_orders', 'store_visibility',
+        ])->all());
+
+        $oldPaths = [];
+        foreach (['avatar' => 'avatar_path', 'banner' => 'banner_path'] as $input => $column) {
+            if (! $request->hasFile($input)) {
+                continue;
+            }
+
+            $oldPath = $shop->{$column};
+            $shop->{$column} = $images->store($request->file($input), 'seller-branding');
+            if ($oldPath && $oldPath !== $shop->{$column} && ! Str::startsWith($oldPath, ['http://', 'https://'])) {
+                $oldPaths[] = $oldPath;
+            }
+        }
+
+        $shop->save();
+        Storage::disk('public')->delete($oldPaths);
+
+        return back()->with('status', 'Store profile saved.');
     }
 
     public function account(Request $request): View
@@ -185,23 +209,23 @@ class SellerAccountController extends Controller
 
         return (object) [
             'shop_name' => $shop->business_name,
-            'description' => 'Seller profile managed through the final LIKHAE seller_profiles table.',
-            'avatar_path' => null,
-            'banner_path' => null,
-            'tagline' => '',
-            'location' => $address?->formatted() ?? '',
-            'business_days' => '',
-            'business_hours' => '',
-            'processing_days' => 1,
-            'order_cutoff' => '',
-            'vacation_mode' => false,
-            'auto_accept_orders' => false,
-            'store_visibility' => true,
+            'description' => $shop->description ?? '',
+            'avatar_path' => $shop->avatar_path,
+            'banner_path' => $shop->banner_path,
+            'tagline' => $shop->tagline ?? '',
+            'location' => $shop->location ?: ($address?->formatted() ?? ''),
+            'business_days' => $shop->business_days ?? '',
+            'business_hours' => $shop->business_hours ?? '',
+            'processing_days' => $shop->processing_days ?? 1,
+            'order_cutoff' => $shop->order_cutoff ?? '',
+            'vacation_mode' => $shop->vacation_mode ?? false,
+            'auto_accept_orders' => $shop->auto_accept_orders ?? false,
+            'store_visibility' => $shop->store_visibility ?? true,
             'notification_preferences' => $shop->user?->notification_preferences ?? [],
             'business_name' => $shop->business_name,
             'business_type' => $shop->primaryCategory?->name ?? '',
             'dti_sec_number' => $shop->business_registration_number,
-            'tin' => '',
+            'tin' => $shop->tin ?? '',
             'province' => $address?->province_name,
             'municipality' => $address?->municipality_name,
             'barangay' => $address?->barangay_name,

@@ -22,6 +22,7 @@ class LogisticsCenter extends Model
         'business_name',
         'business_registration_number',
         'dti_registration_number',
+        'tin',
         'status',
         'shipping_fee',
         'approved_by_user_id',

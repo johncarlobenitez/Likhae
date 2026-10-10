@@ -71,13 +71,21 @@ class ImageOptimizationService
 
     private function decode(UploadedFile $image): \GdImage|false
     {
+        // GD is optional: keep the upload working and store the original when
+        // image decoding/resizing/WebP encoding is unavailable in this PHP runtime.
+        if (! function_exists('imagecreatetruecolor')
+            || ! function_exists('imagecopyresampled')
+            || ! function_exists('imagewebp')) {
+            return false;
+        }
+
         $path = $image->getRealPath();
         $metadata = $path ? @getimagesize($path) : false;
         $type = $metadata[2] ?? false;
 
         return match ($type) {
-            IMAGETYPE_JPEG => @imagecreatefromjpeg($path),
-            IMAGETYPE_PNG => @imagecreatefrompng($path),
+            IMAGETYPE_JPEG => function_exists('imagecreatefromjpeg') ? @imagecreatefromjpeg($path) : false,
+            IMAGETYPE_PNG => function_exists('imagecreatefrompng') ? @imagecreatefrompng($path) : false,
             IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($path) : false,
             default => false,
         };

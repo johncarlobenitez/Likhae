@@ -450,40 +450,35 @@
                 <div class="p-5">
                     <div class="space-y-3 rounded-xl border border-stone-200 bg-stone-50 p-4">
                         <div>
-                            <h3 class="text-xs font-semibold text-stone-800">Seller or platform voucher</h3>
-                            <p class="mt-1 text-[11px] text-stone-500">Enter a code or choose an available voucher for each shop.</p>
+                            <h3 class="text-xs font-semibold text-stone-800">Voucher</h3>
+                            <p class="mt-1 text-[11px] text-stone-500">Enter one code. Checkout will match it to the eligible shop.</p>
                         </div>
-
-                        @forelse($availableVouchers as $sellerId => $vouchers)
-                            @php
-                                $sellerName = data_get($vouchers->first(), 'sellerProfile.business_name')
-                                    ?? data_get($cartItems->first(fn ($cartItem) => (int) data_get($cartItem, 'productVariant.product.seller_profile_id') === (int) $sellerId), 'productVariant.product.sellerProfile.business_name')
-                                    ?? 'Seller';
-                            @endphp
-                            <div class="rounded-lg border border-stone-200 bg-white p-3">
-                                <label class="block text-[11px] font-semibold text-stone-700" for="voucher-{{ $sellerId }}">{{ $sellerName }}</label>
-                                <div class="mt-2 flex gap-2">
-                                    <input id="voucher-{{ $sellerId }}" data-voucher-code data-seller-id="{{ $sellerId }}" maxlength="80" class="min-w-0 flex-1 rounded-lg border border-stone-300 px-3 py-2 text-xs uppercase" placeholder="Enter voucher code">
-                                </div>
-                                @if($vouchers->isNotEmpty())
-                                    <div class="mt-2 flex flex-wrap gap-2">
+                        <label for="cart-voucher-code" class="block text-[11px] font-semibold text-stone-700">Voucher code</label>
+                        <div class="flex gap-2">
+                            <input id="cart-voucher-code" data-voucher-code value="{{ old('voucher_code') }}" maxlength="80" autocomplete="off" class="min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs uppercase" placeholder="Enter your voucher">
+                            <button type="button" data-clear-voucher class="rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-600">Clear</button>
+                        </div>
+                        @error('voucher_code')<p class="text-xs font-semibold text-red-700" role="alert">{{ $message }}</p>@enderror
+                        @if($availableVouchers->isNotEmpty())
+                            <div class="space-y-2 border-t border-stone-200 pt-3">
+                                <p class="text-[10px] font-semibold uppercase tracking-wide text-stone-500">Available for your cart</p>
+                                @foreach($availableVouchers as $sellerId => $vouchers)
+                                    @php
+                                        $sellerName = data_get($cartItems->first(fn ($cartItem) => (int) data_get($cartItem, 'productVariant.product.seller_profile_id') === (int) $sellerId), 'productVariant.product.sellerProfile.business_name') ?? 'Shop';
+                                    @endphp
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="text-[10px] text-stone-500">{{ $sellerName }}:</span>
                                         @foreach($vouchers as $voucher)
-                                            <button type="button" data-use-voucher data-seller-id="{{ $sellerId }}" data-voucher-code="{{ $voucher->code }}" class="rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[10px] font-semibold text-red-800">
-                                                {{ $voucher->code }} · {{ $voucher->discount_type === 'PERCENT' ? number_format((float) $voucher->discount_value, 0).'%' : '₱'.number_format((float) $voucher->discount_value, 2) }} off
+                                            <button type="button" data-use-voucher data-voucher-code="{{ $voucher->code }}" class="rounded-full border border-red-200 bg-white px-2.5 py-1 text-[10px] font-semibold text-red-800 hover:bg-red-50" aria-label="Use {{ $voucher->code }} at {{ $sellerName }}">
+                                                {{ $voucher->code }} · {{ $voucher->discount_type === 'PERCENT' ? number_format((float) $voucher->discount_value, 0).'%' : 'PHP '.number_format((float) $voucher->discount_value, 2) }} off &middot; Min PHP {{ number_format((float) $voucher->minimum_order_amount, 2) }}
                                             </button>
                                         @endforeach
                                     </div>
-                                @else
-                                    <p class="mt-2 text-[10px] text-stone-400">No listed vouchers. You can still enter a code manually.</p>
-                                @endif
+                                @endforeach
                             </div>
-                        @empty
-                            <div class="rounded-lg border border-stone-200 bg-white p-3">
-                                <label class="block text-[11px] font-semibold text-stone-700" for="voucher-manual">Voucher code</label>
-                                <input id="voucher-manual" data-voucher-code maxlength="80" class="mt-2 block w-full rounded-lg border border-stone-300 px-3 py-2 text-xs uppercase" placeholder="Enter voucher code">
-                                <p class="mt-2 text-[10px] text-stone-400">No available vouchers for the selected products.</p>
-                            </div>
-                        @endforelse
+                        @else
+                            <p class="text-[10px] text-stone-400">No suggested vouchers for these items. You can still enter a code from a shop.</p>
+                        @endif
                     </div>
 
                     <div class="mt-5 space-y-3 border-t border-stone-100 pt-5 text-sm">
@@ -914,15 +909,14 @@ document.addEventListener('DOMContentLoaded', () => {
             form.appendChild(input);
         });
 
-        page.querySelectorAll('[data-voucher-code][data-seller-id]').forEach((voucherInput) => {
-            const code = voucherInput.value.trim();
-            if (!code) return;
+        const voucherCode = page.querySelector('[data-voucher-code]')?.value.trim();
+        if (voucherCode) {
             const input = document.createElement('input');
             input.type = 'hidden';
-            input.name = `voucher_codes[${voucherInput.dataset.sellerId}]`;
-            input.value = code;
+            input.name = 'voucher_code';
+            input.value = voucherCode;
             form.appendChild(input);
-        });
+        }
 
         document.body.appendChild(form);
         form.submit();
@@ -930,9 +924,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     page.querySelectorAll('[data-use-voucher]').forEach((button) => {
         button.addEventListener('click', () => {
-            const input = page.querySelector(`[data-voucher-code][data-seller-id="${button.dataset.sellerId}"]`);
-            if (input) input.value = button.dataset.voucherCode || '';
+            const input = page.querySelector('input[data-voucher-code]');
+            if (input) {
+                input.value = button.dataset.voucherCode || '';
+                input.focus();
+            }
         });
+    });
+
+    page.querySelector('[data-clear-voucher]')?.addEventListener('click', () => {
+        const input = page.querySelector('input[data-voucher-code]');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
     });
 
     getItems().forEach((item) => {

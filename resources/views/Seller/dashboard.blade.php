@@ -10,7 +10,7 @@
     $stats = $dashboardStats;
     $activeOrders = collect($orderStatusCounts)->sum();
 @endphp
-<div class="sl-page">
+<div class="sl-page sl-seller-dashboard">
     <section class="sl-welcome-panel">
         <div>
             <span class="sl-eyebrow">{{ now()->format('l, F j') }}</span>
@@ -27,11 +27,11 @@
     </section>
 
     <section class="sl-stat-grid" aria-label="Store summary">
-        <x-seller.stat-card label="Today's Sales" :value="'₱'.number_format($stats['today_sales'], 2)" change="Live" icon="sales" />
-        <x-seller.stat-card label="Total Orders" :value="number_format($stats['orders'])" change="Database" icon="orders" />
-        <x-seller.stat-card label="Revenue" :value="'₱'.number_format($stats['revenue'], 2)" change="Current" icon="revenue" />
-        <x-seller.stat-card label="Products Sold" :value="number_format($stats['products_sold'])" change="Units" icon="products" />
-        <x-seller.stat-card label="Pending Shipment" :value="number_format($stats['pending_shipment'])" change="Needs action" direction="down" icon="shipping" />
+        <x-seller.stat-card label="Today's Order Value" :value="'₱'.number_format($stats['today_sales'], 2)" icon="sales" />
+        <x-seller.stat-card label="Total Orders" :value="number_format($stats['orders'])" icon="orders" />
+        <x-seller.stat-card label="Completed Revenue" :value="'₱'.number_format($stats['revenue'], 2)" icon="revenue" />
+        <x-seller.stat-card label="Total Products" :value="number_format($stats['products_sold'])" icon="products" />
+        <x-seller.stat-card label="Ready for Pickup" :value="number_format($stats['pending_shipment'])" change="Needs action" direction="down" icon="shipping" />
     </section>
 
     <div class="sl-dashboard-grid">
@@ -41,8 +41,8 @@
                 <a href="{{ route('seller.reports') }}" class="sl-text-link">View reports</a>
             </header>
             <div class="sl-chart-summary">
-                <div><span>Total revenue</span><strong>₱{{ number_format($stats['revenue'], 2) }}</strong></div>
-                <span class="sl-positive">Live order data</span>
+                <div><span>Completed revenue · last 7 days</span><strong>₱{{ number_format($stats['weekly_revenue'], 2) }}</strong></div>
+                <span class="sl-positive">Completed orders</span>
             </div>
             <div class="sl-bar-chart" aria-label="Sales chart for the last seven days">
                 @foreach ($salesChart as $point)
@@ -100,7 +100,7 @@
                                 <td><a class="sl-icon-link" href="{{ route('seller.orders', ['mode' => 'show', 'order' => data_get($order, 'id')]) }}" aria-label="View order #{{ data_get($order, 'id') }}">→</a></td>
                             </tr>
                         @empty
-                            <tr><td colspan="6">No seller orders yet.</td></tr>
+                            <tr><td colspan="6"><div class="sl-empty-state"><h3>Your orders will appear here</h3><p>When a buyer places an order, you can review it and manage fulfillment from this page.</p><a href="{{ route('seller.products', ['mode' => 'add']) }}" class="sl-btn sl-btn-primary sl-btn-sm">Add a product</a></div></td></tr>
                         @endforelse
                     </tbody>
                 </table>

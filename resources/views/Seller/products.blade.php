@@ -70,7 +70,7 @@
             <input type="hidden" name="listing_status" value="draft" data-listing-status-field>
             <div class="sl-editor-main">
                 <section class="sl-card sl-form-section">
-                    <header class="sl-form-section-head"><span>1</span><div><h3>Product Details</h3><p>Core information stored on the product record.</p></div></header>
+                    <header class="sl-form-section-head"><span>1</span><div><h3>Product Details</h3><p>Add the details buyers need to understand your product.</p></div></header>
                     <div class="sl-form-grid">
                         <label class="sl-field sl-span-2"><span>Product name <b>*</b></span><input name="name" type="text" value="{{ old('name', data_get($product, 'name')) }}" required></label>
                         <label class="sl-field"><span>Line of Business</span><input value="{{ $lineOfBusinessCategory?->name ?? 'Not assigned' }}" readonly></label>
@@ -99,14 +99,14 @@
                 </section>
 
                 <section class="sl-card sl-form-section">
-                    <header class="sl-form-section-head"><span>2</span><div><h3>Pricing &amp; Variations</h3><p>Choose a single product or database-backed variants.</p></div></header>
+                    <header class="sl-form-section-head"><span>2</span><div><h3>Pricing &amp; Variations</h3><p>Set one price or add options such as size and color.</p></div></header>
                     <div class="sl-product-type-grid" data-product-type-editor><label class="sl-product-type-card"><input type="radio" name="product_type" value="single" @checked($productType === 'single')><strong>Single Product</strong><small>One price, stock, and SKU.</small></label><label class="sl-product-type-card"><input type="radio" name="product_type" value="variations" @checked($productType === 'variations')><strong>Has Variations</strong><small>Different sizes, colors, prices, or stock.</small></label></div>
                     <div data-single-product-fields>
                     <input type="hidden" name="single_variant_id" value="{{ data_get($singleVariant, 'id') }}">
                     <div class="sl-form-grid sl-form-grid-4">
                         <label class="sl-field"><span>Price <b>*</b></span><div class="sl-input-prefix"><i>₱</i><input name="price" type="number" min="0" step="0.01" value="{{ old('price', data_get($product, 'price')) }}" required></div></label>
                         <label class="sl-field"><span>Stock <b>*</b></span><input name="stock" type="number" min="0" value="{{ old('stock', data_get($product, 'stock', 0)) }}" required></label>
-                        <label class="sl-field sl-span-2"><span>SKU</span><input name="sku" maxlength="100" value="{{ old('sku', data_get($singleVariant, 'sku')) }}" placeholder="Generated automatically when blank"><small>Stored on product_variants.</small></label>
+                        <label class="sl-field sl-span-2"><span>SKU</span><input name="sku" maxlength="100" value="{{ old('sku', data_get($singleVariant, 'sku')) }}" placeholder="Generated automatically when blank"><small>Leave blank to create a SKU automatically.</small></label>
                         <label class="sl-field"><span>Discount type</span><select name="discount_type" data-single-discount-type><option value="none" @selected($singleDiscountType === 'none')>No discount</option><option value="percentage" @selected($singleDiscountType === 'percentage')>Percentage</option><option value="fixed" @selected($singleDiscountType === 'fixed')>Fixed amount</option></select></label>
                         <label class="sl-field"><span data-single-discount-label>{{ $singleDiscountType === 'fixed' ? 'Discount amount (₱)' : 'Discount (%)' }}</span><div class="sl-input-prefix"><i data-single-discount-prefix @if($singleDiscountType !== 'fixed') hidden @endif>₱</i><input name="discount_value" data-single-discount-value type="number" min="0" max="999999.99" step="0.01" value="{{ $singleDiscountValue ?: 0 }}" placeholder="0" aria-label="Discount value"></div></label>
                         <label class="sl-field"><span>Accepted payment</span><select name="payment_method"><option value="cod_online" @selected($singlePaymentMethod === 'cod_online')>COD + Online</option><option value="cod" @selected($singlePaymentMethod === 'cod')>COD only</option><option value="online" @selected($singlePaymentMethod === 'online')>Online only</option></select></label>
@@ -169,7 +169,7 @@
         </form>
 
     @elseif ($currentMode === 'inventory')
-        <div class="sl-page-toolbar"><div><span class="sl-eyebrow">Stock Control</span><h2>Inventory Overview</h2><p>Each update button now writes to the database.</p></div><a href="{{ route('seller.products.export') }}" class="sl-btn sl-btn-ghost">Export CSV</a></div>
+        <div class="sl-page-toolbar"><div><span class="sl-eyebrow">Stock Control</span><h2>Inventory Overview</h2><p>Review stock levels and update quantities as products move.</p></div><a href="{{ route('seller.products.export') }}" class="sl-btn sl-btn-ghost">Export CSV</a></div>
         <section class="sl-stat-grid sl-stat-grid-4">
             <x-seller.stat-card label="Total SKUs" :value="$sellerProducts->count()" icon="products" />
             <x-seller.stat-card label="In Stock" :value="$sellerProducts->where('stock','>',0)->count()" icon="products" />

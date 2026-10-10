@@ -29,16 +29,76 @@ class CheckoutController extends Controller
             return redirect()->route('buyer.cart')->with('buyer_notice', 'Your cart is empty.');
         }
 
-        $voucherCodes = (array) $request->session()->get('checkout_voucher_codes', []);
-        $preview = $this->checkoutService->preview($items, $voucherCodes, $request->user());
+        $voucherCode = trim((string) $request->session()->get('checkout_voucher_code', ''));
+        $legacyVoucherCodes = collect((array) $request->session()->get('checkout_voucher_codes', []))
+            ->map(fn ($code) => mb_strtoupper(trim((string) $code)))
+            ->filter()
+            ->values();
+
+        if ($voucherCode === '' && $legacyVoucherCodes->count() === 1) {
+            $voucherCode = $legacyVoucherCodes->first();
+            $request->session()->put('checkout_voucher_code', $voucherCode);
+            $request->session()->forget('checkout_voucher_codes');
+        } elseif ($legacyVoucherCodes->count() > 1) {
+            $request->session()->forget('checkout_voucher_codes');
+            $request->session()->flash('buyer_notice', 'Checkout now accepts one voucher code. Choose one code to continue.');
+        }
+
+        try {
+            $preview = $this->checkoutService->preview($items, $voucherCode, $request->user());
+        } catch (ValidationException $exception) {
+            $request->session()->forget(['checkout_voucher_code', 'checkout_voucher_codes']);
+
+            return redirect()
+                ->route('buyer.checkout')
+                ->withErrors($exception->errors())
+                ->withInput(['voucher_code' => $voucherCode]);
+        }
 
         return view('Buyer.checkout', [
             'cartItems' => $items,
             'addresses' => $request->user()->addresses()->orderByDesc('is_default')->latest()->get(),
+            'availableVouchers' => $this->checkoutService->availableVouchers($items, $request->user()),
             'logisticsProviders' => $this->checkoutService->availableLogisticsProviders(),
             'preview' => $preview,
-            'voucherCodes' => $voucherCodes,
+            'voucherCode' => $voucherCode,
         ]);
+    }
+
+    public function applyVoucher(Request $request): RedirectResponse
+    {
+        if ($request->boolean('clear_voucher')) {
+            $request->session()->forget(['checkout_voucher_code', 'checkout_voucher_codes']);
+
+            return back()->with('buyer_notice', 'Voucher removed.');
+        }
+
+        $data = $request->validate([
+            'voucher_code' => ['required', 'string', 'max:80'],
+        ]);
+        $code = mb_strtoupper(trim($data['voucher_code']));
+        $selectedIds = array_map('intval', (array) $request->session()->get('checkout_cart_item_ids', []));
+        $items = $this->cartService->selectedItems($request->user(), $selectedIds);
+
+        if ($items->isEmpty()) {
+            $request->session()->forget(['checkout_voucher_code', 'checkout_voucher_codes']);
+
+            throw ValidationException::withMessages([
+                'voucher_code' => 'Your checkout selection expired. Return to your cart and choose your items again.',
+            ]);
+        }
+
+        try {
+            $this->checkoutService->preview($items, $code, $request->user());
+        } catch (ValidationException $exception) {
+            $request->session()->forget(['checkout_voucher_code', 'checkout_voucher_codes']);
+            throw $exception;
+        }
+
+        $request->session()->put('checkout_voucher_code', $code);
+        $request->session()->forget('checkout_voucher_codes');
+
+        return back()->with('buyer_notice', 'Voucher applied to the eligible shop.');
     }
 
     public function select(Request $request): RedirectResponse
@@ -46,6 +106,7 @@ class CheckoutController extends Controller
         $data = $request->validate([
             'cart_item_ids' => ['required', 'array', 'min:1'],
             'cart_item_ids.*' => ['required', 'integer'],
+            'voucher_code' => ['nullable', 'string', 'max:80'],
             'voucher_codes' => ['nullable', 'array'],
             'voucher_codes.*' => ['nullable', 'string', 'max:80'],
         ]);
@@ -54,13 +115,31 @@ class CheckoutController extends Controller
         $ownedIds = $this->cartService->selectedItems($request->user(), $ids)->pluck('id')->map(fn ($id) => (int) $id)->all();
         abort_unless(count($ownedIds) === count($ids), 403);
 
-        $voucherCodes = collect((array) $request->input('voucher_codes', []))
+        $legacyVoucherCodes = collect((array) $request->input('voucher_codes', []))
             ->mapWithKeys(fn ($value, $key) => [(int) $key => mb_strtoupper(trim((string) $value))])
             ->filter()
             ->all();
 
+        $voucherCode = mb_strtoupper(trim((string) ($data['voucher_code'] ?? '')));
+        if ($voucherCode === '' && count($legacyVoucherCodes) > 1) {
+            throw ValidationException::withMessages([
+                'voucher_code' => 'Enter one voucher code for checkout.',
+            ]);
+        }
+
+        $selectedItems = $this->cartService->selectedItems($request->user(), $ownedIds);
+        if ($voucherCode !== '') {
+            $request->session()->put('checkout_voucher_code', $voucherCode);
+            $request->session()->forget('checkout_voucher_codes');
+        } elseif ($legacyVoucherCodes !== []) {
+            $this->checkoutService->preview($selectedItems, $legacyVoucherCodes, $request->user());
+            $request->session()->put('checkout_voucher_codes', $legacyVoucherCodes);
+            $request->session()->forget('checkout_voucher_code');
+        } else {
+            $request->session()->forget(['checkout_voucher_code', 'checkout_voucher_codes']);
+        }
+
         $request->session()->put('checkout_cart_item_ids', $ownedIds);
-        $request->session()->put('checkout_voucher_codes', $voucherCodes);
 
         return redirect()->route('buyer.checkout');
     }
@@ -71,6 +150,7 @@ class CheckoutController extends Controller
             'address_id' => ['required', 'integer', Rule::exists('addresses', 'id')->where('user_id', $request->user()->id)],
             'logistics_center_id' => ['required', 'integer', Rule::exists('logistics_centers', 'id')->where('status', 'ACTIVE')],
             'payment_method' => ['required', Rule::in(['COD', 'ONLINE'])],
+            'voucher_code' => ['nullable', 'string', 'max:80'],
             'voucher_codes' => ['nullable', 'array'],
             'voucher_codes.*' => ['nullable', 'string', 'max:80'],
         ], [
@@ -100,21 +180,40 @@ class CheckoutController extends Controller
             'latitude' => $address->latitude,
             'longitude' => $address->longitude,
         ]);
-        $voucherCodes = collect((array) $request->input('voucher_codes', []))
+        $legacyVoucherCodes = collect((array) $request->input('voucher_codes', []))
             ->mapWithKeys(fn ($value, $key) => [(int) $key => mb_strtoupper(trim((string) $value))])
             ->filter()
             ->all();
+        $voucherCode = mb_strtoupper(trim((string) ($data['voucher_code'] ?? '')));
 
-        $order = $this->checkoutService->placeOrder(
-            $request->user(),
-            $address,
-            $items,
-            $data['payment_method'],
-            $voucherCodes,
-            (int) $data['logistics_center_id'],
-        );
+        if ($voucherCode === '' && count($legacyVoucherCodes) > 1) {
+            throw ValidationException::withMessages([
+                'voucher_code' => 'Enter one voucher code for checkout.',
+            ]);
+        }
 
-        $request->session()->forget(['checkout_cart_item_ids', 'checkout_voucher_codes']);
+        $voucherCode = $voucherCode !== ''
+            ? $voucherCode
+            : (count($legacyVoucherCodes) === 1 ? (string) reset($legacyVoucherCodes) : '');
+
+        try {
+            $order = $this->checkoutService->placeOrder(
+                $request->user(),
+                $address,
+                $items,
+                $data['payment_method'],
+                $voucherCode,
+                (int) $data['logistics_center_id'],
+            );
+        } catch (ValidationException $exception) {
+            if (array_key_exists('voucher_code', $exception->errors())) {
+                $request->session()->forget(['checkout_voucher_code', 'checkout_voucher_codes']);
+            }
+
+            throw $exception;
+        }
+
+        $request->session()->forget(['checkout_cart_item_ids', 'checkout_voucher_code', 'checkout_voucher_codes']);
 
         return redirect()
             ->route('buyer.orders.success', ['order' => $order->order_number])

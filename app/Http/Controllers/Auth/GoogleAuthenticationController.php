@@ -63,19 +63,20 @@ class GoogleAuthenticationController extends Controller
         $user = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
 
         if (! $user) {
+            $fullName = trim((string) $googleUser->getName());
+            $nameParts = preg_split('/\s+/u', $fullName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            $fullNameFirst = array_shift($nameParts) ?? '';
+            $fullNameLast = implode(' ', $nameParts);
+            $firstName = trim((string) ($raw['given_name'] ?? $fullNameFirst));
+            $lastName = trim((string) ($raw['family_name'] ?? $fullNameLast));
             $request->session()->put('google_buyer_registration', [
                 'email' => $email,
-                'first_name' => trim((string) ($raw['given_name'] ?? str($googleUser->getName())->beforeLast(' '))),
-                'last_name' => trim((string) ($raw['family_name'] ?? str($googleUser->getName())->afterLast(' '))),
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'profile_photo_url' => $googleUser->getAvatar(),
             ]);
 
             return redirect()->route('register', ['role' => 'buyer']);
-        }
-
-        if (! $user->isAccountType(User::TYPE_BUYER)) {
-            return redirect()->route('login')->withErrors([
-                'email' => 'Continue with Google is available for Buyer accounts only.',
-            ]);
         }
 
         if (! $user->isActive()) {

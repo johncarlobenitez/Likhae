@@ -12,7 +12,7 @@
         <p style="margin:24px 0;padding:16px;background:#f8f7f4;border-radius:8px;text-align:center;font-size:32px;font-weight:bold;letter-spacing:8px;">
             {{ $code }}
         </p>
-        <p>This code expires in 10 minutes. If you did not start a registration, you can ignore this email.</p>
+        <p>This code expires in 5 minutes. If you did not start a registration, you can ignore this email.</p>
         <p style="color:#6f706f;font-size:13px;">LIKHAE</p>
     </main>
 </body>
