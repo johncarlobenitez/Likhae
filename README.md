@@ -15,10 +15,10 @@ npm run build
 For local development, run:
 
 ```sh
-php artisan serve
+php artisan dev
 ```
 
-This starts Laravel, Vite, and the Reverb WebSocket server together, so the site loads with CSS and JavaScript and all message pages receive new messages in real time. To open the development site on a phone, connect the phone and computer to the same Wi-Fi and browse to the computer's LAN address (for example, `http://192.168.1.52:8000`). Laravel and Vite bind to the local network for this development workflow. If Windows Firewall prompts, allow PHP/Node on your private network. `VITE_HMR_HOST` can be set in `.env` to override the automatically detected LAN address when the computer has multiple network interfaces. `composer run dev` remains an alternative, but `php artisan serve` is the recommended command because it also starts Reverb.
+This starts Laravel, Vite, and the Reverb WebSocket server together. The development site uses port 8081 and Reverb uses port 8080. To open the development site on a phone, connect the phone and computer to the same Wi-Fi and browse to the computer's LAN address (for example, `http://192.168.1.52:8081`). On Windows, `scripts/run-likhae-continuously.ps1` starts the same services with these ports. Laravel binds to the local network for this workflow. If Windows Firewall prompts, allow PHP/Node on your private network. `VITE_HMR_HOST` can be set in `.env` to override the automatically detected LAN address when the computer has multiple network interfaces. `composer run dev` remains an alternative.
 
 For production, run Reverb as a long-running process alongside Laravel and point the reverse proxy's WebSocket route to it:
 

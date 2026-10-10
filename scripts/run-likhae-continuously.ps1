@@ -6,6 +6,11 @@ New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
 Set-Location $projectDir
 
+$env:SERVER_HOST = '0.0.0.0'
+$env:SERVER_PORT = '8081'
+$env:REVERB_SERVER_HOST = '0.0.0.0'
+$env:REVERB_SERVER_PORT = '8080'
+
 while ($true) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
     $logPath = Join-Path $logDir "artisan-dev-$stamp.log"
