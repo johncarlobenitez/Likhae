@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticationController;
 use App\Http\Controllers\Logistics\DispatchController;
 use App\Http\Controllers\Logistics\LogisticsPortalController;
 use App\Http\Controllers\WorkspaceAiController;
+use App\Http\Controllers\WorkspaceSettingsController;
 use App\Http\Middleware\EnsureWorkspaceRole;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +32,8 @@ Route::prefix('logistics')->name('logistics.')->group(function (): void {
             ->name('ai.chat');
 
         Route::get('/dashboard', [LogisticsPortalController::class, 'dashboard'])->name('dashboard');
+        Route::get('/settings', [WorkspaceSettingsController::class, 'show'])->defaults('workspace', 'logistics')->name('settings');
+        Route::put('/settings', [WorkspaceSettingsController::class, 'update'])->defaults('workspace', 'logistics')->name('settings.update');
 
         Route::get('/parcels', [DispatchController::class, 'parcels'])->name('parcels');
         Route::get('/parcels/receive', [DispatchController::class, 'receive'])->name('parcels.receive');

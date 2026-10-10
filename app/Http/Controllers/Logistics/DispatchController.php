@@ -114,7 +114,15 @@ class DispatchController extends Controller
         $tracking = trim((string) $request->query('tracking', ''));
 
         $shipments = Shipment::query()
-            ->where('current_status', 'PICKED_UP')
+            ->where(function ($query): void {
+                $query->where('current_status', 'PICKED_UP')
+                    ->orWhere(function ($dropoff): void {
+                        $dropoff->where('current_status', 'READY_FOR_PICKUP')
+                            ->whereHas('pickupRequests', fn ($requests) => $requests
+                                ->whereIn('status', ['PENDING', 'APPROVED'])
+                                ->where('notes', 'like', 'SELLER_DROPOFF:%'));
+                    });
+            })
             ->when($tracking !== '', fn ($query) => $query->where('tracking_number', $tracking))
             ->when($center, fn ($query) => $query->where(function ($q) use ($center) {
                 $q->where('logistics_center_id', $center->id)
@@ -334,7 +342,9 @@ class DispatchController extends Controller
 
         $workflow->receiveAtCenter($shipment, $center, $request->user(), $data['scanned_code'], $data['scan_method'] ?? 'MANUAL');
 
-        return back()->with('status', 'Parcel received at sorting center.');
+        return redirect()
+            ->route('logistics.sorting', ['tracking' => $shipment->tracking_number])
+            ->with('status', 'Parcel received. Read the delivery address and confirm its destination area.');
     }
 
     public function sortParcel(Request $request, Shipment $shipment, ShipmentWorkflowService $workflow): RedirectResponse
@@ -358,7 +368,9 @@ class DispatchController extends Controller
                 ->withInput();
         }
 
-        return back()->with('status', 'Parcel sorted successfully.');
+        return redirect()
+            ->route('logistics.dispatch', ['tracking' => $shipment->tracking_number])
+            ->with('status', 'Parcel sorted. Assign the rider responsible for this destination area.');
     }
 
     public function waybill(Request $request, string $tracking): View

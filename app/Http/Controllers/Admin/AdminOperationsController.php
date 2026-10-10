@@ -219,8 +219,9 @@ class AdminOperationsController extends Controller
             'messages' => $conversationService->streamPayload(
                 $request->user(),
                 $request->integer('conversation'),
+                $request->integer('after_id') ?: null,
             ),
-        ]);
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     public function settings(): View
@@ -478,6 +479,7 @@ class AdminOperationsController extends Controller
         ]);
 
         $context = [];
+        $conversation = null;
         if (! empty($data['conversation_id'])) {
             $conversation = Conversation::query()
                 ->whereKey((int) $data['conversation_id'])
@@ -487,7 +489,7 @@ class AdminOperationsController extends Controller
             $context = $conversationService->contextFor($conversation);
         }
 
-        $message = $conversationService->send($request->user(), (int) $data['recipient_user_id'], trim($data['body']), $context);
+        $message = $conversationService->send($request->user(), (int) $data['recipient_user_id'], trim($data['body']), $context, $conversation);
 
         if ($request->expectsJson()) {
             return response()->json([

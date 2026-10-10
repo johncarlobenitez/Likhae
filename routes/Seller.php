@@ -6,6 +6,7 @@ use App\Http\Controllers\Seller\SellerOperationsController;
 use App\Http\Controllers\Seller\SellerOrderController;
 use App\Http\Controllers\Seller\SellerProductController;
 use App\Http\Controllers\WorkspaceAiController;
+use App\Http\Controllers\WorkspaceSettingsController;
 use App\Http\Middleware\EnsureWorkspaceRole;
 use Illuminate\Support\Facades\Route;
 
@@ -23,6 +24,8 @@ Route::prefix('seller')
             ->name('ai.chat');
 
         Route::get('/dashboard', [SellerOperationsController::class, 'dashboard'])->name('dashboard');
+        Route::get('/settings', [WorkspaceSettingsController::class, 'show'])->defaults('workspace', 'seller')->name('settings');
+        Route::put('/settings', [WorkspaceSettingsController::class, 'update'])->defaults('workspace', 'seller')->name('settings.update');
 
         Route::get('/products', [SellerProductController::class, 'index'])->name('products');
         Route::get('/products/trash', [SellerProductController::class, 'trash'])->name('products.trash');

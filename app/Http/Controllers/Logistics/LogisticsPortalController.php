@@ -460,8 +460,9 @@ class LogisticsPortalController extends Controller
             'messages' => $conversationService->streamPayload(
                 $request->user(),
                 $request->integer('conversation'),
+                $request->integer('after_id') ?: null,
             ),
-        ]);
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     public function sendMessage(Request $request, ConversationService $conversationService): JsonResponse|RedirectResponse
@@ -473,6 +474,7 @@ class LogisticsPortalController extends Controller
         ]);
 
         $context = [];
+        $conversation = null;
         if (! empty($data['conversation_id'])) {
             $conversation = Conversation::query()
                 ->whereKey((int) $data['conversation_id'])
@@ -482,7 +484,7 @@ class LogisticsPortalController extends Controller
             $context = $conversationService->contextFor($conversation);
         }
 
-        $message = $conversationService->send($request->user(), (int) $data['recipient_user_id'], trim($data['body']), $context);
+        $message = $conversationService->send($request->user(), (int) $data['recipient_user_id'], trim($data['body']), $context, $conversation);
 
         if ($request->expectsJson()) {
             return response()->json([

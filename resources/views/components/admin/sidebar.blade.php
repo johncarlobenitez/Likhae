@@ -312,6 +312,13 @@
                     ],
                 ],
                 [
+                    'key' => 'system-settings',
+                    'label' => 'System Settings',
+                    'route' => 'admin.system-settings',
+                    'icon' => 'settings',
+                    'active' => ['admin.system-settings'],
+                ],
+                [
                     'key' => 'account',
                     'label' => 'My Account',
                     'route' => 'admin.account',
@@ -362,6 +369,7 @@
             ]],
             ['label' => 'Account', 'items' => [
                 ['key' => 'account', 'label' => 'My Account', 'route' => 'seller.account', 'icon' => 'account', 'active' => ['seller.account', 'seller.account.*', 'seller.notifications']],
+                ['key' => 'settings', 'label' => 'System Settings', 'route' => 'seller.settings', 'icon' => 'settings', 'active' => ['seller.settings']],
             ]],
         ];
     } elseif ($role === 'rider') {
@@ -380,6 +388,7 @@
             ]],
             ['label' => 'Account', 'items' => [
                 ['key' => 'account', 'label' => 'My Account', 'route' => 'rider.account', 'icon' => 'account', 'active' => ['rider.account', 'rider.account.*', 'rider.profile']],
+                ['key' => 'settings', 'label' => 'System Settings', 'route' => 'rider.settings', 'icon' => 'settings', 'active' => ['rider.settings']],
             ]],
         ];
     } elseif ($role === 'logistics') {
@@ -403,6 +412,7 @@
             ]],
             ['label' => 'Account', 'items' => [
                 ['key' => 'account', 'label' => 'My Account', 'route' => 'logistics.profile', 'icon' => 'account', 'active' => ['logistics.profile', 'logistics.account']],
+                ['key' => 'settings', 'label' => 'System Settings', 'route' => 'logistics.settings', 'icon' => 'settings', 'active' => ['logistics.settings']],
             ]],
         ];
     }

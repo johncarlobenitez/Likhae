@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AdminOnboardingController;
 use App\Http\Controllers\Admin\AdminOperationsController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Middleware\EnsureWorkspaceRole;
+use App\Http\Controllers\WorkspaceSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')
@@ -46,6 +47,8 @@ Route::prefix('admin')
         Route::get('/messages', [AdminOperationsController::class, 'messages'])->name('messages');
         Route::get('/messages/stream', [AdminOperationsController::class, 'messageStream'])->name('messages.stream');
         Route::get('/settings', [AdminOperationsController::class, 'settings'])->name('settings');
+        Route::get('/system-settings', [WorkspaceSettingsController::class, 'show'])->defaults('workspace', 'admin')->name('system-settings');
+        Route::put('/system-settings', [WorkspaceSettingsController::class, 'update'])->defaults('workspace', 'admin')->name('system-settings.update');
         Route::get('/account', [AdminOperationsController::class, 'account'])->name('account');
         Route::get('/notifications', [AdminOperationsController::class, 'notifications'])->name('notifications');
         Route::post('/notifications/read-all', [AdminOperationsController::class, 'markNotificationsRead'])->name('notifications.read-all');

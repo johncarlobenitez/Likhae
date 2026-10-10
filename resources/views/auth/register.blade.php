@@ -2,6 +2,7 @@
 <html lang="en">
 
 <head>
+    <x-likhae-favicon />
     <meta charset="UTF-8">
 
     <meta

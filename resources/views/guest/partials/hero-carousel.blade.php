@@ -1,8 +1,8 @@
 @php
     $slides = [
-        ['image' => 'Warm Mediterranean Still Life with Terracotta Accents.png', 'alt' => 'A ceramic vase, candle, and soft throw against warm terracotta walls', 'eyebrow' => 'A LITTLE WARMTH GOES A LONG WAY', 'title' => 'Small details.', 'accent' => 'A home that feels yours.', 'description' => 'Settle into softer textures, warm accents, and comforting touches that turn your space into your favorite place.', 'cta' => 'Shop Home & Living', 'category' => 'home'],
-        ['image' => 'Minimalist Workspace with City Views.png', 'alt' => 'Sunlit workspace with a laptop, desk lamp, and city views', 'eyebrow' => 'MAKE ROOM FOR BIG IDEAS', 'title' => 'Inspired spaces.', 'accent' => 'Brighter workdays.', 'description' => 'Discover tech and workspace essentials that bring focus, comfort, and a little inspiration to your everyday.', 'cta' => 'Explore Electronics', 'category' => 'electronics'],
-        ['image' => 'Sunlit Sage Green Lifestyle Vignette.png', 'alt' => 'Headphones, a phone, and everyday accessories in a sunlit sage green setting', 'eyebrow' => 'LITTLE FINDS. EVERYDAY JOY.', 'title' => 'Your everyday,', 'accent' => 'beautifully chosen.', 'description' => 'From your favorite soundtrack to the things you take everywhere, find thoughtful essentials that fit your way of living.', 'cta' => 'Discover Everyday Finds', 'category' => null],
+        ['image' => 'Warm Mediterranean Still Life with Terracotta Accents', 'alt' => 'A ceramic vase, candle, and soft throw against warm terracotta walls', 'eyebrow' => 'A LITTLE WARMTH GOES A LONG WAY', 'title' => 'Small details.', 'accent' => 'A home that feels yours.', 'description' => 'Settle into softer textures, warm accents, and comforting touches that turn your space into your favorite place.', 'cta' => 'Shop Home & Living', 'category' => 'home'],
+        ['image' => 'Minimalist Workspace with City Views', 'alt' => 'Sunlit workspace with a laptop, desk lamp, and city views', 'eyebrow' => 'MAKE ROOM FOR BIG IDEAS', 'title' => 'Inspired spaces.', 'accent' => 'Brighter workdays.', 'description' => 'Discover tech and workspace essentials that bring focus, comfort, and a little inspiration to your everyday.', 'cta' => 'Explore Electronics', 'category' => 'electronics'],
+        ['image' => 'Sunlit Sage Green Lifestyle Vignette', 'alt' => 'Headphones, a phone, and everyday accessories in a sunlit sage green setting', 'eyebrow' => 'LITTLE FINDS. EVERYDAY JOY.', 'title' => 'Your everyday,', 'accent' => 'beautifully chosen.', 'description' => 'From your favorite soundtrack to the things you take everywhere, find thoughtful essentials that fit your way of living.', 'cta' => 'Discover Everyday Finds', 'category' => null],
     ];
 @endphp
 
@@ -10,16 +10,19 @@
     <div class="lk-carousel__slides" aria-live="off">
         @foreach($slides as $slide)
             <article id="hero-slide-{{ $loop->index }}" class="lk-carousel__slide {{ $loop->first ? 'is-active' : '' }}" data-hero-slide role="group" aria-roledescription="slide" aria-label="{{ $loop->iteration }} of {{ count($slides) }}" aria-hidden="{{ $loop->first ? 'false' : 'true' }}" @if(!$loop->first) inert @endif>
-                <img
-                    class="lk-carousel__image"
-                    src="{{ asset('images/'.$slide['image']) }}"
-                    alt="{{ $slide['alt'] }}"
-                    width="1822"
-                    height="863"
-                    loading="{{ $loop->first ? 'eager' : 'lazy' }}"
-                    fetchpriority="{{ $loop->first ? 'high' : 'low' }}"
-                    decoding="async"
-                >
+                <picture>
+                    <source srcset="{{ asset('images/'.$slide['image'].'.webp') }}" type="image/webp">
+                    <img
+                        class="lk-carousel__image"
+                        src="{{ asset('images/'.$slide['image'].'.png') }}"
+                        alt="{{ $slide['alt'] }}"
+                        width="1822"
+                        height="863"
+                        loading="{{ $loop->first ? 'eager' : 'lazy' }}"
+                        fetchpriority="{{ $loop->first ? 'high' : 'low' }}"
+                        decoding="async"
+                    >
+                </picture>
                 <div class="lk-carousel__copy">
                     <span class="lk-carousel__eyebrow">{{ $slide['eyebrow'] }}</span>
                     @if($loop->first)

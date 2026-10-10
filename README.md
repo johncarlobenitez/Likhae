@@ -26,7 +26,15 @@ For production, run Reverb as a long-running process alongside Laravel and point
 php artisan reverb:start --host=0.0.0.0 --port=8080
 ```
 
-Set `REVERB_HOST`, `REVERB_PORT`, `REVERB_SCHEME`, and the `VITE_REVERB_*` values to the public WebSocket endpoint before running `npm run build`.
+Set `REVERB_HOST`, `REVERB_PORT`, `REVERB_SCHEME`, and the `VITE_REVERB_*` values to the public WebSocket endpoint before running `npm run build`. When Laravel and Reverb share a host, set `REVERB_BROADCAST_HOST=127.0.0.1`, `REVERB_BROADCAST_PORT=8080`, and `REVERB_BROADCAST_SCHEME=http` so server-side broadcasts do not loop through Cloudflare. If Reverb runs as a separate service, use its private service hostname and port instead.
+
+The Windows/XAMPP production setup keeps Cloudflare Tunnel on port 8000 and uses [`deploy/apache/likhae-reverse-proxy.conf`](deploy/apache/likhae-reverse-proxy.conf) to route `/app/` and `/apps/` to Reverb while forwarding normal web requests to Laravel on port 8001. Start Laravel with the internal flag below so the development Vite/Reverb supervisor is not launched in production:
+
+```powershell
+C:\xampp\php\php.exe artisan serve --host=127.0.0.1 --port=8001 --no-reload --likhae-internal
+C:\xampp\php\php.exe artisan reverb:start --host=0.0.0.0 --port=8080
+C:\xampp\apache\bin\httpd.exe -d C:/Users/mcarl/OneDrive/Documents/Likhae-working -f deploy/apache/likhae-reverse-proxy.conf
+```
 
 Registration sends a six-digit email verification code before an application can be submitted. For Gmail SMTP, configure these values in the local `.env` using a Google App Password (with two-step verification enabled):
 

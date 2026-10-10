@@ -133,12 +133,15 @@ class RiderController extends Controller
             'amount' => '₱'.number_format((float) $shipment->sellerOrder->grand_total, 2),
         ];
         $verified = $request->filled('tracking') && hash_equals($shipment->tracking_number, (string) $request->query('tracking'));
+        $scanMethod = in_array(strtoupper((string) $request->query('scan_method')), ['QR', 'BARCODE'], true)
+            ? strtoupper((string) $request->query('scan_method'))
+            : 'MANUAL';
         $delivery = $assignment;
 
         // Pickup navigation needs only the rider and the seller's confirmed
         // location. Do not send the unrelated buyer marker to this mobile page.
         $mapMarkers = app(MapDataService::class)->forShipment($shipment, false, true);
-        return view('Rider.pickups.show', compact('assignment', 'rider', 'pickup', 'verified', 'delivery', 'mapMarkers'));
+        return view('Rider.pickups.show', compact('assignment', 'rider', 'pickup', 'verified', 'scanMethod', 'delivery', 'mapMarkers'));
     }
 
     public function deliveries(Request $request): View
@@ -343,8 +346,9 @@ class RiderController extends Controller
             'messages' => $conversationService->streamPayload(
                 $request->user(),
                 $request->integer('conversation'),
+                $request->integer('after_id') ?: null,
             ),
-        ]);
+        ])->header('Cache-Control', 'no-store, private');
     }
 
     public function sendMessage(Request $request, ConversationService $conversationService): JsonResponse|RedirectResponse
@@ -356,6 +360,7 @@ class RiderController extends Controller
         ]);
 
         $context = [];
+        $conversation = null;
         if (! empty($data['conversation_id'])) {
             $conversation = Conversation::query()
                 ->whereKey((int) $data['conversation_id'])
@@ -365,7 +370,7 @@ class RiderController extends Controller
             $context = $conversationService->contextFor($conversation);
         }
 
-        $message = $conversationService->send($request->user(), (int) $data['recipient_user_id'], trim($data['body']), $context);
+        $message = $conversationService->send($request->user(), (int) $data['recipient_user_id'], trim($data['body']), $context, $conversation);
 
         if ($request->expectsJson()) {
             return response()->json([

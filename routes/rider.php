@@ -3,6 +3,7 @@
 use App\Http\Controllers\Rider\RiderController;
 use App\Http\Controllers\Rider\RiderShipmentController;
 use App\Http\Controllers\WorkspaceAiController;
+use App\Http\Controllers\WorkspaceSettingsController;
 use App\Http\Middleware\EnsureWorkspaceRole;
 use Illuminate\Support\Facades\Route;
 
@@ -28,6 +29,8 @@ Route::prefix('rider')
 
         Route::get('/', fn () => redirect()->route('rider.dashboard'))->name('home');
         Route::get('/dashboard', [RiderController::class, 'dashboard'])->name('dashboard');
+        Route::get('/settings', [WorkspaceSettingsController::class, 'show'])->defaults('workspace', 'rider')->name('settings');
+        Route::put('/settings', [WorkspaceSettingsController::class, 'update'])->defaults('workspace', 'rider')->name('settings.update');
 
         Route::get('/shipments', [RiderShipmentController::class, 'index'])->name('shipments');
         Route::post('/assignments/{assignment}/location', [RiderShipmentController::class, 'updateLocation'])->name('assignments.location');

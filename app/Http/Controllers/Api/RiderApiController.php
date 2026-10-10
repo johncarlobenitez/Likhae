@@ -217,11 +217,10 @@ class RiderApiController extends Controller
     {
         $this->rider($request);
         $user = $request->user();
-        $rows = $service->listFor($user)->map(function (Conversation $conversation) use ($user): array {
+        $conversations = $service->listFor($user, false, 100);
+        $unreadCounts = $service->unreadCountsFor($user, $conversations);
+        $rows = $conversations->map(function (Conversation $conversation) use ($user, $unreadCounts): array {
             $other = $conversation->participants->first(fn (User $participant): bool => (int) $participant->id !== (int) $user->id);
-            $self = $conversation->participants->first(fn (User $participant): bool => (int) $participant->id === (int) $user->id);
-            $lastReadAt = $self?->pivot?->last_read_at;
-            $unread = $conversation->messages->where('sender_user_id', '!=', $user->id)->filter(fn ($message): bool => $lastReadAt === null || $message->sent_at?->gt($lastReadAt))->count();
             $shipment = $conversation->shipment;
 
             return [
@@ -233,22 +232,26 @@ class RiderApiController extends Controller
                 'tracking_code' => $shipment?->tracking_number,
                 'last_message' => $conversation->latestMessage?->body ?? '',
                 'last_message_at' => $conversation->latestMessage?->sent_at?->toIso8601String(),
-                'unread_count' => $unread,
+                'unread_count' => (int) $unreadCounts->get($conversation->id, 0),
             ];
         })->values();
 
         return response()->json(['success' => true, 'data' => $rows]);
     }
 
-    public function conversationMessages(Request $request, int $conversation): JsonResponse
+    public function conversationMessages(Request $request, int $conversation, ConversationService $service): JsonResponse
     {
         $this->rider($request);
-        $thread = Conversation::query()->whereKey($conversation)
-            ->whereHas('participants', fn ($query) => $query->where('users.id', $request->user()->id))
-            ->with(['messages.sender', 'participantRecords'])->firstOrFail();
-        app(ConversationService::class)->markRead($thread, $request->user());
+        $messages = $service->messagesFor(
+            $request->user(),
+            $conversation,
+            50,
+            max(0, $request->integer('after_id')) ?: null,
+        );
+        $thread = Conversation::query()->select('id')->findOrFail($conversation);
+        $service->markRead($thread, $request->user());
 
-        return response()->json(['success' => true, 'data' => $thread->messages->map(fn ($message): array => [
+        return response()->json(['success' => true, 'data' => $messages->map(fn ($message): array => [
             'id' => (string) $message->id, 'conversation_id' => (string) $message->conversation_id,
             'body' => $message->body, 'sender_user_id' => $message->sender_user_id,
             'sent_at' => $message->sent_at?->toIso8601String(),
@@ -268,7 +271,7 @@ class RiderApiController extends Controller
         $message = $service->send($request->user(), (int) $recipient->id, trim($data['body']), [
             'type' => $thread->type, 'order_id' => $thread->order_id,
             'seller_order_id' => $thread->seller_order_id, 'shipment_id' => $thread->shipment_id,
-        ]);
+        ], $thread);
 
         return response()->json(['success' => true, 'data' => [
             'id' => (string) $message->id, 'conversation_id' => (string) $message->conversation_id,

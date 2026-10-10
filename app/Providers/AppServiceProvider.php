@@ -88,12 +88,30 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(LogisticsCenter::class, LogisticsCenterPolicy::class);
         Gate::policy(RiderProfile::class, RiderProfilePolicy::class);
 
-        $unreadMessageCount = static function (?User $user): int {
-            if (! $user || ! Schema::hasTable('messages') || ! Schema::hasTable('conversation_participants')) {
+        $memo = static function (string $key, callable $resolve): mixed {
+            $attributes = request()->attributes;
+
+            if ($attributes->has($key)) {
+                return $attributes->get($key);
+            }
+
+            $value = $resolve();
+            $attributes->set($key, $value);
+
+            return $value;
+        };
+
+        $hasTable = static fn (string $table): bool => $memo(
+            '_likhae_schema_'.$table,
+            static fn (): bool => Schema::hasTable($table),
+        );
+
+        $unreadMessageCount = static function (?User $user) use ($memo, $hasTable): int {
+            if (! $user || ! $hasTable('messages') || ! $hasTable('conversation_participants')) {
                 return 0;
             }
 
-            return Message::query()
+            return $memo('_likhae_unread_messages_'.$user->id, static fn (): int => Message::query()
                 ->join('conversation_participants as cp', function ($join) use ($user): void {
                     $join->on('cp.conversation_id', '=', 'messages.conversation_id')
                         ->where('cp.user_id', '=', $user->id)
@@ -108,18 +126,18 @@ class AppServiceProvider extends ServiceProvider
                     $query->whereNull('cp.last_read_at')
                         ->orWhereColumn('messages.sent_at', '>', 'cp.last_read_at');
                 })
-                ->count('messages.id');
+                ->count('messages.id'));
         };
 
-        $unreadNotificationCount = static function (?User $user): int {
-            if (! $user || ! Schema::hasTable('notifications')) {
+        $unreadNotificationCount = static function (?User $user) use ($memo, $hasTable): int {
+            if (! $user || ! $hasTable('notifications')) {
                 return 0;
             }
 
-            return Notification::query()
+            return $memo('_likhae_unread_notifications_'.$user->id, static fn (): int => Notification::query()
                 ->where('user_id', $user->id)
                 ->whereNull('read_at')
-                ->count();
+                ->count());
         };
 
         View::composer(['components.admin.sidebar', 'components.admin.header'], function ($view) use ($unreadMessageCount, $unreadNotificationCount): void {

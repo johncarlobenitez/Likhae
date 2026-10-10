@@ -5,6 +5,10 @@
     <header><p class="text-xs font-bold uppercase text-primary">First-mile operations</p><h1 class="mt-2 text-2xl font-bold text-ink">Seller Pickup Requests</h1><p class="mt-2 text-sm text-muted">Approve requests and assign an active rider from this logistics center.</p></header>
     @if(session('status'))<div class="border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800">{{ session('status') }}</div>@endif
     @if($errors->any())<div class="border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">{{ $errors->first() }}</div>@endif
+    <form method="GET" action="{{ route('logistics.pickups') }}" class="flex flex-col gap-2 border border-line bg-surface p-4 sm:flex-row">
+        <input name="tracking" value="{{ request('tracking', '') }}" class="h-10 min-w-0 flex-1 border border-line bg-white px-3 text-sm text-ink" placeholder="Filter by tracking number" aria-label="Filter pickup requests by tracking number">
+        <button class="bg-primary px-4 py-2 text-sm font-semibold text-white">Find Pickup</button>
+    </form>
     <x-shared.mapbox :markers="$mapMarkers" title="Pickup operations map" height="220px" user-location-target="seller" />
     <div class="overflow-x-auto border border-line bg-surface"><table class="min-w-full text-left text-sm">
         <thead class="border-b border-line bg-gray-50 text-xs uppercase text-muted"><tr><th class="p-4">Parcel</th><th class="p-4">Seller</th><th class="p-4">Destination</th><th class="p-4">Status</th><th class="p-4">Assignment</th></tr></thead>
