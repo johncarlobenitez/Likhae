@@ -10,9 +10,9 @@ while ($true) {
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
     $logPath = Join-Path $logDir "artisan-dev-$stamp.log"
 
-    "[$(Get-Date -Format s)] Starting Laravel production-style server with built assets." | Add-Content $logPath
-    & php artisan serve --host=0.0.0.0 --port=8000 *>> $logPath
+    "[$(Get-Date -Format s)] Starting Laravel development services (server, queue, Reverb, and Vite)." | Add-Content $logPath
+    & php artisan dev --stream --timestamps *>> $logPath
     $exitCode = $LASTEXITCODE
-    "[$(Get-Date -Format s)] Laravel dev services exited with code $exitCode. Restarting in 5 seconds." | Add-Content $logPath
+    "[$(Get-Date -Format s)] Laravel development services exited with code $exitCode. Restarting in 5 seconds." | Add-Content $logPath
     Start-Sleep -Seconds 5
 }

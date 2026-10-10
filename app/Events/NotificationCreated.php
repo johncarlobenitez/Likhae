@@ -32,6 +32,7 @@ class NotificationCreated implements ShouldBroadcast
     {
         return [
             'id' => $this->notification->id,
+            'type' => $this->notification->type,
             'title' => $this->notification->title,
             'message' => $this->notification->message,
             'action_url' => $this->notification->action_url,

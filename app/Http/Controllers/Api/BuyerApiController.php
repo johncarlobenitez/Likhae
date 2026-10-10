@@ -685,6 +685,7 @@ class BuyerApiController extends Controller
                 'formatted_address' => $order->address->formatted(),
             ] : null,
             'tracking_number' => $shipment?->tracking_number,
+            'shipment_id' => $shipment?->id,
             'rider_location' => $this->riderLocationPayload($shipment),
             'items' => $items,
             'timeline' => $events->map(fn ($event): array => [
